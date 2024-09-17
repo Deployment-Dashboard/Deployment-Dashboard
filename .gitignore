@@ -1,0 +1,73 @@
+# Gradle
+.gradle/
+
+# IntelliJ Idea - projektove soubory
+*.iml
+**/.idea/**/libraries
+**/.idea/**/artifacts
+**/.idea/**/modules.xml
+
+# IntelliJ Idea - specifika pro vyvojare
+**/.idea/**/workspace.xml
+**/.idea/**/tasks.xml
+**/.idea/**/hotswap_agent.xml
+**/.idea/dictionaries
+**/.idea/**/uiDesigner.xml
+**/.idea/**/dbnavigator.xml
+**/.idea/dataSources.local.xml
+**/.idea/dataSources.xml
+**/.idea/dataSources/
+**/.idea/.name
+**/.idea/$PRODUCT_WORKSPACE_FILE$
+**/.idea/saveactions_settings.xml
+**/.idea/jarRepositories.xml
+
+# IntelliJ Idea - Gradle
+**/.idea/gradle.xml
+
+# IntelliJ Idea - Sonar
+**/.idea/sonarlint.xml
+**/.idea/sonarlint-state.xml
+**/.idea/sonarlint/*
+
+
+# Projektove soubory Eclipse
+.metadata
+.recommenders
+.settings
+*.project
+*.classpath
+/RemoteSystemTempFiles/
+
+# vystupni a build adresare
+build/
+out/
+dist/
+target/
+obj/
+bin/
+buildtemp/
+
+# Zalohy
+*.bak
+
+# Linky
+*.lnk
+
+# Cache obrazku
+Thumbs.db
+
+# Zabezpecene soubory
+
+# DB sekce
+db/apps/**/zaloz-db/Zaloz_nebo_upg*
+db/apps/**/upgrade/**/START_SPOOL.SQL
+db/apps/**/upgrade/**/*.LOG
+
+# Pracovni soubory PLSQL Developer
+db/**/*.dsk
+
+# Automatizovane testovani
+
+# CI & tools
+**/bamboo_build.vars

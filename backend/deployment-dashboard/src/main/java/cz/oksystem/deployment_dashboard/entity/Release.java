@@ -20,12 +20,12 @@ public class Release {
   private String jiraUrl;
 
   @NotEmpty
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
   @JoinColumn(name = "env_id")
   private Environment env;
 
   @NotEmpty
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
   @JoinColumn(name = "ver_id")
   private Version ver;
 }

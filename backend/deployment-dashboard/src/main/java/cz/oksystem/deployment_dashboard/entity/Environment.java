@@ -19,7 +19,7 @@ public class Environment {
   private String name;
 
   @NotEmpty
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JoinColumn(name = "app_id")
   private App app;
 
@@ -38,6 +38,8 @@ public class Environment {
   public App getApp() {
     return app;
   }
+
+  public List<Release> getReleases() { return releases; }
 
   // Setters
   public void setName(String name) {

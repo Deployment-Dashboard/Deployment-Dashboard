@@ -1,4 +1,4 @@
-package cz.oksystem.deployment_dashboard;
+package cz.oksystem.deployment_dashboard.serviceAndController;
 
 import cz.oksystem.deployment_dashboard.entity.App;
 import org.springframework.data.jpa.repository.JpaRepository;

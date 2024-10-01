@@ -22,7 +22,7 @@ public class Version {
   private String description;
 
   @NotEmpty
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JoinColumn(name = "app_id")
   private App app;
 

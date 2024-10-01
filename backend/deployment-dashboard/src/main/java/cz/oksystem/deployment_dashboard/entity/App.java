@@ -1,13 +1,19 @@
 package cz.oksystem.deployment_dashboard.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "apps")
+@Table(
+  name = "apps")
+//,
+//  indexes = @Index(
+//    name = "unique_not_deleted",
+//    columnList = "app_key",
+//    unique = true))
 public class App {
 
   @Id
@@ -15,9 +21,18 @@ public class App {
   @Column(name = "app_id")
   private Long id;
 
-  @NotEmpty
+  @NotBlank
   @Column(name = "app_key", unique = true)
   private String key;
+
+  @NotBlank
+  private String name;
+
+  private LocalDateTime deleted;
+
+  @ManyToOne
+  @JoinColumn(name = "parent_id")
+  private App parent;
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.ALL)
   private List<Environment> envs;
@@ -25,12 +40,9 @@ public class App {
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.ALL)
   private List<Version> versions;
 
-  @NotEmpty
-  private String name;
+  @OneToMany(fetch = FetchType.LAZY, mappedBy = "parent", cascade = CascadeType.ALL)
+  private List<App> components;
 
-  private String parent;
-
-  private LocalDateTime deleted;
 
   // Getters
   public long getId() {
@@ -45,13 +57,17 @@ public class App {
     return name;
   }
 
-  public String getParent() {
+  public App getParent() {
     return parent;
   }
 
-  public LocalDateTime getDeleted() {
-    return deleted;
-  }
+  public LocalDateTime getDeleted() { return deleted; }
+
+  public List<Version> getVersions() { return versions; }
+
+  public List<Environment> getEnvs() { return envs; }
+
+  public List<App> getComponents() { return components; }
 
   // Setters
   public void setKey(String key) {
@@ -62,12 +78,19 @@ public class App {
     this.name = name;
   }
 
-  public void setParent(String parent) {
-    this.parent = parent;
-  }
+  public void setParent(App parent) { this.parent = parent; }
 
   public void setDeleted(LocalDateTime deleted) {
     this.deleted = deleted;
+  }
+
+  public boolean hasRelease() {
+    for (Environment env: envs) {
+      if (!env.getReleases().isEmpty()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override

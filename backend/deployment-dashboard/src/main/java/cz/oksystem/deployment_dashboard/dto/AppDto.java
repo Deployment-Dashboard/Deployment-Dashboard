@@ -1,21 +1,30 @@
 package cz.oksystem.deployment_dashboard.dto;
 
-import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDateTime;
 
 public class AppDto {
 
-  @NotEmpty
+  @NotBlank(message = "App key is blank.")
   private String key;
 
-  @NotEmpty
+  @NotBlank(message = "App name is blank.")
   private String name;
 
   private String parent;
 
   private LocalDateTime deleted;
 
+
+  public AppDto() {}
+
+  public AppDto(String key, String name, String parent, LocalDateTime deleted) {
+    this.key = key;
+    this.name = name;
+    this.parent = parent;
+    this.deleted = deleted;
+  }
 
   // Getters
   public String getKey() { return key; }

@@ -1,4 +1,4 @@
-package cz.oksystem.deployment_dashboard;
+package cz.oksystem.deployment_dashboard.serviceAndController;
 
 import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
 import cz.oksystem.deployment_dashboard.entity.App;
@@ -6,7 +6,6 @@ import cz.oksystem.deployment_dashboard.entity.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -24,18 +23,20 @@ public class EnvironmentService {
     return er.save(env);
   }
 
-  public List<Environment> findAllByApp(App app) { return er.findAllByApp(app); }
+  @Transactional
+  public void delete(Environment env) { er.delete(env); }
+
+  @Transactional
+  public Optional<Environment> findByNameAndApp(String key, Optional<App> app) { return app.map(value -> er.findByNameAndApp(key, value)).orElse(null); }
 
   public Environment entityFromDto(EnvironmentDto envDto) {
-    Environment env = new Environment();
-    env.setName(envDto.getName());
-
-    Optional<App> app = as.findByKey(envDto.getAppKey());
-
+    Optional<App> app = as.getByKeyEvenDeleted(envDto.getAppKey());
     if (app.isEmpty()) { return null; }
 
+    Environment env = new Environment();
+    env.setName(envDto.getName());
     env.setApp(app.get());
 
-    return  env;
+    return env;
   }
 }

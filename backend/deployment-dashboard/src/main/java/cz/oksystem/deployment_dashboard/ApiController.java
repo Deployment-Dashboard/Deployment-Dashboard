@@ -5,10 +5,11 @@ import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Environment;
 import cz.oksystem.deployment_dashboard.entity.Version;
-import cz.oksystem.deployment_dashboard.serviceAndController.AppService;
-import cz.oksystem.deployment_dashboard.serviceAndController.EnvironmentService;
-import jakarta.servlet.http.HttpServletResponse;
+import cz.oksystem.deployment_dashboard.serviceAndRepository.AppService;
+import cz.oksystem.deployment_dashboard.serviceAndRepository.EnvironmentService;
+import jakarta.persistence.PersistenceException;
 import jakarta.validation.Valid;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.crossstore.ChangeSetPersister.NotFoundException;
 import org.springframework.http.HttpStatus;
@@ -34,45 +35,29 @@ class ApiController {
     this.es = es;
   }
 
-  // TODO
-  // response body v JSONu s error messages
-  @ExceptionHandler(DataIntegrityViolationException.class)
-  @ResponseStatus(value = HttpStatus.CONFLICT)
-  String conflict(DataIntegrityViolationException ex) {
-    return ex.getMessage();
-  }
-
-  @ExceptionHandler(HttpMessageConversionException.class)
-  @ResponseStatus(value = HttpStatus.BAD_REQUEST)
-  String messageConversionException(HttpMessageConversionException ex, HttpServletResponse response) {
-    return ex.getMessage();
-  }
-
-  @ExceptionHandler(NotFoundException.class)
-  @ResponseStatus(value = HttpStatus.NOT_FOUND)
-  String notFoundException(NotFoundException ex) {
-    return ex.getMessage();
-  }
-
-  String checkBindingResult(BindingResult result) {
-    StringBuilder sb = new StringBuilder();
-    result.getAllErrors().forEach(error -> sb.append(error.getDefaultMessage()).append(" "));
-
-    return sb.toString();
-  }
 
   //  nová aplikace - POST /api/apps
   //  kontrolovat duplicity klice aplikace
   @PostMapping(consumes = "application/json")
   @ResponseStatus(value = HttpStatus.CREATED)
   void addApp(@Valid @RequestBody AppDto appDto,
-              BindingResult result) throws HttpMessageConversionException, DataIntegrityViolationException {
-    String errorMsg = checkBindingResult(result);
-
-    if (!errorMsg.isEmpty()) {
-      throw new HttpMessageConversionException(errorMsg);
+              BindingResult result) throws HttpMessageConversionException, DataIntegrityViolationException, PersistenceException {
+    if (result.hasErrors()) {
+      throw new HttpMessageConversionException(
+        String.join(" ", result.getAllErrors().stream()
+          .map(DefaultMessageSourceResolvable::getDefaultMessage)
+          .toList()));
     }
-    as.save(as.entityFromDto(appDto));
+
+    Optional<App> app = as.entityFromDto(appDto);
+
+    if (app.isPresent()) {
+      synchronized (this) {
+        as.save(app.get());
+      }
+    } else {
+      throw new PersistenceException();
+    }
   }
 
   //  update aplikace - PUT /api/apps/:key
@@ -82,27 +67,29 @@ class ApiController {
   void updateApp(@PathVariable("key") String key,
                  @Valid @RequestBody AppDto appDto,
                  BindingResult result) throws HttpMessageConversionException, DataIntegrityViolationException, NotFoundException {
-    String errorMsg = checkBindingResult(result);
-
-    if (!errorMsg.isEmpty()) {
-      throw new HttpMessageConversionException(errorMsg);
+    if (result.hasErrors()) {
+      throw new HttpMessageConversionException(
+        String.join(" ", result.getAllErrors().stream()
+          .map(DefaultMessageSourceResolvable::getDefaultMessage)
+          .toList()));
     }
 
     Optional<App> fetchedApp = as.getByKey(key);
 
     if (fetchedApp.isPresent()) {
-      Optional<App> parentApp = as.getByKey(appDto.getParent());
+      Optional<App> parentApp = as.getByKey(appDto.getParent().get());
 
-      if (parentApp.isEmpty() && appDto.getParent().describeConstable().isPresent()) {
+      if (parentApp.isEmpty() && appDto.getParent().isPresent()) {
         throw new NotFoundException();
       }
+
       App appToUpdate = fetchedApp.get();
       appToUpdate.setKey(appDto.getKey());
       appToUpdate.setName(appDto.getName());
-      appToUpdate.setParent(parentApp.get());
+      appToUpdate.setParent(parentApp.isPresent() ? parentApp.get() : null);
 
-      if (appDto.getDeleted() != null) {
-        as.delete(appToUpdate, appDto.getDeleted());
+      if (appDto.getDeleted().isPresent()) {
+        as.delete(appToUpdate, appDto.getDeleted().get());
       }
     } else {
       throw new NotFoundException();
@@ -159,9 +146,6 @@ class ApiController {
     }
 
     Version newVersion = new Version();
-
-
-
   }
 
   //  získání všech verzí projektu - GET /api/apps/:key
@@ -201,15 +185,16 @@ class ApiController {
   void addAppEnv(@Valid @RequestBody EnvironmentDto envDto,
                  @PathVariable("key") String appKey,
                  BindingResult result) throws HttpMessageConversionException, DataIntegrityViolationException, NotFoundException {
-    String errorMsg = checkBindingResult(result);
-
+    if (result.hasErrors()) {
+      throw new HttpMessageConversionException(
+        String.join(" ", result.getAllErrors().stream()
+          .map(DefaultMessageSourceResolvable::getDefaultMessage)
+          .toList()));
+    }
     if (!as.exists(appKey)) {
       throw new NotFoundException();
     }
 
-    if (!errorMsg.isEmpty()) {
-      throw new HttpMessageConversionException(errorMsg);
-    }
     es.save(es.entityFromDto(envDto));
   }
 
@@ -221,10 +206,11 @@ class ApiController {
                     @PathVariable("envKey") String envKey,
                     @Valid @RequestBody EnvironmentDto envDto,
                     BindingResult result) throws HttpMessageConversionException, DataIntegrityViolationException, NotFoundException {
-    String errorMsg = checkBindingResult(result);
-
-    if (!errorMsg.isEmpty()) {
-      throw new HttpMessageConversionException(errorMsg);
+    if (result.hasErrors()) {
+      throw new HttpMessageConversionException(
+        String.join(" ", result.getAllErrors().stream()
+          .map(DefaultMessageSourceResolvable::getDefaultMessage)
+          .toList()));
     }
 
     Optional<Environment> fetchedEnv = es.findByNameAndApp(envKey, as.getByKeyEvenDeleted(key));

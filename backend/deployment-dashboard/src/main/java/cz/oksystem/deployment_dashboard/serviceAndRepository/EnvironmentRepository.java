@@ -1,4 +1,4 @@
-package cz.oksystem.deployment_dashboard.serviceAndController;
+package cz.oksystem.deployment_dashboard.serviceAndRepository;
 
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Environment;

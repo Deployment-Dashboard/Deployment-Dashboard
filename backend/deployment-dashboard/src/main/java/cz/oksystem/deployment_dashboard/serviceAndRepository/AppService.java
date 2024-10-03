@@ -1,4 +1,4 @@
-package cz.oksystem.deployment_dashboard.serviceAndController;
+package cz.oksystem.deployment_dashboard.serviceAndRepository;
 
 import cz.oksystem.deployment_dashboard.dto.AppDto;
 import cz.oksystem.deployment_dashboard.entity.App;
@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -25,13 +26,16 @@ public class AppService {
     return ar.save(app);
   }
 
+  @Transactional
   public void delete(App app) {
     delete(app, LocalDateTime.now());
   }
 
+  @Transactional
   public void delete(App app, LocalDateTime deletedAt) {
     // jelikož smazané appky jsou pouze označeny nastavením deleted timestamp, musíme změnit key, aby se uvolnil pro další použití
     int suffix = getDeletionSuffixForKey(app.getKey());
+    incrementDeletionSuffix(app.getKey());
     app.setKey(app.getKey() + suffix);
     app.setDeleted(deletedAt);
   }
@@ -43,6 +47,9 @@ public class AppService {
   public Optional<App> getByKeyEvenDeleted(String key) { return ar.findByKey(key); }
 
   @Transactional
+  public List<App> getProjects() { return ar.findAll(); }
+
+  @Transactional
   public Optional<App> getByKey(String key) { return ar.findByKeyAndDeletedIsNull(key); }
 
   @Transactional
@@ -52,19 +59,30 @@ public class AppService {
     deletionSuffix.put(key, deletionSuffix.get(key) + 1);
   }
 
-  public App entityFromDto(AppDto appDto) {
-    Optional<App> parentApp = getByKey(appDto.getParent());
+  @Transactional
+  public Optional<App> entityFromDto(AppDto appDto) {
+    Optional<App> parentApp = Optional.empty();
 
-    if (parentApp.isEmpty() && appDto.getParent().describeConstable().isPresent()) {
-      return null;
+    if (appDto.getParent().isPresent()) {
+      parentApp = getByKey(appDto.getParent().get());
+
+      if (parentApp.isEmpty()) {
+        return Optional.empty();
+      }
     }
 
     App app = new App();
     app.setKey(appDto.getKey());
     app.setName(appDto.getName());
-    app.setParent(parentApp.get());
-    app.setDeleted(appDto.getDeleted());
 
-    return app;
+    if (parentApp.isPresent()) {
+      app.setParent(parentApp.get());
+    }
+
+    if (appDto.getDeleted().isPresent()) {
+      app.setDeleted(appDto.getDeleted().get());
+    }
+
+    return Optional.of(app);
   }
 }

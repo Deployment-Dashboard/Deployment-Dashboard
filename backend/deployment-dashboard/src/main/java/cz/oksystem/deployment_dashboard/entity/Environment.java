@@ -13,7 +13,6 @@ public class Environment {
   @GeneratedValue
   @Column(name = "env_id")
   private Long id;
-
   @NotEmpty
   @Column(name = "name")
   private String name;

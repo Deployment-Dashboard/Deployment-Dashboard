@@ -1,23 +1,31 @@
 package cz.oksystem.deployment_dashboard.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.annotation.Nullable;
+import jakarta.validation.constraints.NotEmpty;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 public class AppDto {
 
-  @NotBlank(message = "App key is blank.")
+  @NotEmpty(message = "KEY is blank.")
   private String key;
 
-  @NotBlank(message = "App name is blank.")
+  @NotEmpty(message = "NAME is blank.")
   private String name;
 
+  @Nullable
   private String parent;
 
+  @Nullable
   private LocalDateTime deleted;
 
 
   public AppDto() {}
+
+  public AppDto(String key, String name) {
+    this(key, name, null, null);
+  }
 
   public AppDto(String key, String name, String parent, LocalDateTime deleted) {
     this.key = key;
@@ -31,9 +39,9 @@ public class AppDto {
 
   public String getName() { return name; }
 
-  public String getParent() { return parent; }
+  public Optional<String> getParent() { return Optional.ofNullable(parent); }
 
-  public LocalDateTime getDeleted() { return deleted; }
+  public Optional<LocalDateTime> getDeleted() { return Optional.ofNullable(deleted); }
 
   // Setters
   public void setKey(String key) { this.key = key; }

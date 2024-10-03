@@ -1,19 +1,15 @@
 package cz.oksystem.deployment_dashboard.entity;
 
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Entity
-@Table(
-  name = "apps")
-//,
-//  indexes = @Index(
-//    name = "unique_not_deleted",
-//    columnList = "app_key",
-//    unique = true))
+@Table(name = "apps")
 public class App {
 
   @Id
@@ -28,8 +24,10 @@ public class App {
   @NotBlank
   private String name;
 
+  @Nullable
   private LocalDateTime deleted;
 
+  @Nullable
   @ManyToOne
   @JoinColumn(name = "parent_id")
   private App parent;
@@ -45,23 +43,15 @@ public class App {
 
 
   // Getters
-  public long getId() {
-    return id;
-  }
+  public long getId() { return id; }
 
-  public String getKey() {
-    return key;
-  }
+  public String getKey() { return key; }
 
-  public String getName() {
-    return name;
-  }
+  public String getName() { return name; }
 
-  public App getParent() {
-    return parent;
-  }
+  public Optional<App> getParent() { return Optional.ofNullable(parent); }
 
-  public LocalDateTime getDeleted() { return deleted; }
+  public Optional<LocalDateTime> getDeleted() { return Optional.ofNullable(deleted); }
 
   public List<Version> getVersions() { return versions; }
 
@@ -70,19 +60,13 @@ public class App {
   public List<App> getComponents() { return components; }
 
   // Setters
-  public void setKey(String key) {
-    this.key = key;
-  }
+  public void setKey(String key) { this.key = key.toLowerCase(); }
 
-  public void setName(String name) {
-    this.name = name;
-  }
+  public void setName(String name) { this.name = name.toLowerCase(); }
 
   public void setParent(App parent) { this.parent = parent; }
 
-  public void setDeleted(LocalDateTime deleted) {
-    this.deleted = deleted;
-  }
+  public void setDeleted(LocalDateTime deleted) { this.deleted = deleted; }
 
   public boolean hasRelease() {
     for (Environment env: envs) {

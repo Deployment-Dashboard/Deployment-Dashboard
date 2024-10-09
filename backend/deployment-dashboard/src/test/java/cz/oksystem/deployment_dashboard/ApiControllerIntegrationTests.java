@@ -198,7 +198,7 @@ class ApiControllerIntegrationTests {
   }
 
   @Test
-  void addComponentToNonexistantApp() throws Exception {
+  void addComponentToNonexistentApp() throws Exception {
     AppDto componentDto = new AppDto("dd-fe", "front end", "dd");
     ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();
     error.setPath("/api/apps/");
@@ -485,13 +485,12 @@ class ApiControllerIntegrationTests {
     Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
   }
 
+  // deleteApp tests
+  // TODO otestovat odebrání app, která má release
+
   // verify that deleting a nonexisting key returns NotFound
   @Test
   void deleteNonexistentAppFails() throws Exception {
-    ErrorBody error = ErrorBody.getDefaultDataIntegrityViolationException();
-    error.setDetails("App could not be updated: Key 'kl' already exists.");
-    error.setPath("/api/apps/dd");
-
     mockMvc.perform(
       delete("/api/apps/dd"))
       .andExpect(status().isNotFound());
@@ -499,7 +498,7 @@ class ApiControllerIntegrationTests {
 
   // verify that an app is deleted correctly and the key is modified accordingly
   @Test
-  void deleteExistingSucceeds() throws Exception {
+  void deleteExistingAppSucceeds() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
 
     mockMvc.perform(
@@ -602,7 +601,7 @@ class ApiControllerIntegrationTests {
   }
 
   @Test
-  void addEnvToNonexistantApp() throws Exception {
+  void addEnvToNonexistentApp() throws Exception {
     EnvironmentDto envDto = new EnvironmentDto("dd", "test");
 
     mockMvc.perform(
@@ -776,5 +775,114 @@ class ApiControllerIntegrationTests {
     Assertions.assertTrue(details.contains("App key is blank."));
     Assertions.assertEquals(error.getPath(), response.getPath());
     Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+  }
+
+  @Test
+  void updateEmptyNameEnvJsonFails() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    envService.save(new Environment(app, "test"));
+    EnvironmentDto envDto = new EnvironmentDto();
+    envDto.setAppKey("dd");
+
+    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();;
+    error.setPath("/api/apps/dd/envs/test");
+    error.setDetails("Environment could not be updated: Name is blank.");
+
+    MvcResult result = mockMvc.perform(
+        put("/api/apps/dd/envs/test")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(envDto)))
+      .andDo(print())
+      .andExpect(status().isBadRequest())
+      .andReturn();
+
+    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
+
+    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
+    Assertions.assertEquals(error.getMessage(), response.getMessage());
+    Assertions.assertEquals(error.getDetails(), response.getDetails());
+    Assertions.assertEquals(error.getPath(), response.getPath());
+    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+  }
+
+  @Test
+  void updateEmptyAppKeyEnvJsonFails() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    envService.save(new Environment(app, "test"));
+    EnvironmentDto envDto = new EnvironmentDto();
+    envDto.setName("prod");
+
+    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();;
+    error.setPath("/api/apps/dd/envs/test");
+    error.setDetails("Environment could not be updated: App key is blank.");
+
+    MvcResult result = mockMvc.perform(
+        put("/api/apps/dd/envs/test")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(envDto)))
+      .andDo(print())
+      .andExpect(status().isBadRequest())
+      .andReturn();
+
+    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
+
+    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
+    Assertions.assertEquals(error.getMessage(), response.getMessage());
+    Assertions.assertEquals(error.getDetails(), response.getDetails());
+    Assertions.assertEquals(error.getPath(), response.getPath());
+    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+  }
+
+  @Test
+  void updateValidEnvSucceeds() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    envService.save(new Environment(app, "test"));
+    EnvironmentDto envDto = new EnvironmentDto("dd", "prod");
+
+    mockMvc.perform(
+      put("/api/apps/dd/envs/test")
+        .characterEncoding("utf-8")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(objectMapper.writeValueAsString(envDto)))
+      .andDo(print())
+      .andExpect(status().isOk());
+
+    Optional<App> fetchedApp = appService.get("dd");
+    Optional<Environment> fetchedEnv = envService.get("dd", "prod");
+
+    Assertions.assertTrue(fetchedApp.isPresent());
+    Assertions.assertTrue(fetchedEnv.isPresent());
+
+    app = entityManager.merge(fetchedApp.get());
+    entityManager.refresh(app);
+
+    Assertions.assertFalse(envService.exists("dd", "test"));
+    Assertions.assertTrue(envService.exists("dd", "prod"));
+    Assertions.assertTrue(app.getEnvs().contains(fetchedEnv.get()));
+  }
+
+  // deleteAppEnv tests
+  // TODO otestovat odebrání env, které má release
+
+  @Test
+  void deleteNonexistentEnvFails() throws Exception {
+    mockMvc.perform(
+      delete("/api/apps/dd/envs/test"))
+      .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void deleteExistingEnvSucceeds() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    envService.save(new Environment(app, "test"));
+
+    mockMvc.perform(
+      delete("/api/apps/dd/envs/test"))
+      .andExpect(status().isOk());
+
+    Assertions.assertFalse(envService.exists("dd", "test"));
+    Assertions.assertTrue(app.getEnvs().isEmpty());
   }
 }

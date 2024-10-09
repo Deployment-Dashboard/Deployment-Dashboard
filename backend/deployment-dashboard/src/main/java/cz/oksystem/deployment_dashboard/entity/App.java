@@ -37,13 +37,13 @@ public class App {
 
   @JsonManagedReference
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.ALL)
-  private List<Environment> envs = new ArrayList<>();
+  private final List<Environment> envs = new ArrayList<>();
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.ALL)
-  private List<Version> versions = new ArrayList<>();
+  private final List<Version> versions = new ArrayList<>();
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "parent", cascade = CascadeType.ALL)
-  private List<App> components = new ArrayList<>();
+  private final List<App> components = new ArrayList<>();
 
 
   public App() {}
@@ -86,14 +86,8 @@ public class App {
   public void setDeleted(LocalDateTime deleted) { this.deleted = deleted; }
 
   public boolean hasRelease() {
-    if (envs == null) {
-      return false;
-    }
-
     for (Environment env: envs) {
-      if (!env.getReleases().isEmpty()) {
-        return true;
-      }
+      return env.hasRelease();
     }
     return false;
   }

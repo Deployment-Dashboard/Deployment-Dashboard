@@ -203,6 +203,7 @@ class ApiController {
     es.save(es.entityFromDto(envDto));
   }
 
+  // DONE TESTED
   //  update prostředí aplikace - PUT /api/apps/:key/envs/:envkey
   //  zakázat duplicity
   @PutMapping(path = "{key}/envs/{envKey}", consumes = "application/json")
@@ -238,20 +239,24 @@ class ApiController {
     }
   }
 
+  // DONE TEST - TODO odebrání, pokud existuje release
   //  delete prostředí aplikace - DELETE /api/apps/:key/envs/:envkey
   //  kontrolovat, že pro prostředí neexistují release, jinak nepovolit smazání
-//  @DeleteMapping(path = "{key}/envs/{envKey}")
-//  @ResponseStatus(value = HttpStatus.OK)
-//  void deleteAppEnv(@PathVariable("key") String key,
-//                    @PathVariable("envKey") String envKey) throws NotFoundException {
-//    Optional<App> fetchedApp = as.get(key);
-//
-//    if (fetchedApp.isEmpty()) {
-//      throw new NotFoundException();
-//    }
-//
-//    Optional<Environment> envToDelete = es.findByNameAndApp(envKey, fetchedApp);
-//
-//    envToDelete.ifPresent(es::delete);
-//  }
+  @DeleteMapping(path = "{key}/envs/{envKey}")
+  @ResponseStatus(value = HttpStatus.OK)
+  void deleteAppEnv(@PathVariable("key") String appKey,
+                    @PathVariable("envKey") String envKey) throws NotFoundException {
+    Optional<Environment> fetchedEnv = es.get(appKey, envKey);
+
+    if (fetchedEnv.isPresent()){
+      Environment envToDelete = fetchedEnv.get();
+
+      if (envToDelete.hasRelease()) {
+        throw new DataIntegrityViolationException("Environment could not be deleted: Env has releases.");
+      }
+      es.delete(envToDelete);
+    } else {
+      throw new NotFoundException();
+    }
+  }
 }

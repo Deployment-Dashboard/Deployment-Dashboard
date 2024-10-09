@@ -1,14 +1,22 @@
 package cz.oksystem.deployment_dashboard.dto;
 
-import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotBlank;
 
 public class EnvironmentDto {
 
-  @NotEmpty
+  @NotBlank(message = "Name is blank.")
   private String name;
 
-  @NotEmpty
+  @NotBlank(message = "App key is blank.")
   private String appKey;
+
+
+  public EnvironmentDto() {}
+
+  public EnvironmentDto(String appKey, String name) {
+    this.appKey = appKey;
+    this.name = name;
+  }
 
   // Getters
   public String getName() {

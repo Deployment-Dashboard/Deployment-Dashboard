@@ -14,24 +14,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-  String getSimplifiedViolationMessage(Exception ex) {
-    StackTraceElement[] stackTrace = ex.getStackTrace();
-
-    for (StackTraceElement element : stackTrace) {
-      String methodName = element.getMethodName().toLowerCase();
-      if (methodName.matches(".*app.*")) {
-        return "UNIQUE constraint violation on APP KEY.";
-      } else if (methodName.matches(".*env.*")) {
-        return "ENV";
-      }
-    }
-    return "UNKNOWN";
-  }
-
   @ExceptionHandler(DataIntegrityViolationException.class)
   ResponseEntity<String> conflict(HttpServletRequest request, DataIntegrityViolationException ex) throws JsonProcessingException {
     ErrorBody body = ErrorBody.getDefaultDataIntegrityViolationException();
-    body.setDetails(getSimplifiedViolationMessage(ex));
+    body.setDetails(ex.getMessage());
     body.setPath(request.getRequestURI());
 
     return new ResponseEntity<>(body.toJson(), HttpStatus.CONFLICT);

@@ -1,29 +1,40 @@
 package cz.oksystem.deployment_dashboard.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 
 @Entity
-@Table(name = "envs", uniqueConstraints = @UniqueConstraint(columnNames = {"app_id", "name"}))
+@Table(name = "envs", uniqueConstraints = @UniqueConstraint(columnNames = {"app", "name"}))
 public class Environment {
 
   @Id
   @GeneratedValue
   @Column(name = "env_id")
   private Long id;
-  @NotEmpty
+  @NotBlank
   @Column(name = "name")
   private String name;
 
-  @NotEmpty
-  @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-  @JoinColumn(name = "app_id")
+  @JsonBackReference
+  @NotNull
+  @ManyToOne
+  @JoinColumn(name = "app")
   private App app;
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "env", cascade = CascadeType.ALL)
   private List<Release> releases;
+
+
+  public Environment() {}
+
+  public Environment(App app, String name) {
+    this.app = app;
+    this.name = name;
+  }
 
   // Getters
   public Long getId() {
@@ -47,5 +58,15 @@ public class Environment {
 
   public void setApp(App app) {
     this.app = app;
+  }
+
+  @Override
+  public String toString() {
+    return "Environment{" +
+      "id=" + id +
+      ", name='" + name + '\'' +
+      ", app=" + app +
+      ", releases=" + releases +
+      '}';
   }
 }

@@ -7,7 +7,6 @@ import cz.oksystem.deployment_dashboard.entity.Environment;
 import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.serviceAndRepository.AppService;
 import cz.oksystem.deployment_dashboard.serviceAndRepository.EnvironmentService;
-import jakarta.persistence.PersistenceException;
 import jakarta.validation.Valid;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -35,31 +34,32 @@ class ApiController {
     this.es = es;
   }
 
+  String getBindingResultErrorMessage(BindingResult result) {
+    return String.join(" ", result.getAllErrors().stream()
+      .map(DefaultMessageSourceResolvable::getDefaultMessage)
+      .toList());
+  }
 
+  // DONE TESTED
   //  nová aplikace - POST /api/apps
   //  kontrolovat duplicity klice aplikace
   @PostMapping(consumes = "application/json")
   @ResponseStatus(value = HttpStatus.CREATED)
   void addApp(@Valid @RequestBody AppDto appDto,
-              BindingResult result) throws HttpMessageConversionException, DataIntegrityViolationException, PersistenceException {
+              BindingResult result) throws HttpMessageConversionException, DataIntegrityViolationException, NotFoundException {
     if (result.hasErrors()) {
-      throw new HttpMessageConversionException(
-        String.join(" ", result.getAllErrors().stream()
-          .map(DefaultMessageSourceResolvable::getDefaultMessage)
-          .toList()));
+      throw new HttpMessageConversionException("App could not be added: " + getBindingResultErrorMessage(result));
     }
-
-    Optional<App> app = as.entityFromDto(appDto);
-
-    if (app.isPresent()) {
-      synchronized (this) {
-        as.save(app.get());
-      }
-    } else {
-      throw new PersistenceException();
+    if (as.exists(appDto.getKey())) {
+      throw new DataIntegrityViolationException(String.format("App could not be added: key '%s' already exists.", appDto.getKey()));
     }
+    if (appDto.getParent().isPresent() && appDto.getParent().get().equals(appDto.getKey())) {
+      throw new DataIntegrityViolationException("App could not be added: App cannot be a parent of itself.");
+    }
+    as.save(as.entityFromDto(appDto));
   }
 
+  // DONE TESTED
   //  update aplikace - PUT /api/apps/:key
   //  kontrolovat duplicity klice aplikace
   @PutMapping("{key}")
@@ -68,46 +68,53 @@ class ApiController {
                  @Valid @RequestBody AppDto appDto,
                  BindingResult result) throws HttpMessageConversionException, DataIntegrityViolationException, NotFoundException {
     if (result.hasErrors()) {
-      throw new HttpMessageConversionException(
-        String.join(" ", result.getAllErrors().stream()
-          .map(DefaultMessageSourceResolvable::getDefaultMessage)
-          .toList()));
+      throw new HttpMessageConversionException("App could not be updated: " + getBindingResultErrorMessage(result));
     }
 
-    Optional<App> fetchedApp = as.getByKey(key);
+    Optional<App> fetchedApp = as.get(key);
 
     if (fetchedApp.isPresent()) {
-      Optional<App> parentApp = as.getByKey(appDto.getParent().get());
+      String parentKey = appDto.getParent().isPresent() ? appDto.getParent().get() : "";
 
-      if (parentApp.isEmpty() && appDto.getParent().isPresent()) {
+      Optional<App> parentApp =  as.get(parentKey);
+
+      if (parentApp.isEmpty() && !parentKey.isEmpty()) {
         throw new NotFoundException();
       }
 
       App appToUpdate = fetchedApp.get();
+
+      if (!appToUpdate.getKey().equals(appDto.getKey()) && as.exists(appDto.getKey())) {
+        throw new DataIntegrityViolationException(String.format("App could not be updated: Key '%s' already exists.", appDto.getKey()));
+      }
+
       appToUpdate.setKey(appDto.getKey());
       appToUpdate.setName(appDto.getName());
+
+
       appToUpdate.setParent(parentApp.isPresent() ? parentApp.get() : null);
 
       if (appDto.getDeleted().isPresent()) {
-        as.delete(appToUpdate, appDto.getDeleted().get());
+        as.delete(appToUpdate);
       }
     } else {
       throw new NotFoundException();
     }
   }
 
+  // DONE - TODO test smazání, pokud je release
   //  smazat aplikaci - DELETE /api/apps/:key
   //  povolit pouze pokud neexistují žádné aplikační release
   @DeleteMapping("{key}")
   @ResponseStatus(value = HttpStatus.OK)
   void deleteApp(@PathVariable("key") String key) throws NotFoundException, DataIntegrityViolationException {
-    Optional<App> fetchedApp = as.getByKey(key);
+    Optional<App> fetchedApp = as.get(key);
 
     if (fetchedApp.isPresent()) {
       App appToDelete = fetchedApp.get();
 
       if (appToDelete.hasRelease()) {
-        throw new DataIntegrityViolationException("App has releases.");
+        throw new DataIntegrityViolationException("App could not be deleted: App has releases.");
       }
       as.delete(appToDelete);
     } else {
@@ -125,34 +132,34 @@ class ApiController {
   //  components_only - pokud je true, nevytváříme záznam k aplikace, pouze ke komponentám
   //    musí existovat alespoň jedna komponenta
   //
-  @GetMapping("{key}/envs/{envKey}/versions/{version}")
-  @ResponseStatus(value = HttpStatus.OK)
-  void newVersion(@PathVariable("key") String appKey,
-                  @PathVariable("envKey") String envKey,
-                  @PathVariable("version") String version,
-                  @RequestParam("ticket") String urlEncodedTicket,
-                  @RequestParam("component") List<String> components,
-                  @RequestParam("components_only") boolean componentsOnly) throws NotFoundException {
-    Optional<App> appForRelease = as.getByKeyEvenDeleted(appKey);
-
-    if (appForRelease.isEmpty()) {
-      throw new NotFoundException();
-    }
-
-    Optional<Environment> envForRelease = es.findByNameAndApp(envKey, appForRelease);
-
-    if (envForRelease.isEmpty()) {
-      throw new NotFoundException();
-    }
-
-    Version newVersion = new Version();
-  }
+//  @GetMapping("{key}/envs/{envKey}/versions/{version}")
+//  @ResponseStatus(value = HttpStatus.OK)
+//  void newVersion(@PathVariable("key") String appKey,
+//                  @PathVariable("envKey") String envKey,
+//                  @PathVariable("version") String version,
+//                  @RequestParam("ticket") String urlEncodedTicket,
+//                  @RequestParam("component") List<String> components,
+//                  @RequestParam("components_only") boolean componentsOnly) throws NotFoundException {
+//    Optional<App> appForRelease = as.getByKeyEvenDeleted(appKey);
+//
+//    if (appForRelease.isEmpty()) {
+//      throw new NotFoundException();
+//    }
+//
+//    Optional<Environment> envForRelease = es.findByNameAndApp(envKey, appForRelease);
+//
+//    if (envForRelease.isEmpty()) {
+//      throw new NotFoundException();
+//    }
+//
+//    Version newVersion = new Version();
+//  }
 
   //  získání všech verzí projektu - GET /api/apps/:key
   @GetMapping("{key}")
   @ResponseStatus(value = HttpStatus.OK)
   ResponseEntity<List<Version>> getAllVersions(@PathVariable("key") String key) throws NotFoundException {
-    Optional<App> fetched = as.getByKeyEvenDeleted(key);
+    Optional<App> fetched = as.get(key);
 
     if (fetched.isPresent()) {
       App app = fetched.get();
@@ -163,11 +170,12 @@ class ApiController {
     }
   }
 
+  // DONE TESTED
   //  získání všech prostředí - GET /api/apps/:key/envs
   @GetMapping("{key}/envs")
   @ResponseStatus(value = HttpStatus.OK)
   ResponseEntity<List<Environment>> getAllAppEnvs(@PathVariable("key") String key) throws NotFoundException {
-    Optional<App> fetched = as.getByKeyEvenDeleted(key);
+    Optional<App> fetched = as.get(key);
 
     if (fetched.isPresent()) {
       App app = fetched.get();
@@ -178,23 +186,20 @@ class ApiController {
     }
   }
 
+  // DONE TESTED
   //  nové prostředí aplikace - POST /api/apps/:key/envs
   //  zakázat duplicity
   @PostMapping(path = "{key}/envs", consumes = "application/json")
   @ResponseStatus(value = HttpStatus.CREATED)
-  void addAppEnv(@Valid @RequestBody EnvironmentDto envDto,
-                 @PathVariable("key") String appKey,
+  void addAppEnv(@PathVariable("key") String appKey,
+                 @Valid @RequestBody EnvironmentDto envDto,
                  BindingResult result) throws HttpMessageConversionException, DataIntegrityViolationException, NotFoundException {
     if (result.hasErrors()) {
-      throw new HttpMessageConversionException(
-        String.join(" ", result.getAllErrors().stream()
-          .map(DefaultMessageSourceResolvable::getDefaultMessage)
-          .toList()));
+      throw new HttpMessageConversionException("Environment could not be added: " + getBindingResultErrorMessage(result));
     }
-    if (!as.exists(appKey)) {
-      throw new NotFoundException();
+    if (es.exists(envDto.getAppKey(), envDto.getName())) {
+      throw new DataIntegrityViolationException(String.format("Environment could not be added: key '%s' already exists for app '%s'.", envDto.getName(), envDto.getAppKey()));
     }
-
     es.save(es.entityFromDto(envDto));
   }
 
@@ -202,29 +207,31 @@ class ApiController {
   //  zakázat duplicity
   @PutMapping(path = "{key}/envs/{envKey}", consumes = "application/json")
   @ResponseStatus(value = HttpStatus.OK)
-  void updateAppEnv(@PathVariable("key") String key,
+  void updateAppEnv(@PathVariable("key") String appKey,
                     @PathVariable("envKey") String envKey,
                     @Valid @RequestBody EnvironmentDto envDto,
                     BindingResult result) throws HttpMessageConversionException, DataIntegrityViolationException, NotFoundException {
     if (result.hasErrors()) {
-      throw new HttpMessageConversionException(
-        String.join(" ", result.getAllErrors().stream()
-          .map(DefaultMessageSourceResolvable::getDefaultMessage)
-          .toList()));
+      throw new HttpMessageConversionException("Environment could not be updated: " + getBindingResultErrorMessage(result));
     }
 
-    Optional<Environment> fetchedEnv = es.findByNameAndApp(envKey, as.getByKeyEvenDeleted(key));
+    Optional<Environment> fetchedEnv = es.get(appKey, envKey);
 
     if (fetchedEnv.isPresent()) {
       Environment envToUpdate = fetchedEnv.get();
 
-      envToUpdate.setName(envDto.getName());
-
-      Optional<App> fetchedApp = as.getByKey(envDto.getAppKey());
+      Optional<App> fetchedApp = as.get(envDto.getAppKey());
 
       if (fetchedApp.isEmpty()) {
-        throw new NotFoundException();
+        throw new HttpMessageConversionException(String.format("Environment could not be updated: app with key '%s' does not exist.", envDto.getAppKey()));
       }
+      if (es.exists(envDto.getAppKey(), envDto.getName())
+        && !envDto.getAppKey().equals(appKey)
+        && !envDto.getName().equals(envKey)) {
+        throw new DataIntegrityViolationException(String.format("Environment could not be updated: environment '%s' already exists for app '%s'.", envDto.getName(), envDto.getAppKey()));
+      }
+
+      envToUpdate.setName(envDto.getName());
       envToUpdate.setApp(fetchedApp.get());
     } else {
       throw new NotFoundException();
@@ -233,18 +240,18 @@ class ApiController {
 
   //  delete prostředí aplikace - DELETE /api/apps/:key/envs/:envkey
   //  kontrolovat, že pro prostředí neexistují release, jinak nepovolit smazání
-  @DeleteMapping(path = "{key}/envs/{envKey}")
-  @ResponseStatus(value = HttpStatus.OK)
-  void deleteAppEnv(@PathVariable("key") String key,
-                    @PathVariable("envKey") String envKey) throws NotFoundException {
-    Optional<App> fetchedApp = as.getByKeyEvenDeleted(key);
-
-    if (fetchedApp.isEmpty()) {
-      throw new NotFoundException();
-    }
-
-    Optional<Environment> envToDelete = es.findByNameAndApp(envKey, fetchedApp);
-
-    envToDelete.ifPresent(es::delete);
-  }
+//  @DeleteMapping(path = "{key}/envs/{envKey}")
+//  @ResponseStatus(value = HttpStatus.OK)
+//  void deleteAppEnv(@PathVariable("key") String key,
+//                    @PathVariable("envKey") String envKey) throws NotFoundException {
+//    Optional<App> fetchedApp = as.get(key);
+//
+//    if (fetchedApp.isEmpty()) {
+//      throw new NotFoundException();
+//    }
+//
+//    Optional<Environment> envToDelete = es.findByNameAndApp(envKey, fetchedApp);
+//
+//    envToDelete.ifPresent(es::delete);
+//  }
 }

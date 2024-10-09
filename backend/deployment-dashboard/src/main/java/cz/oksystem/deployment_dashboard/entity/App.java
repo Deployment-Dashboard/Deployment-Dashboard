@@ -1,10 +1,13 @@
 package cz.oksystem.deployment_dashboard.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,19 +35,25 @@ public class App {
   @JoinColumn(name = "parent_id")
   private App parent;
 
+  @JsonManagedReference
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.ALL)
-  private List<Environment> envs;
+  private List<Environment> envs = new ArrayList<>();
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.ALL)
-  private List<Version> versions;
+  private List<Version> versions = new ArrayList<>();
 
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "parent", cascade = CascadeType.ALL)
-  private List<App> components;
+  private List<App> components = new ArrayList<>();
 
+
+  public App() {}
+
+  public App(String key, String name) {
+    this.key = key;
+    this.name = name;
+  }
 
   // Getters
-  public long getId() { return id; }
-
   public String getKey() { return key; }
 
   public String getName() { return name; }
@@ -53,22 +62,34 @@ public class App {
 
   public Optional<LocalDateTime> getDeleted() { return Optional.ofNullable(deleted); }
 
-  public List<Version> getVersions() { return versions; }
+  public List<Version> getVersions() { return Collections.unmodifiableList(versions); }
 
-  public List<Environment> getEnvs() { return envs; }
+  public List<Environment> getEnvs() { return Collections.unmodifiableList(envs); }
 
-  public List<App> getComponents() { return components; }
+  public List<App> getComponents() { return Collections.unmodifiableList(components); }
 
   // Setters
   public void setKey(String key) { this.key = key.toLowerCase(); }
 
   public void setName(String name) { this.name = name.toLowerCase(); }
 
-  public void setParent(App parent) { this.parent = parent; }
+  public void setParent(App parent) {
+    if (this.parent != null ) {
+      this.parent.components.remove(this);
+    }
+    this.parent = parent;
+    if (parent != null) {
+      parent.components.add(this);
+    }
+  }
 
   public void setDeleted(LocalDateTime deleted) { this.deleted = deleted; }
 
   public boolean hasRelease() {
+    if (envs == null) {
+      return false;
+    }
+
     for (Environment env: envs) {
       if (!env.getReleases().isEmpty()) {
         return true;

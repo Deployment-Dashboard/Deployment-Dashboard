@@ -1,9 +1,9 @@
 package cz.oksystem.deployment_dashboard.entity;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.lang.Nullable;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -39,9 +39,11 @@ public class App {
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.ALL)
   private final List<Environment> envs = new ArrayList<>();
 
+  @JsonManagedReference
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.ALL)
   private final List<Version> versions = new ArrayList<>();
 
+  @JsonManagedReference
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "parent", cascade = CascadeType.ALL)
   private final List<App> components = new ArrayList<>();
 
@@ -85,9 +87,9 @@ public class App {
 
   public void setDeleted(LocalDateTime deleted) { this.deleted = deleted; }
 
-  public boolean hasRelease() {
+  public boolean hasDeployment() {
     for (Environment env: envs) {
-      return env.hasRelease();
+      return env.hasDeployment();
     }
     return false;
   }

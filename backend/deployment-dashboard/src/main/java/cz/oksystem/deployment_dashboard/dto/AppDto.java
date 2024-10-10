@@ -1,6 +1,6 @@
 package cz.oksystem.deployment_dashboard.dto;
 
-import jakarta.annotation.Nullable;
+import org.springframework.lang.Nullable;
 import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDateTime;

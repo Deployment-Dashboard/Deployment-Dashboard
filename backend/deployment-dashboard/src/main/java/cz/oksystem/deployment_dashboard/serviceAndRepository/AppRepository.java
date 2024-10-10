@@ -11,4 +11,5 @@ public interface AppRepository extends JpaRepository<App, Long> {
   boolean existsByKey(String key);
   Optional<App> findByKey(String key);
   Optional<App> findByKeyAndDeletedIsNull(String key);
+  Optional<App> findByKeyAndParentIsNull(String key);
 }

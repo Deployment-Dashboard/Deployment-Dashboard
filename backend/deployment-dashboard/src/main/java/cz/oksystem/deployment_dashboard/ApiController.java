@@ -3,10 +3,13 @@ package cz.oksystem.deployment_dashboard;
 import cz.oksystem.deployment_dashboard.dto.AppDto;
 import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
 import cz.oksystem.deployment_dashboard.entity.App;
+import cz.oksystem.deployment_dashboard.entity.Deployment;
 import cz.oksystem.deployment_dashboard.entity.Environment;
 import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.serviceAndRepository.AppService;
+import cz.oksystem.deployment_dashboard.serviceAndRepository.DeploymentService;
 import cz.oksystem.deployment_dashboard.serviceAndRepository.EnvironmentService;
+import cz.oksystem.deployment_dashboard.serviceAndRepository.VersionService;
 import jakarta.validation.Valid;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -17,8 +20,10 @@ import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 
 //API
@@ -28,10 +33,14 @@ import java.util.Optional;
 class ApiController {
   private final AppService as;
   private final EnvironmentService es;
+  private final VersionService vs;
+  private final DeploymentService ds;
 
-  public ApiController(AppService as, EnvironmentService es) {
+  public ApiController(AppService as, EnvironmentService es, VersionService vs, DeploymentService ds) {
     this.as = as;
     this.es = es;
+    this.vs = vs;
+    this.ds = ds;
   }
 
   String getBindingResultErrorMessage(BindingResult result) {
@@ -91,7 +100,6 @@ class ApiController {
       appToUpdate.setKey(appDto.getKey());
       appToUpdate.setName(appDto.getName());
 
-
       appToUpdate.setParent(parentApp.isPresent() ? parentApp.get() : null);
 
       if (appDto.getDeleted().isPresent()) {
@@ -113,8 +121,8 @@ class ApiController {
     if (fetchedApp.isPresent()) {
       App appToDelete = fetchedApp.get();
 
-      if (appToDelete.hasRelease()) {
-        throw new DataIntegrityViolationException("App could not be deleted: App has releases.");
+      if (appToDelete.hasDeployment()) {
+        throw new DataIntegrityViolationException("App could not be deleted: App has deployments.");
       }
       as.delete(appToDelete);
     } else {
@@ -122,7 +130,7 @@ class ApiController {
     }
   }
 
-  //  TODO
+  // DONE - TODO testy
   //  nová verze - GET /api/apps/:key/envs/:envkey/versions/:version?ticket=:urlencoded_ticket_link:&component=:component_1:&component=:component_2:&components_only=true
   //  pokud neexistuje aplikace, vrací chybu
   //  pokud neexistuje prostředí, vrací chybu
@@ -132,39 +140,58 @@ class ApiController {
   //  components_only - pokud je true, nevytváříme záznam k aplikace, pouze ke komponentám
   //    musí existovat alespoň jedna komponenta
   //
-//  @GetMapping("{key}/envs/{envKey}/versions/{version}")
-//  @ResponseStatus(value = HttpStatus.OK)
-//  void newVersion(@PathVariable("key") String appKey,
-//                  @PathVariable("envKey") String envKey,
-//                  @PathVariable("version") String version,
-//                  @RequestParam("ticket") String urlEncodedTicket,
-//                  @RequestParam("component") List<String> components,
-//                  @RequestParam("components_only") boolean componentsOnly) throws NotFoundException {
-//    Optional<App> appForRelease = as.getByKeyEvenDeleted(appKey);
-//
-//    if (appForRelease.isEmpty()) {
-//      throw new NotFoundException();
-//    }
-//
-//    Optional<Environment> envForRelease = es.findByNameAndApp(envKey, appForRelease);
-//
-//    if (envForRelease.isEmpty()) {
-//      throw new NotFoundException();
-//    }
-//
-//    Version newVersion = new Version();
-//  }
+  @GetMapping("{key}/envs/{envKey}/versions/{version}")
+  @ResponseStatus(value = HttpStatus.OK)
+  void newVersion(@PathVariable("key") String appKey,
+                  @PathVariable("envKey") String envKey,
+                  @PathVariable("version") String versionName,
+                  @RequestParam(value = "ticket", required = false) String urlEncodedTicket,
+                  @RequestParam(value = "component", required = false) List<String> components,
+                  @RequestParam(value = "components_only", required = false) boolean componentsOnly) throws NotFoundException {
+    Optional<App> fetchedApp = as.get(appKey);
+    Optional<Environment> fetchedEnv = es.get(appKey, envKey);
 
+    if (fetchedApp.isPresent() && fetchedEnv.isPresent()) {
+      App project = fetchedApp.get();
+      List<App> fetchedComponents = project.getComponents();
+
+      if (components != null && !fetchedComponents.stream().map(App::getName).collect(Collectors.toCollection(HashSet::new)).containsAll(components)) {
+        throw new NotFoundException();
+      }
+
+      Environment env = fetchedEnv.get();
+      Version version;
+
+      if (!vs.exists(appKey, versionName) && !componentsOnly) {
+        version = vs.save(new Version(project, versionName));
+
+        System.out.println(version);
+        Deployment deployment = ds.save(new Deployment(urlEncodedTicket, env, version));
+        assert(deployment != null);
+        System.out.println(deployment);
+      }
+
+      for (App component: fetchedComponents) {
+        version = vs.save(new Version(component, versionName));
+
+        ds.save(new Deployment(urlEncodedTicket, env, version));
+      }
+    } else {
+      throw new NotFoundException();
+    }
+  }
+
+  // DONE - TODO testy
   //  získání všech verzí projektu - GET /api/apps/:key
   @GetMapping("{key}")
   @ResponseStatus(value = HttpStatus.OK)
   ResponseEntity<List<Version>> getAllVersions(@PathVariable("key") String key) throws NotFoundException {
-    Optional<App> fetched = as.get(key);
+    Optional<App> fetchedProject = as.getProject(key);
 
-    if (fetched.isPresent()) {
-      App app = fetched.get();
+    if (fetchedProject.isPresent()) {
+      App project = fetchedProject.get();
 
-      return ResponseEntity.ok(app.getVersions());
+      return ResponseEntity.ok(project.getVersions());
     } else {
       throw new NotFoundException();
     }
@@ -239,7 +266,7 @@ class ApiController {
     }
   }
 
-  // DONE TEST - TODO odebrání, pokud existuje release
+  // DONE TESTED - TODO odebrání, pokud existuje deployment
   //  delete prostředí aplikace - DELETE /api/apps/:key/envs/:envkey
   //  kontrolovat, že pro prostředí neexistují release, jinak nepovolit smazání
   @DeleteMapping(path = "{key}/envs/{envKey}")
@@ -251,8 +278,8 @@ class ApiController {
     if (fetchedEnv.isPresent()){
       Environment envToDelete = fetchedEnv.get();
 
-      if (envToDelete.hasRelease()) {
-        throw new DataIntegrityViolationException("Environment could not be deleted: Env has releases.");
+      if (envToDelete.hasDeployment()) {
+        throw new DataIntegrityViolationException("Environment could not be deleted: Env has deployments.");
       }
       es.delete(envToDelete);
     } else {

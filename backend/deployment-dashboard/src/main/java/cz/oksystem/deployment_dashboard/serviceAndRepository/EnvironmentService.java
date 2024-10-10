@@ -54,11 +54,7 @@ public class EnvironmentService {
   public boolean exists(String appKey, String envKey) {
     Optional<App> fetchedApp = as.get(appKey);
 
-    if (fetchedApp.isPresent()) {
-      return er.existsByAppAndName(fetchedApp.get(), envKey);
-    } else {
-      return false;
-    }
+    return fetchedApp.isPresent() && er.existsByAppAndName(fetchedApp.get(), envKey);
   }
 
   @Transactional(readOnly = true)

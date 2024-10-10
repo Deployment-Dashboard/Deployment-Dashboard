@@ -66,6 +66,11 @@ public class AppService {
   public Optional<App> get(String key, boolean alsoDeleted) { return alsoDeleted ? ar.findByKeyAndDeletedIsNull(key) : ar.findByKey(key); }
 
   @Transactional(readOnly = true)
+  public Optional<App> getProject(String key) {
+    return ar.findByKeyAndParentIsNull(key);
+  }
+
+  @Transactional(readOnly = true)
   public App entityFromDto(AppDto appDto) throws NotFoundException {
     Optional<App> parentApp = Optional.empty();
 

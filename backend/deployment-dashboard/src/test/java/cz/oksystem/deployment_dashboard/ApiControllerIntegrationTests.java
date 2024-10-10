@@ -7,7 +7,9 @@ import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Environment;
 import cz.oksystem.deployment_dashboard.entity.ErrorBody;
 import cz.oksystem.deployment_dashboard.serviceAndRepository.AppService;
+import cz.oksystem.deployment_dashboard.serviceAndRepository.DeploymentService;
 import cz.oksystem.deployment_dashboard.serviceAndRepository.EnvironmentService;
+import cz.oksystem.deployment_dashboard.serviceAndRepository.VersionService;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +29,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+
+// TODO testy pro verze a deploymenty
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -49,6 +53,12 @@ class ApiControllerIntegrationTests {
   private EnvironmentService envService;
 
   @Autowired
+  private VersionService verService;
+
+  @Autowired
+  private DeploymentService depService;
+
+  @Autowired
   private EntityManager entityManager;
 
 
@@ -64,6 +74,8 @@ class ApiControllerIntegrationTests {
     Assertions.assertNotNull(apiController);
     Assertions.assertNotNull(appService);
     Assertions.assertNotNull(envService);
+    Assertions.assertNotNull(verService);
+    Assertions.assertNotNull(depService);
 	}
 
   // addApp tests
@@ -486,7 +498,7 @@ class ApiControllerIntegrationTests {
   }
 
   // deleteApp tests
-  // TODO otestovat odebrání app, která má release
+  // TODO otestovat odebrání app, která má deployment
 
   // verify that deleting a nonexisting key returns NotFound
   @Test
@@ -864,7 +876,7 @@ class ApiControllerIntegrationTests {
   }
 
   // deleteAppEnv tests
-  // TODO otestovat odebrání env, které má release
+  // TODO otestovat odebrání env, které má deployment
 
   @Test
   void deleteNonexistentEnvFails() throws Exception {

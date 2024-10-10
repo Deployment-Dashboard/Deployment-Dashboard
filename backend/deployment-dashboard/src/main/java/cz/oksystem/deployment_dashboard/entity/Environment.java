@@ -26,8 +26,9 @@ public class Environment {
   @JoinColumn(name = "app")
   private App app;
 
+  @JsonBackReference
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "env", cascade = CascadeType.ALL)
-  private final List<Release> releases = new ArrayList<>();
+  private final List<Deployment> deployments = new ArrayList<>();
 
 
   public Environment() {}
@@ -50,7 +51,7 @@ public class Environment {
     return app;
   }
 
-  public List<Release> getReleases() { return releases; }
+  public List<Deployment> getDeployments() { return deployments; }
 
   // Setters
   public void setName(String name) {
@@ -67,11 +68,11 @@ public class Environment {
       "id=" + id +
       ", name='" + name + '\'' +
       ", app=" + app +
-      ", releases=" + releases +
+      ", deployments=" + deployments +
       '}';
   }
 
-  public boolean hasRelease() {
-    return !getReleases().isEmpty();
+  public boolean hasDeployment() {
+    return !getDeployments().isEmpty();
   }
 }

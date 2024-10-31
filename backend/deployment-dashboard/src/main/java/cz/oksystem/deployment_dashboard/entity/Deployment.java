@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.lang.Nullable;
 
-import java.sql.Date;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "deployments", uniqueConstraints = @UniqueConstraint(columnNames = {"env", "ver"}))
@@ -17,7 +17,7 @@ public class Deployment {
 
   @Nullable
   @Column(name = "date")
-  private Date date;
+  private LocalDateTime date;
 
   @Nullable
   @Column(name = "jira_url")
@@ -45,7 +45,7 @@ public class Deployment {
     this(null, jiraUrl, env, ver);
   }
 
-  public Deployment(Date date, String jiraUrl, Environment env, Version ver) {
+  public Deployment(LocalDateTime date, String jiraUrl, Environment env, Version ver) {
     this.date = date;
     this.jiraUrl = jiraUrl;
     this.env = env;
@@ -72,11 +72,11 @@ public class Deployment {
   }
 
   @Nullable
-  public Date getDate() {
+  public LocalDateTime getDate() {
     return date;
   }
 
-  public void setDate(@Nullable Date date) {
+  public void setDate(@Nullable LocalDateTime date) {
     this.date = date;
   }
 

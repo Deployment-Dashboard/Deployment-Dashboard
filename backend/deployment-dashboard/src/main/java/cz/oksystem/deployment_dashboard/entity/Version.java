@@ -1,9 +1,13 @@
 package cz.oksystem.deployment_dashboard.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,11 +27,16 @@ public class Version {
   @Column(name = "desc")
   private String description = "";
 
+  @CreationTimestamp
+  private LocalDateTime createdAt;
+
+  @JsonBackReference
   @NotNull
   @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JoinColumn(name = "app")
   private App app;
 
+  @JsonManagedReference
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "ver", cascade = CascadeType.ALL)
   private final List<Deployment> deployments = new ArrayList<>();
 
@@ -43,6 +52,29 @@ public class Version {
     this.description = description;
   }
 
+  // Getters
+  public String getName() {
+    return name;
+  }
+
+  public String getDescription() {
+    return description;
+  }
+
+  public App getApp() {
+    return app;
+  }
+
+  // Setters
+
+  public void addDeployment(Deployment deployment) {
+    deployments.add(deployment);
+  }
+
+  public void removeDeployment(Deployment deployment) {
+    deployments.remove(deployment);
+  }
+
   @Override
   public String toString() {
     return "Version{" +
@@ -52,5 +84,9 @@ public class Version {
       ", app=" + app +
       ", deployments=" + deployments +
       '}';
+  }
+
+  public void setApp(App app) {
+    this.app = app;
   }
 }

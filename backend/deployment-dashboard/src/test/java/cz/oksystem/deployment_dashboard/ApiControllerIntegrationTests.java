@@ -5,7 +5,6 @@ import cz.oksystem.deployment_dashboard.dto.AppDto;
 import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Environment;
-import cz.oksystem.deployment_dashboard.entity.ErrorBody;
 import cz.oksystem.deployment_dashboard.serviceAndRepository.AppService;
 import cz.oksystem.deployment_dashboard.serviceAndRepository.DeploymentService;
 import cz.oksystem.deployment_dashboard.serviceAndRepository.EnvironmentService;
@@ -17,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -25,12 +25,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-
-// TODO testy pro verze a deploymenty
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -64,7 +64,7 @@ class ApiControllerIntegrationTests {
 
   @BeforeEach
   void setup() {
-    appService.resetDeletionCounter();
+    appService.resetArchivationCounter();
   }
 
 	@Test
@@ -85,29 +85,20 @@ class ApiControllerIntegrationTests {
   void addEmptyJsonFails() throws Exception {
     AppDto appDto = new AppDto();
 
-    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();
-    error.setPath("/api/apps");
-
-    MvcResult result = mockMvc.perform(
+    mockMvc.perform(
       post("/api/apps")
         .characterEncoding("utf-8")
         .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto)))
+        .content(objectMapper.writeValueAsString(appDto))
+        .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    String details = response.getDetails();
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertTrue(details.contains("App could not be added:"));
-    Assertions.assertTrue(details.contains("Key is blank."));
-    Assertions.assertTrue(details.contains("Name is blank."));
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("App could not be added."))
+      .andExpect(jsonPath("$.details").value(containsString("Key is blank.")))
+      .andExpect(jsonPath("$.details").value(containsString("Name is blank")))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps"));
   }
 
   // verify that empty key field get rejected
@@ -116,26 +107,19 @@ class ApiControllerIntegrationTests {
     AppDto appDto = new AppDto();
     appDto.setName("deployment dashboard");
 
-    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();
-    error.setDetails("App could not be added: Key is blank.");
-    error.setPath("/api/apps");
-
-    MvcResult result = mockMvc.perform(
+    mockMvc.perform(
       post("/api/apps")
         .characterEncoding("utf-8")
         .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto)))
+        .content(objectMapper.writeValueAsString(appDto))
+        .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertEquals(error.getDetails(), response.getDetails());
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("App could not be added."))
+      .andExpect(jsonPath("$.details").value("Key is blank."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps"));
   }
 
   // verify that empty name field gets rejected
@@ -144,26 +128,19 @@ class ApiControllerIntegrationTests {
     AppDto appDto = new AppDto();
     appDto.setKey("dd");
 
-    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();
-    error.setDetails("App could not be added: Name is blank.");
-    error.setPath("/api/apps");
-
-    MvcResult result = mockMvc.perform(
+    mockMvc.perform(
       post("/api/apps")
         .characterEncoding("utf-8")
         .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto)))
+        .content(objectMapper.writeValueAsString(appDto))
+        .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertEquals(error.getDetails(), response.getDetails());
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("App could not be added."))
+      .andExpect(jsonPath("$.details").value("Name is blank."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps"));
   }
 
   // verify that an app is persisted from valid JSON
@@ -186,7 +163,7 @@ class ApiControllerIntegrationTests {
     Assertions.assertEquals(appDto.getKey(), app.getKey());
     Assertions.assertEquals(appDto.getName(), app.getName());
     Assertions.assertEquals(Optional.empty(), app.getParent());
-    Assertions.assertEquals(Optional.empty(), app.getDeleted());
+    Assertions.assertEquals(Optional.empty(), app.getArchivedTimestamp());
   }
 
   // verify that the project-component relationship is created correctly
@@ -212,8 +189,6 @@ class ApiControllerIntegrationTests {
   @Test
   void addComponentToNonexistentApp() throws Exception {
     AppDto componentDto = new AppDto("dd-fe", "front end", "dd");
-    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();
-    error.setPath("/api/apps/");
 
     mockMvc.perform(
       post("/api/apps/")
@@ -253,18 +228,14 @@ class ApiControllerIntegrationTests {
     Assertions.assertTrue(fe.isPresent());
     Assertions.assertTrue(db.isPresent());
     Assertions.assertFalse(app.getComponents().isEmpty());
-    Assertions.assertEquals(fe.get(), app.getComponents().get(0));
-    Assertions.assertEquals(db.get(), app.getComponents().get(1));
+    Assertions.assertTrue(app.getComponents().contains(fe.get()));
+    Assertions.assertTrue(app.getComponents().contains(db.get()));
   }
 
   // verify that an app that is a parent of itself gets rejected
   @Test
   void addRecursiveAppFails() throws Exception {
     AppDto appDto = new AppDto("dd", "deployment dashboard", "dd");
-
-    ErrorBody error = ErrorBody.getDefaultDataIntegrityViolationException();
-    error.setDetails("App could not be added: App cannot be a parent of itself.");
-    error.setPath("/api/apps");
 
     MvcResult result = mockMvc.perform(
       post("/api/apps")
@@ -275,25 +246,26 @@ class ApiControllerIntegrationTests {
       .andExpect(status().isConflict())
       .andReturn();
 
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertEquals(error.getDetails(), response.getDetails());
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+    mockMvc.perform(
+        post("/api/apps")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto))
+          .accept(MediaType.APPLICATION_JSON))
+      .andDo(print())
+      .andExpect(status().isConflict())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
+      .andExpect(jsonPath("$.message").value("App could not be added."))
+      .andExpect(jsonPath("$.details").value("App cannot be a parent of itself."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps"));
   }
 
   // verify that a duplicate app is rejected
   @Test
   void addDuplicateAppFails() throws Exception {
     AppDto appDto = new AppDto("dd", "deployment dashboard");
-
     String appJson = objectMapper.writeValueAsString(appDto);
-
-    ErrorBody error = ErrorBody.getDefaultDataIntegrityViolationException();
-    error.setDetails("App could not be added: key 'dd' already exists.");
-    error.setPath("/api/apps");
 
     mockMvc.perform(
       post("/api/apps")
@@ -303,22 +275,19 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isCreated());
 
-    MvcResult result = mockMvc.perform(
-      post("/api/apps")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(appJson))
-      .andExpect(status().isConflict())
+    mockMvc.perform(
+        post("/api/apps")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(appJson)
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertEquals(error.getDetails(), response.getDetails());
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(status().isConflict())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
+      .andExpect(jsonPath("$.message").value("App could not be added."))
+      .andExpect(jsonPath("$.details").value("App with key 'dd' already exists."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps"));
   }
 
   // updateApp tests
@@ -329,29 +298,20 @@ class ApiControllerIntegrationTests {
     appService.save(new App("dd", "deployment dashboard"));
     AppDto appDto = new AppDto();
 
-    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();
-    error.setPath("/api/apps/dd");
-
-    MvcResult result = mockMvc.perform(
-      put("/api/apps/dd")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto)))
+    mockMvc.perform(
+        put("/api/apps/dd")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto))
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    String details = response.getDetails();
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertTrue(details.contains("App could not be updated:"));
-    Assertions.assertTrue(details.contains("Key is blank."));
-    Assertions.assertTrue(details.contains("Name is blank."));
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("App could not be updated."))
+      .andExpect(jsonPath("$.details").value(containsString("Key is blank.")))
+      .andExpect(jsonPath("$.details").value(containsString("Name is blank")))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
   }
 
   // verify that empty key field gets rejected
@@ -361,26 +321,19 @@ class ApiControllerIntegrationTests {
     AppDto appDto = new AppDto();
     appDto.setName("deployment dashboard");
 
-    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();
-    error.setDetails("App could not be updated: Key is blank.");
-    error.setPath("/api/apps/dd");
-
-    MvcResult result = mockMvc.perform(
-      put("/api/apps/dd")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto)))
+    mockMvc.perform(
+        put("/api/apps/dd")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto))
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertEquals(error.getDetails(), response.getDetails());
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("App could not be updated."))
+      .andExpect(jsonPath("$.details").value("Key is blank."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
   }
 
   // verify that empty name field gets rejected
@@ -390,26 +343,19 @@ class ApiControllerIntegrationTests {
     AppDto appDto = new AppDto();
     appDto.setKey("dd");
 
-    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();
-    error.setDetails("App could not be updated: Name is blank.");
-    error.setPath("/api/apps/dd");
-
-    MvcResult result = mockMvc.perform(
-      put("/api/apps/dd")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto)))
+    mockMvc.perform(
+        put("/api/apps/dd")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto))
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertEquals(error.getDetails(), response.getDetails());
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("App could not be updated."))
+      .andExpect(jsonPath("$.details").value("Name is blank."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
   }
 
   // verify that NotFound is returned for nonexistent key
@@ -446,7 +392,7 @@ class ApiControllerIntegrationTests {
     Assertions.assertEquals(appDto.getKey(), app.getKey());
     Assertions.assertEquals(appDto.getName(), app.getName());
     Assertions.assertEquals(Optional.empty(), app.getParent());
-    Assertions.assertEquals(Optional.empty(), app.getDeleted());
+    Assertions.assertEquals(Optional.empty(), app.getArchivedTimestamp());
   }
 
   // verify that valid JSON gets accepted, change the app key
@@ -466,59 +412,59 @@ class ApiControllerIntegrationTests {
     Assertions.assertEquals(appDto.getKey(), app.getKey());
     Assertions.assertEquals(appDto.getName(), app.getName());
     Assertions.assertEquals(Optional.empty(), app.getParent());
-    Assertions.assertEquals(Optional.empty(), app.getDeleted());
+    Assertions.assertEquals(Optional.empty(), app.getArchivedTimestamp());
   }
 
   // verify that changing the app key to an existing one gets rejected
   @Test
   void updateDuplicateAppFails() throws Exception {
-    appService.save(new App("dd", "deployment dashboard"), new App("kl", "kontrolní linka"));
+    appService.saveAll(new App("dd", "deployment dashboard"), new App("kl", "kontrolní linka"));
     AppDto appDto = new AppDto("kl", "nekontrolní linka");
 
-    ErrorBody error = ErrorBody.getDefaultDataIntegrityViolationException();
-    error.setDetails("App could not be updated: Key 'kl' already exists.");
-    error.setPath("/api/apps/dd");
-
-    MvcResult result = mockMvc.perform(
-      put("/api/apps/dd")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto)))
+    mockMvc.perform(
+        put("/api/apps/dd")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto))
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isConflict())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertEquals(error.getDetails(), response.getDetails());
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
+      .andExpect(jsonPath("$.message").value("App could not be updated."))
+      .andExpect(jsonPath("$.details").value("App with key 'kl' already exists."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
   }
 
   // deleteApp tests
-  // TODO otestovat odebrání app, která má deployment
+  // TODO otestovat odebrání app, která má deployment + archivaci
 
   // verify that deleting a nonexisting key returns NotFound
   @Test
   void deleteNonexistentAppFails() throws Exception {
     mockMvc.perform(
-      delete("/api/apps/dd"))
-      .andExpect(status().isNotFound());
+        delete("/api/apps/dd")
+          .characterEncoding("utf-8")
+          .accept(MediaType.APPLICATION_JSON))
+      .andDo(print())
+      .andExpect(status().isNotFound())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.NOT_FOUND.value()))
+      .andExpect(jsonPath("$.message").value("App could not be archived/deleted."))
+      .andExpect(jsonPath("$.details").value("App with key 'dd' is not managed."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
   }
 
-  // verify that an app is deleted correctly and the key is modified accordingly
+  // verify that an app is deleted
   @Test
   void deleteExistingAppSucceeds() throws Exception {
-    App app = appService.save(new App("dd", "deployment dashboard"));
+    appService.save(new App("dd", "deployment dashboard"));
 
     mockMvc.perform(
-      delete("/api/apps/dd"))
+      delete("/api/apps/dd?hard_delete=true"))
       .andExpect(status().isOk());
 
-    Assertions.assertEquals("dd1", app.getKey());
-    Assertions.assertTrue(app.getDeleted().isPresent());
+    Assertions.assertFalse(appService.exists("dd"));
   }
 
   // addAppEnv tests
@@ -529,29 +475,20 @@ class ApiControllerIntegrationTests {
     appService.save(new App("dd", "deployment dashboard"));
     EnvironmentDto envDto = new EnvironmentDto();
 
-    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();
-    error.setPath("/api/apps/dd/envs");
-
-    MvcResult result = mockMvc.perform(
-      post("/api/apps/dd/envs")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(envDto)))
-    .andDo(print())
-    .andExpect(status().isBadRequest())
-    .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    String details = response.getDetails();
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertTrue(details.contains("Environment could not be added:"));
-    Assertions.assertTrue(details.contains("Name is blank."));
-    Assertions.assertTrue(details.contains("App key is blank."));
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+    mockMvc.perform(
+        post("/api/apps/dd/envs")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(envDto))
+          .accept(MediaType.APPLICATION_JSON))
+      .andDo(print())
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("Environment could not be added."))
+      .andExpect(jsonPath("$.details").value(containsString("Name is blank.")))
+      .andExpect(jsonPath("$.details").value(containsString("App key is blank.")))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs"));
 }
 
   @Test
@@ -560,27 +497,19 @@ class ApiControllerIntegrationTests {
     EnvironmentDto envDto = new EnvironmentDto();
     envDto.setName("prod");
 
-    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();
-    error.setPath("/api/apps/dd/envs");
-
-    MvcResult result = mockMvc.perform(
-      post("/api/apps/dd/envs")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(envDto)))
+    mockMvc.perform(
+        post("/api/apps/dd/envs")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(envDto))
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    String details = response.getDetails();
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertTrue(details.contains("Environment could not be added: App key is blank."));
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("Environment could not be added."))
+      .andExpect(jsonPath("$.details").value(containsString("App key is blank.")))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs"));
   }
 
   @Test
@@ -589,27 +518,19 @@ class ApiControllerIntegrationTests {
     EnvironmentDto envDto = new EnvironmentDto();
     envDto.setAppKey("dd");
 
-    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();
-    error.setPath("/api/apps/dd/envs");
-
-    MvcResult result = mockMvc.perform(
-      post("/api/apps/dd/envs")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(envDto)))
+    mockMvc.perform(
+        post("/api/apps/dd/envs")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(envDto))
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    String details = response.getDetails();
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertTrue(details.contains("Environment could not be added: Name is blank."));
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("Environment could not be added."))
+      .andExpect(jsonPath("$.details").value(containsString("Name is blank.")))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs"));
   }
 
   @Test
@@ -620,14 +541,20 @@ class ApiControllerIntegrationTests {
       post("/api/apps/dd/envs")
         .characterEncoding("utf-8")
         .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(envDto)))
+        .content(objectMapper.writeValueAsString(envDto))
+        .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
-      .andExpect(status().isNotFound());
+      .andExpect(status().isNotFound())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.NOT_FOUND.value()))
+      .andExpect(jsonPath("$.message").value("Environment could not be added."))
+      .andExpect(jsonPath("$.details").value("App with key 'dd' is not managed."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs"));
   }
 
   @Test
   void addValidEnvSucceeds() throws Exception {
-    appService.save(new App("dd", "deployment dashboard"));
+    App app = appService.save(new App("dd", "deployment dashboard"));
     EnvironmentDto envDto = new EnvironmentDto("dd", "test");
 
     mockMvc.perform(
@@ -645,24 +572,20 @@ class ApiControllerIntegrationTests {
     Assertions.assertTrue(fetchedApp.isPresent());
     Assertions.assertTrue(fetchedEnv.isPresent());
 
-    App managedApp = entityManager.merge(fetchedApp.get());
-    entityManager.refresh(managedApp);
+    entityManager.flush();
+    entityManager.refresh(app);
 
-    Assertions.assertFalse(managedApp.getEnvs().isEmpty());
-    Assertions.assertEquals(fetchedEnv.get().getApp(), managedApp);
-    Assertions.assertEquals(managedApp.getEnvs().getFirst(), fetchedEnv.get());
+    Assertions.assertFalse(app.getEnvs().isEmpty());
+    Assertions.assertEquals(fetchedEnv.get().getApp(), app);
+    Assertions.assertEquals(app.getEnvs().getFirst(), fetchedEnv.get());
   }
 
   @Test
   void addDuplicateEnvFails() throws Exception {
     appService.save(new App("dd", "deployment dashboard"));
     EnvironmentDto envDto = new EnvironmentDto("dd", "test");
-
     String envJson = objectMapper.writeValueAsString(envDto);
 
-    ErrorBody error = ErrorBody.getDefaultDataIntegrityViolationException();
-    error.setDetails("Environment could not be added: key 'test' already exists for app 'dd'.");
-    error.setPath("/api/apps/dd/envs");
 
     mockMvc.perform(
       post("/api/apps/dd/envs")
@@ -672,27 +595,24 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isCreated());
 
-    MvcResult result = mockMvc.perform(
-      post("/api/apps/dd/envs")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(envJson))
+    mockMvc.perform(
+        post("/api/apps/dd/envs")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(envJson)
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isConflict())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertEquals(error.getDetails(), response.getDetails());
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
+      .andExpect(jsonPath("$.message").value("Environment could not be added."))
+      .andExpect(jsonPath("$.details").value("Environment with key 'dd-test' already exists."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs"));
   }
 
   @Test
   void addMultipleEnvsSucceeds() throws Exception {
-    appService.save(new App("dd", "deployment dashboard"));
+    App app = appService.save(new App("dd", "deployment dashboard"));
     EnvironmentDto envDtoTest = new EnvironmentDto("dd", "test");
     EnvironmentDto envDtoProd = new EnvironmentDto("dd", "prod");
 
@@ -712,41 +632,37 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isCreated());
 
-    Optional<App> fetchedApp = appService.get("dd");
     Optional<Environment> testEnv = envService.get("dd", "test");
     Optional<Environment> prodEnv = envService.get("dd", "prod");
 
-    Assertions.assertTrue(fetchedApp.isPresent());
     Assertions.assertTrue(testEnv.isPresent());
     Assertions.assertTrue(prodEnv.isPresent());
 
-    App managedApp = entityManager.merge(fetchedApp.get());
-    entityManager.refresh(managedApp);
+    entityManager.flush();
+    entityManager.refresh(app);
 
-    Assertions.assertFalse(managedApp.getEnvs().isEmpty());
-    Assertions.assertEquals(testEnv.get().getApp(), managedApp);
-    Assertions.assertEquals(prodEnv.get().getApp(), managedApp);
-    Assertions.assertTrue(managedApp.getEnvs().contains(testEnv.get()));
-    Assertions.assertTrue(managedApp.getEnvs().contains(prodEnv.get()));
+    Assertions.assertFalse(app.getEnvs().isEmpty());
+    Assertions.assertEquals(testEnv.get().getApp(), app);
+    Assertions.assertEquals(prodEnv.get().getApp(), app);
+    Assertions.assertTrue(app.getEnvs().contains(testEnv.get()));
+    Assertions.assertTrue(app.getEnvs().contains(prodEnv.get()));
   }
 
   @Test
   void getEnvsSucceeds() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    List<Environment> envs = List.of(new Environment(app, "test"), new Environment(app, "prod"), new Environment(app, "integ"));
-    envService.save(envs);
+    List<Environment> envs = envService.saveAll(new Environment(app, "test"), new Environment(app, "prod"), new Environment(app, "integ"), new Environment(app, "mpsv-prod"));
 
-    Optional<App> fetchedApp = appService.get("dd");
-
-    Assertions.assertTrue(fetchedApp.isPresent());
-
-    app = entityManager.merge(fetchedApp.get());
+    entityManager.flush();
     entityManager.refresh(app);
 
+    envs.forEach(env -> Assertions.assertTrue(app.getEnvs().contains(env)));
+
     MvcResult result = mockMvc.perform(
-      get("/api/apps/dd/envs"))
-      .andExpect(status().isOk())
+      get("/api/apps/dd/envs")
+        .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
+      .andExpect(status().isOk())
       .andReturn();
 
     String response = result.getResponse().getContentAsString();
@@ -764,29 +680,20 @@ class ApiControllerIntegrationTests {
     envService.save(new Environment(app, "test"));
     EnvironmentDto envDto = new EnvironmentDto();
 
-    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();;
-    error.setPath("/api/apps/dd/envs/test");
-
-    MvcResult result = mockMvc.perform(
+    mockMvc.perform(
         put("/api/apps/dd/envs/test")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
-          .content(objectMapper.writeValueAsString(envDto)))
+          .content(objectMapper.writeValueAsString(envDto))
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    String details = response.getDetails();
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertTrue(details.contains("Environment could not be updated:"));
-    Assertions.assertTrue(details.contains("Name is blank."));
-    Assertions.assertTrue(details.contains("App key is blank."));
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("Environment could not be updated."))
+      .andExpect(jsonPath("$.details").value(containsString("App key is blank.")))
+      .andExpect(jsonPath("$.details").value(containsString("Name is blank")))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test"));
   }
 
   @Test
@@ -796,26 +703,19 @@ class ApiControllerIntegrationTests {
     EnvironmentDto envDto = new EnvironmentDto();
     envDto.setAppKey("dd");
 
-    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();;
-    error.setPath("/api/apps/dd/envs/test");
-    error.setDetails("Environment could not be updated: Name is blank.");
-
-    MvcResult result = mockMvc.perform(
+    mockMvc.perform(
         put("/api/apps/dd/envs/test")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
-          .content(objectMapper.writeValueAsString(envDto)))
+          .content(objectMapper.writeValueAsString(envDto))
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertEquals(error.getDetails(), response.getDetails());
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("Environment could not be updated."))
+      .andExpect(jsonPath("$.details").value(containsString("Name is blank")))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test"));
   }
 
   @Test
@@ -825,26 +725,19 @@ class ApiControllerIntegrationTests {
     EnvironmentDto envDto = new EnvironmentDto();
     envDto.setName("prod");
 
-    ErrorBody error = ErrorBody.getDefaultHttpMessageConversionException();;
-    error.setPath("/api/apps/dd/envs/test");
-    error.setDetails("Environment could not be updated: App key is blank.");
-
-    MvcResult result = mockMvc.perform(
+    mockMvc.perform(
         put("/api/apps/dd/envs/test")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
-          .content(objectMapper.writeValueAsString(envDto)))
+          .content(objectMapper.writeValueAsString(envDto))
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
-      .andReturn();
-
-    ErrorBody response = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorBody.class);
-
-    Assertions.assertEquals(error.getStatusCode(), response.getStatusCode());
-    Assertions.assertEquals(error.getMessage(), response.getMessage());
-    Assertions.assertEquals(error.getDetails(), response.getDetails());
-    Assertions.assertEquals(error.getPath(), response.getPath());
-    Assertions.assertEquals(error.getSuggestion(), response.getSuggestion());
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("Environment could not be updated."))
+      .andExpect(jsonPath("$.details").value(containsString("App key is blank")))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test"));
   }
 
   @Test
@@ -867,7 +760,7 @@ class ApiControllerIntegrationTests {
     Assertions.assertTrue(fetchedApp.isPresent());
     Assertions.assertTrue(fetchedEnv.isPresent());
 
-    app = entityManager.merge(fetchedApp.get());
+    entityManager.flush();
     entityManager.refresh(app);
 
     Assertions.assertFalse(envService.exists("dd", "test"));

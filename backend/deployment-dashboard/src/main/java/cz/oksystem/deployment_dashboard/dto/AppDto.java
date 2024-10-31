@@ -18,7 +18,7 @@ public class AppDto {
   private String parent;
 
   @Nullable
-  private LocalDateTime deleted;
+  private LocalDateTime archivedTimestamp;
 
 
   public AppDto() {}
@@ -31,11 +31,11 @@ public class AppDto {
     this(key, name, parent, null);
   }
 
-  public AppDto(String key, String name, String parent, LocalDateTime deleted) {
+  public AppDto(String key, String name, String parent, LocalDateTime archivedTimestamp) {
     this.key = key;
     this.name = name;
     this.parent = parent;
-    this.deleted = deleted;
+    this.archivedTimestamp = archivedTimestamp;
   }
 
   // Getters
@@ -45,16 +45,20 @@ public class AppDto {
 
   public Optional<String> getParent() { return Optional.ofNullable(parent); }
 
-  public Optional<LocalDateTime> getDeleted() { return Optional.ofNullable(deleted); }
+  public Optional<LocalDateTime> getArchivedTimestamp() { return Optional.ofNullable(archivedTimestamp); }
 
   // Setters
-  public void setKey(String key) { this.key = key; }
+  public void setKey(String key) {
+    this.key = key;
+  }
 
-  public void setName(String name) { this.name = name; }
+  public void setName(String name) {
+    this.name = name;
+  }
 
   public void setParent(String parent) { this.parent = parent; }
 
-  public void setDeleted(LocalDateTime deleted) { this.deleted = deleted; }
+  public void setArchivedTimestamp(LocalDateTime archivedTimestamp) { this.archivedTimestamp = archivedTimestamp; }
 
   @Override
   public String toString() {
@@ -62,7 +66,7 @@ public class AppDto {
       "key='" + key + '\'' +
       ", name='" + name + '\'' +
       ", parent='" + parent + '\'' +
-      ", deleted=" + deleted +
+      ", archivedTimestamp=" + archivedTimestamp +
       '}';
   }
 }

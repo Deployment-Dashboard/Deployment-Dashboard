@@ -1,43 +1,36 @@
 package cz.oksystem.deployment_dashboard;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import cz.oksystem.deployment_dashboard.entity.ErrorBody;
+import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.EntityAdditionException;
+import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.EntityDeletionOrArchivationException;
+import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.EntityFetchException;
+import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.EntityUpdateException;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.crossstore.ChangeSetPersister.NotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+
+// TODO - custom response na NotFound, momentálně hází internal server error, protože nedokáže asociovat request k vyjimce
 @ControllerAdvice
 public class GlobalExceptionHandler {
-
-  @ExceptionHandler(DataIntegrityViolationException.class)
-  ResponseEntity<String> conflict(HttpServletRequest request, DataIntegrityViolationException ex) throws JsonProcessingException {
-    ErrorBody body = ErrorBody.getDefaultDataIntegrityViolationException();
-    body.setDetails(ex.getMessage());
-    body.setPath(request.getRequestURI());
-
-    return new ResponseEntity<>(body.toJson(), HttpStatus.CONFLICT);
+  private HttpStatus getStatusCodeForException(Throwable ex) {
+    return switch (ex.getClass().getSimpleName()) {
+      case "DuplicateKeyException", "RecursiveAppParentingException" -> HttpStatus.CONFLICT;
+      case "NotManagedException" -> HttpStatus.NOT_FOUND;
+      case "HttpMessageConversionException" -> HttpStatus.BAD_REQUEST;
+      default -> HttpStatus.INTERNAL_SERVER_ERROR;
+    };
   }
 
-  @ExceptionHandler(NotFoundException.class)
-  ResponseEntity<String> notFoundException(HttpServletRequest request, NotFoundException ex) throws JsonProcessingException {
-    ErrorBody body = ErrorBody.getDefaultNotFoundException();
-    body.setDetails(ex.getMessage());
-    body.setPath(request.getRequestURI());
+  @ExceptionHandler({EntityAdditionException.class, EntityUpdateException.class, EntityDeletionOrArchivationException.class, EntityFetchException.class})
+  ResponseEntity<ErrorBody> handleException(HttpServletRequest request, Exception ex) {
+    Throwable cause = ex.getCause();
+    HttpStatus status = getStatusCodeForException(cause);
 
-    return new ResponseEntity<>(body.toJson(), HttpStatus.NOT_FOUND);
-  }
+    ErrorBody body = new ErrorBody(status, ex.getMessage(), cause.getMessage(), request.getRequestURI());
 
-  @ExceptionHandler(HttpMessageConversionException.class)
-  ResponseEntity<String> messageConversionException(HttpServletRequest request, HttpMessageConversionException ex) throws JsonProcessingException {
-    ErrorBody body = ErrorBody.getDefaultHttpMessageConversionException();
-    body.setDetails(ex.getMessage());
-    body.setPath(request.getRequestURI());
-
-    return new ResponseEntity<>(body.toJson(), HttpStatus.BAD_REQUEST);
+    return new ResponseEntity<>(body, status);
   }
 }

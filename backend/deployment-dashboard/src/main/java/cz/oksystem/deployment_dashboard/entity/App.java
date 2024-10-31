@@ -1,15 +1,13 @@
 package cz.oksystem.deployment_dashboard.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.lang.Nullable;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Entity
 @Table(name = "apps")
@@ -28,29 +26,52 @@ public class App {
   private String name;
 
   @Nullable
-  private LocalDateTime deleted;
+  private LocalDateTime archivedTimestamp;
 
+  @JsonBackReference
   @Nullable
-  @ManyToOne
+  @ManyToOne(cascade = CascadeType.ALL)
   @JoinColumn(name = "parent_id")
   private App parent;
 
   @JsonManagedReference
-  @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.ALL)
+  @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.REMOVE)
   private final List<Environment> envs = new ArrayList<>();
 
-  @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.ALL)
+  @JsonManagedReference
+  @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.REMOVE)
   private final List<Version> versions = new ArrayList<>();
 
-  @OneToMany(fetch = FetchType.LAZY, mappedBy = "parent", cascade = CascadeType.ALL)
+  @JsonManagedReference
+  @OneToMany(fetch = FetchType.LAZY, mappedBy = "parent", cascade = CascadeType.REMOVE)
   private final List<App> components = new ArrayList<>();
 
 
   public App() {}
 
   public App(String key, String name) {
+    this(key, name, null, null);
+  }
+
+  public App(String key, String name, App parent) {
+    this(key, name, parent, null);
+  }
+
+  public App(String key, String name, App parent, LocalDateTime archivedTimestamp) {
+    if (key == null || key.isEmpty()) {
+      throw new IllegalArgumentException("Key should not be empty.");
+    }
+    if (name == null || name.isEmpty()) {
+      throw new IllegalArgumentException("Name should not be empty.");
+    }
+    if (this == parent) {
+      throw new IllegalStateException("App cannot be a parent of itself.");
+    }
+
     this.key = key;
     this.name = name;
+    this.parent = parent;
+    this.archivedTimestamp = archivedTimestamp;
   }
 
   // Getters
@@ -60,34 +81,65 @@ public class App {
 
   public Optional<App> getParent() { return Optional.ofNullable(parent); }
 
-  public Optional<LocalDateTime> getDeleted() { return Optional.ofNullable(deleted); }
+  public Optional<LocalDateTime> getArchivedTimestamp() { return Optional.ofNullable(archivedTimestamp); }
 
   public List<Version> getVersions() { return Collections.unmodifiableList(versions); }
 
   public List<Environment> getEnvs() { return Collections.unmodifiableList(envs); }
 
+  public void addComponent(App app) {
+    if (this == app) {
+      throw new IllegalStateException("App cannot be a component of itself.");
+    }
+    components.add(app);
+  }
+
+  public void removeComponent(App app) {
+    components.remove(app);
+  }
+
+  public void addEnvironment(Environment env) { envs.add(env); }
+
+  public void removeEnvironment(Environment env) { envs.remove(env); }
+
+  public void addVersion(Version version) { versions.add(version); }
+
+  public void removeVersion(Version version) { versions.remove(version); }
+
   public List<App> getComponents() { return Collections.unmodifiableList(components); }
 
   // Setters
-  public void setKey(String key) { this.key = key.toLowerCase(); }
+  public void setKey(String key) {
+    if (key == null || key.isEmpty()) {
+      throw new IllegalArgumentException("Key should not be empty.");
+    }
+    this.key = key.toLowerCase();
+  }
 
-  public void setName(String name) { this.name = name.toLowerCase(); }
+  public void setName(String name) {
+    if (name == null || name.isEmpty()) {
+      throw new IllegalArgumentException("Name should not be empty.");
+    }
+    this.name = name.toLowerCase();
+  }
 
   public void setParent(App parent) {
-    if (this.parent != null ) {
-      this.parent.components.remove(this);
+    if (this.parent != null) {
+      parent.removeComponent(this);
     }
     this.parent = parent;
     if (parent != null) {
-      parent.components.add(this);
+      parent.addComponent(this);
     }
   }
 
-  public void setDeleted(LocalDateTime deleted) { this.deleted = deleted; }
+  public void setArchivedTimestamp(LocalDateTime archivedTimestamp) { this.archivedTimestamp = archivedTimestamp; }
 
-  public boolean hasRelease() {
+  public boolean hasDeployment() {
     for (Environment env: envs) {
-      return env.hasRelease();
+      if (env.hasDeployment()) {
+        return true;
+      }
     }
     return false;
   }
@@ -99,7 +151,7 @@ public class App {
       ", key='" + key + '\'' +
       ", name='" + name + '\'' +
       ", parent='" + parent + '\'' +
-      ", deleted=" + deleted +
+      ", archivedTimestamp=" + archivedTimestamp +
       '}';
   }
 }

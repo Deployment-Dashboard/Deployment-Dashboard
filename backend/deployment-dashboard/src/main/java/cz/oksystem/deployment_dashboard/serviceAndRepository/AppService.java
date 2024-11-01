@@ -15,12 +15,12 @@ import java.util.*;
 
 @Service
 public class AppService {
-  private final AppRepository ar;
+  private final AppRepository appRepository;
   private static final HashMap<String, Integer> archivationCounter = new HashMap<>();
 
 
   public AppService(AppRepository appRepository) {
-    this.ar = appRepository;
+    this.appRepository = appRepository;
   }
 
   @Transactional
@@ -42,7 +42,7 @@ public class AppService {
       }
       parentApp.addComponent(app);
     }
-    return ar.save(app);
+    return appRepository.save(app);
   }
 
   @Transactional
@@ -139,7 +139,7 @@ public class AppService {
     if (app.hasDeployment()) {
       throw new DataIntegrityViolationException("App has deployments!");
     }
-    ar.delete(app);
+    appRepository.delete(app);
   }
 
   @Transactional
@@ -154,7 +154,7 @@ public class AppService {
   }
 
   @Transactional(readOnly = true)
-  public boolean exists(String key) { return ar.existsByKey(key); }
+  public boolean exists(String key) { return appRepository.existsByKey(key); }
 
   @Transactional(readOnly = true)
   public boolean exists(App app) {
@@ -164,11 +164,11 @@ public class AppService {
   public Optional<App> get(String key) { return get(key, false); }
 
   @Transactional(readOnly = true)
-  public Optional<App> get(String key, boolean alsoDeleted) { return alsoDeleted ? ar.findByKeyAndArchivedTimestampIsNull(key) : ar.findByKey(key); }
+  public Optional<App> get(String key, boolean alsoDeleted) { return alsoDeleted ? appRepository.findByKeyAndArchivedTimestampIsNull(key) : appRepository.findByKey(key); }
 
   @Transactional(readOnly = true)
   public Optional<App> getProject(String key) {
-    return ar.findByKeyAndParentIsNull(key);
+    return appRepository.findByKeyAndParentIsNull(key);
   }
 
   @Transactional(readOnly = true)

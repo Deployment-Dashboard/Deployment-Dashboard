@@ -16,23 +16,23 @@ import java.util.Optional;
 
 @Service
 public class EnvironmentService {
-  private final EnvironmentRepository er;
-  private final AppService as;
+  private final EnvironmentRepository environmentRepository;
+  private final AppService appService;
 
-  public EnvironmentService(EnvironmentRepository er, AppService as) {
-    this.er = er;
-    this.as = as;
+  public EnvironmentService(EnvironmentRepository environmentRepository, AppService appService) {
+    this.environmentRepository = environmentRepository;
+    this.appService = appService;
   }
 
   @Transactional
   public Environment save(Environment env) {
-    if (!as.exists(env.getApp())) {
+    if (!appService.exists(env.getApp())) {
       throw new NotManagedException(App.class, env.getApp().getKey());
     }
     if (exists(env.getApp().getKey(), env.getName())) {
       throw new DuplicateKeyException(Environment.class, env.getApp().getKey() + "-" + env.getName());
     }
-    return er.save(env);
+    return environmentRepository.save(env);
   }
 
   @Transactional
@@ -57,11 +57,11 @@ public class EnvironmentService {
 
   @Transactional
   public void update(String appKey, String keyToUpdate, EnvironmentDto updateWith) {
-    if (!as.exists(appKey)) {
+    if (!appService.exists(appKey)) {
       throw new NotManagedException(App.class, appKey);
     }
 
-    Optional<App> fetchedApp = as.get(updateWith.getAppKey());
+    Optional<App> fetchedApp = appService.get(updateWith.getAppKey());
     Optional<Environment> fetchedEnv = get(appKey, keyToUpdate);
 
     if (fetchedApp.isEmpty()) {
@@ -86,7 +86,7 @@ public class EnvironmentService {
 
   @Transactional
   public void delete(String appKey, String envKey) {
-    if (!as.exists(appKey)) {
+    if (!appService.exists(appKey)) {
       throw new NotManagedException(App.class, appKey);
     }
 
@@ -99,24 +99,24 @@ public class EnvironmentService {
     Environment envToDelete = fetchedEnv.get();
 
     if (envToDelete.hasDeployment()) {
-      throw new DataIntegrityViolationException("Environment could not be deleted: Env has deployments.");
+      throw new DataIntegrityViolationException("Environment has deployments!");
     }
-    er.delete(envToDelete);
+    environmentRepository.delete(envToDelete);
   }
 
   @Transactional(readOnly = true)
   public boolean exists(String appKey, String envKey) {
-    Optional<App> fetchedApp = as.get(appKey);
+    Optional<App> fetchedApp = appService.get(appKey);
 
-    return fetchedApp.isPresent() && er.existsByAppAndName(fetchedApp.get(), envKey);
+    return fetchedApp.isPresent() && environmentRepository.existsByAppAndName(fetchedApp.get(), envKey);
   }
 
   @Transactional(readOnly = true)
   public Optional<Environment> get(String appKey, String name) {
-    Optional<App> fetchedApp = as.get(appKey);
+    Optional<App> fetchedApp = appService.get(appKey);
 
     if (fetchedApp.isPresent()) {
-      return er.findByAppAndName(fetchedApp.get(), name);
+      return environmentRepository.findByAppAndName(fetchedApp.get(), name);
     } else {
       return Optional.empty();
     }
@@ -124,7 +124,7 @@ public class EnvironmentService {
 
   @Transactional(readOnly = true)
   public Environment entityFromDto(EnvironmentDto envDto) {
-    Optional<App> app = as.get(envDto.getAppKey());
+    Optional<App> app = appService.get(envDto.getAppKey());
 
     if (app.isEmpty()) {
       throw new NotManagedException(App.class, envDto.getAppKey());

@@ -36,7 +36,7 @@ public class App {
 
   @JsonManagedReference
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.REMOVE)
-  private final List<Environment> envs = new ArrayList<>();
+  private List<Environment> envs = new ArrayList<>();
 
   @JsonManagedReference
   @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.REMOVE)
@@ -71,6 +71,9 @@ public class App {
     this.key = key;
     this.name = name;
     this.parent = parent;
+    if (parent != null) {
+      this.envs = parent.envs;
+    }
     this.archivedTimestamp = archivedTimestamp;
   }
 
@@ -130,10 +133,15 @@ public class App {
     this.parent = parent;
     if (parent != null) {
       parent.addComponent(this);
+      this.envs = parent.envs;
     }
   }
 
   public void setArchivedTimestamp(LocalDateTime archivedTimestamp) { this.archivedTimestamp = archivedTimestamp; }
+
+  public boolean isComponent() {
+    return parent != null;
+  }
 
   public boolean hasDeployment() {
     for (Environment env: envs) {

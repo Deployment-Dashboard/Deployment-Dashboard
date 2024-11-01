@@ -17,14 +17,14 @@ public class Version {
 
   @Id
   @GeneratedValue
-  @Column(name = "ver_id")
+  @Column(name = "version_id")
   private Long id;
 
   @NotEmpty
   @Column(name = "name")
   private String name;
 
-  @Column(name = "desc")
+  @Column(name = "description")
   private String description = "";
 
   @CreationTimestamp
@@ -33,7 +33,7 @@ public class Version {
   @JsonBackReference
   @NotNull
   @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-  @JoinColumn(name = "app")
+  @JoinColumn(name = "app_id")
   private App app;
 
   @JsonManagedReference

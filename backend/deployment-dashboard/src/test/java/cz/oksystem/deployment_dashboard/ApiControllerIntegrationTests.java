@@ -437,7 +437,6 @@ class ApiControllerIntegrationTests {
   }
 
   // deleteApp tests
-  // TODO otestovat odebrání app, která má deployment + archivaci
 
   // verify that deleting a nonexisting key returns NotFound
   @Test
@@ -467,6 +466,45 @@ class ApiControllerIntegrationTests {
     Assertions.assertFalse(appService.exists("dd"));
   }
 
+  @Test
+  void archiveExistingAppSucceeds() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+
+    mockMvc.perform(
+      delete("/api/apps/dd"))
+      .andExpect(status().isOk());
+
+    entityManager.flush();
+    entityManager.refresh(app);
+
+    Assertions.assertEquals("dd (archiv #1)", app.getKey());
+    Assertions.assertTrue(app.getArchivedTimestamp().isPresent());
+  }
+
+  @Test
+  void deleteAppWithDeploymentFails() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    envService.save(new Environment(app, "test"));
+
+    mockMvc.perform(
+        get("/api/apps/dd/envs/test/versions/1-0"))
+      .andDo(print())
+      .andExpect(status().isOk());
+
+    entityManager.flush();
+    entityManager.refresh(app);
+
+    Assertions.assertTrue(app.hasDeployment());
+
+    mockMvc.perform(
+        delete("/api/apps/dd?hard_delete=true"))
+      .andExpect(status().isConflict())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
+      .andExpect(jsonPath("$.message").value("App could not be archived/deleted."))
+      .andExpect(jsonPath("$.details").value("App has deployments!"))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
+  }
   // addAppEnv tests
 
   // verify that empty Environment JSON gets rejected
@@ -769,7 +807,6 @@ class ApiControllerIntegrationTests {
   }
 
   // deleteAppEnv tests
-  // TODO otestovat odebrání env, které má deployment
 
   @Test
   void deleteNonexistentEnvFails() throws Exception {
@@ -790,4 +827,32 @@ class ApiControllerIntegrationTests {
     Assertions.assertFalse(envService.exists("dd", "test"));
     Assertions.assertTrue(app.getEnvs().isEmpty());
   }
+
+  @Test
+  void deleteEnvWithDeploymentFails() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    envService.save(new Environment(app, "test"));
+
+    mockMvc.perform(
+        get("/api/apps/dd/envs/test/versions/1-0"))
+      .andDo(print())
+      .andExpect(status().isOk());
+
+      entityManager.flush();
+      entityManager.refresh(app);
+
+      Assertions.assertTrue(app.hasDeployment());
+
+      mockMvc.perform(
+          delete("/api/apps/dd/envs/test"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
+        .andExpect(jsonPath("$.message").value("Environment could not be archived/deleted."))
+        .andExpect(jsonPath("$.details").value("Environment has deployments!"))
+        .andExpect(jsonPath("$.timestamp").isNotEmpty())
+        .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test"));
+  }
+
+  // newVersion tests
+
 }

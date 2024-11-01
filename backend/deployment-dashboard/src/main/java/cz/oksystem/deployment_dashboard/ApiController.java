@@ -12,6 +12,7 @@ import cz.oksystem.deployment_dashboard.serviceAndRepository.DeploymentService;
 import cz.oksystem.deployment_dashboard.serviceAndRepository.EnvironmentService;
 import jakarta.validation.Valid;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConversionException;
@@ -29,15 +30,15 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/apps")
 class ApiController {
-  private final AppService as;
-  private final EnvironmentService es;
-  private final DeploymentService ds;
+  private final AppService appService;
+  private final EnvironmentService environmentService;
+  private final DeploymentService deploymentService;
 
 
-  public ApiController(AppService as, EnvironmentService es, DeploymentService ds) {
-    this.as = as;
-    this.es = es;
-    this.ds = ds;
+  public ApiController(AppService appService, EnvironmentService environmentService, DeploymentService deploymentService) {
+    this.appService = appService;
+    this.environmentService = environmentService;
+    this.deploymentService = deploymentService;
   }
 
   String getBindingResultErrorMessage(BindingResult result) {
@@ -56,7 +57,7 @@ class ApiController {
       if (result.hasErrors()) {
         throw new HttpMessageConversionException(getBindingResultErrorMessage(result));
       }
-      as.save(as.entityFromDto(appDto));
+      appService.save(appService.entityFromDto(appDto));
     } catch (HttpMessageConversionException | DuplicateKeyException | RecursiveAppParentingException | NotManagedException ex) {
       throw new EntityAdditionException(App.class, ex);
     }
@@ -73,13 +74,12 @@ class ApiController {
       if (result.hasErrors()) {
         throw new HttpMessageConversionException(getBindingResultErrorMessage(result));
       }
-      as.update(key, appDto);
+      appService.update(key, appDto);
     } catch (HttpMessageConversionException | NotManagedException | DuplicateKeyException | RecursiveAppParentingException ex) {
       throw new EntityUpdateException(App.class, ex);
     }
   }
 
-  // DONE - TODO test smazání, pokud je release, jinak povolit pouze archivaci
   //  smazat aplikaci - DELETE /api/apps/:key
   //  povolit pouze pokud neexistují žádné aplikační release
   @DeleteMapping("{key}")
@@ -88,11 +88,11 @@ class ApiController {
                           @RequestParam(value = "hard_delete", required = false) boolean hardDelete) {
     try {
       if (hardDelete) {
-        as.delete(key);
+        appService.delete(key);
       } else {
-        as.archive(key);
+        appService.archive(key);
       }
-    } catch (NotManagedException ex) {
+    } catch (NotManagedException | DataIntegrityViolationException ex) {
       throw new EntityDeletionOrArchivationException(App.class, ex);
     }
   }
@@ -116,7 +116,7 @@ class ApiController {
                   @RequestParam(value = "component", required = false) List<String> components,
                   @RequestParam(value = "components_only", required = false) boolean componentsOnly) {
     try {
-      Optional<App> fetchedApp = as.get(appKey);
+      Optional<App> fetchedApp = appService.get(appKey);
 
       if (fetchedApp.isEmpty()) {
         throw new NotManagedException(App.class, appKey);
@@ -137,7 +137,7 @@ class ApiController {
         componentsToRelease.addAll(appToRelease.getComponents());
       } else {
         for (String componentKey : components) {
-          Optional<App> fetchedComponent = as.get(componentKey);
+          Optional<App> fetchedComponent = appService.get(componentKey);
 
           if (fetchedComponent.isEmpty() || !appToRelease.getComponents().contains(fetchedComponent.get())) {
             throw new NotManagedException(App.class, componentKey);
@@ -151,7 +151,7 @@ class ApiController {
         versionsToDeploy.add(new Version(component, versionName));
       }
 
-      ds.deployAll(versionsToDeploy, envKey, urlEncodedTicket, LocalDateTime.now());
+      deploymentService.deployAll(versionsToDeploy, envKey, urlEncodedTicket, LocalDateTime.now());
     } catch (Exception ex) {
       throw new EntityAdditionException(Deployment.class, ex);
     }
@@ -163,7 +163,7 @@ class ApiController {
   @ResponseStatus(value = HttpStatus.OK)
   ResponseEntity<List<Version>> getAllVersions(@PathVariable("key") String key) {
     try {
-      Optional<App> fetchedApp = as.get(key);
+      Optional<App> fetchedApp = appService.get(key);
 
       if (fetchedApp.isEmpty()) {
         throw new NotManagedException(App.class, key);
@@ -174,13 +174,12 @@ class ApiController {
     }
   }
 
-  // DONE TESTED
   //  získání všech prostředí - GET /api/apps/:key/envs
   @GetMapping("{key}/envs")
   @ResponseStatus(value = HttpStatus.OK)
   ResponseEntity<List<Environment>> getAllAppEnvs(@PathVariable("key") String key) {
     try {
-      Optional<App> fetched = as.get(key);
+      Optional<App> fetched = appService.get(key);
 
       if (fetched.isEmpty()) {
         throw new NotManagedException(App.class, key);
@@ -202,13 +201,12 @@ class ApiController {
       if (result.hasErrors()) {
         throw new HttpMessageConversionException(getBindingResultErrorMessage(result));
       }
-      es.save(es.entityFromDto(envDto));
+      environmentService.save(environmentService.entityFromDto(envDto));
     } catch (HttpMessageConversionException | NotManagedException | DuplicateKeyException ex) {
       throw new EntityAdditionException(Environment.class, ex);
     }
   }
 
-  // DONE TESTED
   //  update prostředí aplikace - PUT /api/apps/:key/envs/:envkey
   //  zakázat duplicity
   @PutMapping(path = "{key}/envs/{envKey}", consumes = "application/json")
@@ -221,13 +219,12 @@ class ApiController {
       if (result.hasErrors()) {
         throw new HttpMessageConversionException("Environment could not be updated: " + getBindingResultErrorMessage(result));
       }
-      es.update(appKey, envKey, envDto);
+      environmentService.update(appKey, envKey, envDto);
     } catch (Exception ex) {
       throw new EntityUpdateException(Environment.class, ex);
     }
   }
 
-  // DONE TESTED - TODO odebrání, pokud existuje deployment
   //  delete prostředí aplikace - DELETE /api/apps/:key/envs/:envkey
   //  kontrolovat, že pro prostředí neexistují release, jinak nepovolit smazání
   @DeleteMapping(path = "{key}/envs/{envKey}")
@@ -235,8 +232,8 @@ class ApiController {
   void deleteAppEnv(@PathVariable("key") String appKey,
                     @PathVariable("envKey") String envKey) {
     try {
-      es.delete(appKey, envKey);
-    } catch (NotManagedException ex) {
+      environmentService.delete(appKey, envKey);
+    } catch (NotManagedException | DataIntegrityViolationException ex) {
       throw new EntityDeletionOrArchivationException(Environment.class, ex);
     }
   }

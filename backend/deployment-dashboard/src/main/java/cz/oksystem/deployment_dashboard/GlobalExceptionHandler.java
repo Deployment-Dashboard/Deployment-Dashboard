@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 public class GlobalExceptionHandler {
   private HttpStatus getStatusCodeForException(Throwable ex) {
     return switch (ex.getClass().getSimpleName()) {
-      case "DuplicateKeyException", "RecursiveAppParentingException" -> HttpStatus.CONFLICT;
+      case "DuplicateKeyException", "RecursiveAppParentingException", "DataIntegrityViolationException" -> HttpStatus.CONFLICT;
       case "NotManagedException" -> HttpStatus.NOT_FOUND;
       case "HttpMessageConversionException" -> HttpStatus.BAD_REQUEST;
       default -> HttpStatus.INTERNAL_SERVER_ERROR;

@@ -8,11 +8,12 @@ import org.springframework.lang.Nullable;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "deployments", uniqueConstraints = @UniqueConstraint(columnNames = {"env", "ver"}))
+@Table(name = "deployments", uniqueConstraints = @UniqueConstraint(columnNames = {"env", "version"}))
 public class Deployment {
 
   @Id
   @GeneratedValue
+  @Column(name = "deployment_id")
   private Long id;
 
   @Nullable
@@ -26,30 +27,30 @@ public class Deployment {
   @JsonBackReference
   @NotNull
   @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-  @JoinColumn(name = "env")
+  @JoinColumn(name = "env_id")
   private Environment env;
 
   @JsonBackReference
   @NotNull
   @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-  @JoinColumn(name = "ver")
-  private Version ver;
+  @JoinColumn(name = "version_id")
+  private Version version;
 
   public Deployment() {}
 
-  public Deployment(Environment env, Version ver) {
-    this(null, env, ver);
+  public Deployment(Environment env, Version version) {
+    this(null, env, version);
   }
 
-  public Deployment(String jiraUrl, Environment env, Version ver) {
-    this(null, jiraUrl, env, ver);
+  public Deployment(String jiraUrl, Environment env, Version version) {
+    this(null, jiraUrl, env, version);
   }
 
-  public Deployment(LocalDateTime date, String jiraUrl, Environment env, Version ver) {
+  public Deployment(LocalDateTime date, String jiraUrl, Environment env, Version version) {
     this.date = date;
     this.jiraUrl = jiraUrl;
     this.env = env;
-    this.ver = ver;
+    this.version = version;
   }
 
   @Override
@@ -59,25 +60,14 @@ public class Deployment {
       ", date=" + date +
       ", jiraUrl='" + jiraUrl + '\'' +
       ", env=" + env +
-      ", ver=" + ver +
+      ", version=" + version +
       '}';
   }
 
-  public Long getId() {
-    return id;
-  }
-
-  public void setId(Long id) {
-    this.id = id;
-  }
-
+  // Getters
   @Nullable
   public LocalDateTime getDate() {
     return date;
-  }
-
-  public void setDate(@Nullable LocalDateTime date) {
-    this.date = date;
   }
 
   @Nullable
@@ -85,23 +75,29 @@ public class Deployment {
     return jiraUrl;
   }
 
-  public void setJiraUrl(@Nullable String jiraUrl) {
-    this.jiraUrl = jiraUrl;
-  }
-
   public Environment getEnv() {
     return env;
+  }
+
+  public Version getVersion() {
+    return version;
+  }
+
+  // Setters
+
+  public void setDate(@Nullable LocalDateTime date) {
+    this.date = date;
+  }
+
+  public void setJiraUrl(@Nullable String jiraUrl) {
+    this.jiraUrl = jiraUrl;
   }
 
   public void setEnv(Environment env) {
     this.env = env;
   }
 
-  public Version getVer() {
-    return ver;
-  }
-
-  public void setVer(Version ver) {
-    this.ver = ver;
+  public void setVersion(Version ver) {
+    this.version = ver;
   }
 }

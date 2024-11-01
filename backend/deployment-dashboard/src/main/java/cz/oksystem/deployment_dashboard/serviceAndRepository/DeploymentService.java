@@ -14,38 +14,38 @@ import java.util.Optional;
 
 @Service
 public class DeploymentService {
-  private final DeploymentRepository dr;
-  private final EnvironmentService es;
-  private final VersionService vs;
+  private final DeploymentRepository deploymentRepository;
+  private final EnvironmentService environmentService;
+  private final VersionService versionService;
 
-  public DeploymentService(DeploymentRepository dr, EnvironmentService es, VersionService vs) {
-    this.dr = dr;
-    this.es = es;
-    this.vs = vs;
+  public DeploymentService(DeploymentRepository deploymentRepository, EnvironmentService environmentService, VersionService versionService) {
+    this.deploymentRepository = deploymentRepository;
+    this.environmentService = environmentService;
+    this.versionService = versionService;
   }
 
   @Transactional
   public Deployment save(Deployment deployment) {
     deployment.getEnv().addDeployment(deployment);
-    deployment.getVer().addDeployment(deployment);
+    deployment.getVersion().addDeployment(deployment);
 
-    return dr.save(deployment);
+    return deploymentRepository.save(deployment);
   }
 
   // TODO tohle změnit a sypat entries o deploymentu pokud je to pro celou appku tak i komponentám, bude pak hell to kontrolovat
-  //  pokud třeba appka bude mít release a pak se vytvoří komponenta, která v době toho release ještě neexistovala
+  //  pokud třeba appka bude mít release a pak se vytvoří komponenta, která v době toho release ještě neexistovala <
   @Transactional
   public Deployment deploy(Version version, String envKey, String urlEncodedTicket, LocalDateTime date) {
     String appKey = version.getApp().getKey();
-    Optional<Version> fetchedVersion = vs.get(appKey, version.getName());
+    Optional<Version> fetchedVersion = versionService.get(appKey, version.getName());
 
     if (fetchedVersion.isEmpty()) {
-      version = vs.save(version);
+      version = versionService.save(version);
     } else {
       version = fetchedVersion.get();
     }
 
-    Optional<Environment> fetchedEnv = es.get(appKey, envKey);
+    Optional<Environment> fetchedEnv = environmentService.get(appKey, envKey);
 
     if (fetchedEnv.isEmpty()) {
       throw new CustomExceptions.NotManagedException(Environment.class, appKey + envKey);

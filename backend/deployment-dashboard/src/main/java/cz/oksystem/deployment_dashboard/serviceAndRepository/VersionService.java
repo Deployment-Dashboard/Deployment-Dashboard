@@ -10,12 +10,12 @@ import java.util.Optional;
 
 @Service
 public class VersionService {
-  private final VersionRepository vr;
-  private final AppService as;
+  private final VersionRepository versionRepository;
+  private final AppService appService;
 
-  public VersionService(VersionRepository vr, AppService as) {
-    this.vr = vr;
-    this.as = as;
+  public VersionService(VersionRepository versionRepository, AppService appService) {
+    this.versionRepository = versionRepository;
+    this.appService = appService;
   }
 
   @Transactional
@@ -24,22 +24,22 @@ public class VersionService {
       throw new CustomExceptions.DuplicateKeyException(Version.class, version.getApp().getKey() + "-" + version.getName());
     }
 
-    Optional<App> fetchedApp = as.get(version.getApp().getKey());
+    Optional<App> fetchedApp = appService.get(version.getApp().getKey());
 
     if (fetchedApp.isEmpty()) {
       throw new CustomExceptions.NotManagedException(App.class, version.getApp().getKey());
     }
     fetchedApp.get().addVersion(version);
 
-    return vr.save(version);
+    return versionRepository.save(version);
   }
 
   @Transactional(readOnly = true)
   public Optional<Version> get(String appKey, String name) {
-    Optional<App> fetchedApp = as.get(appKey);
+    Optional<App> fetchedApp = appService.get(appKey);
 
     if (fetchedApp.isPresent()) {
-      return vr.findByAppAndName(fetchedApp.get(), name);
+      return versionRepository.findByAppAndName(fetchedApp.get(), name);
     } else {
       return Optional.empty();
     }
@@ -47,8 +47,8 @@ public class VersionService {
 
   @Transactional(readOnly = true)
   public boolean exists(String appKey, String version) {
-    Optional<App> fetchedApp = as.get(appKey);
+    Optional<App> fetchedApp = appService.get(appKey);
 
-    return fetchedApp.isPresent() && vr.existsByAppAndName(fetchedApp.get(), version);
+    return fetchedApp.isPresent() && versionRepository.existsByAppAndName(fetchedApp.get(), version);
   }
 }

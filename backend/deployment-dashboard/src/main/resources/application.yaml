@@ -2,10 +2,13 @@ spring:
   application:
     name: deployment-dashboard
   datasource:
-    url: jdbc:h2:mem:test
+    url: jdbc:h2:file:./backend/deployment-dashboard/src/main/resources/db/data/h2testdb
     driver-class-name: org.h2.Driver
     username: test
     password: test
   h2:
     console:
       enabled: true
+  liquibase:
+    enabled: true
+    change-log: classpath:db/liquibase/changelog-master.yaml

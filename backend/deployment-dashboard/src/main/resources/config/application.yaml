@@ -1,12 +1,18 @@
+server:
+  servlet:
+    # prefix aplikace
+    context-path: /deploydash
+
 spring:
   application:
     name: deployment-dashboard
   datasource:
-    url: jdbc:h2:mem:test
+    url: jdbc:h2:file:./backend/deployment-dashboard/src/main/resources/db/data/h2testdb
     driver-class-name: org.h2.Driver
     username: test
     password: test
   h2:
+    # localhost:8080/deploydash/h2-console
     console:
       enabled: true
       settings:

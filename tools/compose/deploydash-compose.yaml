@@ -1,0 +1,38 @@
+x-logging: &logging-common
+  logging:
+    driver: k8s-file
+    options:
+      max-size: 100mb
+      max-file: 3
+
+x-restart-policy: &restart-policy
+  restart: always
+
+services:
+  deploydash:
+    image: nexus3.oksystem.local:8183/deploydash:v0.0.1
+    security_opt:
+      - label=disable
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:h2:file:/usr/src/app/db/data/h2testdb
+    volumes:
+      # nasazeni na jpndi server
+      - "/home/developer/deploydash/db/data/:/usr/src/app/db/data/"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.deploydash.rule=PathPrefix(`/deploydash`)
+      - traefik.http.routers.deploydash.priority=999
+      - traefik.http.routers.deploydash.entrypoints=web
+      - traefik.http.routers.deploydash.service=deploydash-service
+      - traefik.http.services.deploydash-service.loadbalancer.server.port=8080
+      - logspout.label=be.deploydash
+    networks:
+      # TODO vlastni network
+      - kl-default
+    <<: *logging-common
+    <<: *restart-policy
+
+networks:
+  # TODO vlastni network
+  kl-default:
+    external: true

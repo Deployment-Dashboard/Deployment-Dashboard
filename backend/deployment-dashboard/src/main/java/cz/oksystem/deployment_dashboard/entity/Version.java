@@ -1,19 +1,17 @@
 package cz.oksystem.deployment_dashboard.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.lang.Nullable;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Optional;
 
 @Entity
-@Table(name = "versions", uniqueConstraints = @UniqueConstraint(columnNames = {"name", "app"}))
-public class Version {
+@Table(name = "versions", uniqueConstraints = @UniqueConstraint(columnNames = {"name", "app_id"}))
+@AssociationOverride(name = "deployments", joinColumns = @JoinColumn(name = "version_id"))
+public class Version extends AbstractDeploymentHolder {
 
   @Id
   @GeneratedValue
@@ -24,55 +22,74 @@ public class Version {
   @Column(name = "name")
   private String name;
 
+  @Nullable
   @Column(name = "description")
-  private String description = "";
-
-  @CreationTimestamp
-  private LocalDateTime createdAt;
+  private String description;
 
   @JsonBackReference
   @NotNull
-  @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+  @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "app_id")
   private App app;
 
-  @JsonManagedReference
-  @OneToMany(fetch = FetchType.LAZY, mappedBy = "ver", cascade = CascadeType.ALL)
-  private final List<Deployment> deployments = new ArrayList<>();
 
   public Version() {}
 
   public Version(App app, String name) {
-    this(app, name, "");
+    this(app, name, null);
   }
 
-  public Version(App app, String name, String description) {
+  public Version(App app, String name, @Nullable String description) {
+    if (app == null) {
+      throw new IllegalArgumentException(
+        "App is null."
+      );
+    }
+    if (name == null || name.isEmpty()) {
+      throw new IllegalArgumentException(
+        "Name is empty."
+      );
+    }
     this.app = app;
     this.name = name;
     this.description = description;
   }
 
   // Getters
-  public String getName() {
-    return name;
+  public String getName() { return this.name; }
+
+  public Optional<String> getDescription() {
+    return Optional.ofNullable(description);
   }
 
-  public String getDescription() {
-    return description;
-  }
-
-  public App getApp() {
-    return app;
-  }
+  public App getApp() { return this.app; }
 
   // Setters
-
-  public void addDeployment(Deployment deployment) {
-    deployments.add(deployment);
+  public void setName(String newName) {
+    if (newName == null) {
+      throw new IllegalArgumentException(
+        "Name is null."
+      );
+    }
+    this.name = newName;
   }
 
-  public void removeDeployment(Deployment deployment) {
-    deployments.remove(deployment);
+  public void setDescription(@Nullable String newDescription) {
+    this.description = newDescription;
+  }
+
+  public void setApp(App newApp) {
+    if (newApp == null) {
+      throw new IllegalArgumentException(
+        "App is null."
+      );
+    }
+    if (this.app != null) {
+      throw new IllegalStateException(
+        "Version already assigned to an App."
+      );
+    }
+    this.app = newApp;
   }
 
   @Override
@@ -82,11 +99,7 @@ public class Version {
       ", name='" + name + '\'' +
       ", description='" + description + '\'' +
       ", app=" + app +
-      ", deployments=" + deployments +
+      ", deployments=" + this.getDeployments() +
       '}';
-  }
-
-  public void setApp(App app) {
-    this.app = app;
   }
 }

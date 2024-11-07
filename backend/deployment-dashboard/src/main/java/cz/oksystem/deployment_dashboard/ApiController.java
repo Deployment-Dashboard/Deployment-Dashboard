@@ -3,13 +3,10 @@ package cz.oksystem.deployment_dashboard;
 import cz.oksystem.deployment_dashboard.dto.AppDto;
 import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
 import cz.oksystem.deployment_dashboard.entity.App;
-import cz.oksystem.deployment_dashboard.entity.Deployment;
 import cz.oksystem.deployment_dashboard.entity.Environment;
 import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.*;
-import cz.oksystem.deployment_dashboard.serviceAndRepository.AppService;
-import cz.oksystem.deployment_dashboard.serviceAndRepository.DeploymentService;
-import cz.oksystem.deployment_dashboard.serviceAndRepository.EnvironmentService;
+import cz.oksystem.deployment_dashboard.service.ServiceOrchestrator;
 import jakarta.validation.Valid;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -19,10 +16,7 @@ import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 
 //API
@@ -30,15 +24,10 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/apps")
 class ApiController {
-  private final AppService appService;
-  private final EnvironmentService environmentService;
-  private final DeploymentService deploymentService;
+  private final ServiceOrchestrator serviceOrchestrator;
 
-
-  public ApiController(AppService appService, EnvironmentService environmentService, DeploymentService deploymentService) {
-    this.appService = appService;
-    this.environmentService = environmentService;
-    this.deploymentService = deploymentService;
+  public ApiController(ServiceOrchestrator serviceOrchestrator) {
+    this.serviceOrchestrator = serviceOrchestrator;
   }
 
   String getBindingResultErrorMessage(BindingResult result) {
@@ -57,7 +46,7 @@ class ApiController {
       if (result.hasErrors()) {
         throw new HttpMessageConversionException(getBindingResultErrorMessage(result));
       }
-      appService.save(appService.entityFromDto(appDto));
+      serviceOrchestrator.addApp(appDto);
     } catch (HttpMessageConversionException | DuplicateKeyException | RecursiveAppParentingException | NotManagedException ex) {
       throw new EntityAdditionException(App.class, ex);
     }
@@ -74,7 +63,7 @@ class ApiController {
       if (result.hasErrors()) {
         throw new HttpMessageConversionException(getBindingResultErrorMessage(result));
       }
-      appService.update(key, appDto);
+      serviceOrchestrator.updateApp(key, appDto);
     } catch (HttpMessageConversionException | NotManagedException | DuplicateKeyException | RecursiveAppParentingException ex) {
       throw new EntityUpdateException(App.class, ex);
     }
@@ -87,17 +76,13 @@ class ApiController {
   void archiveOrDeleteApp(@PathVariable("key") String key,
                           @RequestParam(value = "hard_delete", required = false) boolean hardDelete) {
     try {
-      if (hardDelete) {
-        appService.delete(key);
-      } else {
-        appService.archive(key);
-      }
+      serviceOrchestrator.deleteApp(key, hardDelete);
     } catch (NotManagedException | DataIntegrityViolationException ex) {
       throw new EntityDeletionOrArchivationException(App.class, ex);
     }
   }
 
-  // DONE - TODO testy + pořešit přijímání popisků pro appku a komponenty (umožnit komentovat každé zvlášť nebo prostě jeden popisek pro všechno?) + data
+  // DONE - TODO testy + uklidit trošku, docela ugly
   //  nová verze - GET /api/apps/:key/envs/:envkey/versions/:version?ticket=:urlencoded_ticket_link:&component=:component_1:&component=:component_2:&components_only=true
   //  pokud neexistuje aplikace, vrací chybu
   //  pokud neexistuje prostředí, vrací chybu
@@ -112,48 +97,14 @@ class ApiController {
   void newVersion(@PathVariable("key") String appKey,
                   @PathVariable("envKey") String envKey,
                   @PathVariable("version") String versionName,
-                  @RequestParam(value = "ticket", required = false) String urlEncodedTicket,
+                  @RequestParam(value = "ticket", required = false) String jiraTicket,
                   @RequestParam(value = "component", required = false) List<String> components,
                   @RequestParam(value = "components_only", required = false) boolean componentsOnly) {
+    //versionDeploymentOrchestrator.release(appKey, envKey, versionName, jiraTicket, components, componentsOnly);
     try {
-      Optional<App> fetchedApp = appService.get(appKey);
-
-      if (fetchedApp.isEmpty()) {
-        throw new NotManagedException(App.class, appKey);
-      }
-
-      App appToRelease = fetchedApp.get();
-      List<App> componentsToRelease = new ArrayList<>();
-
-      if (!componentsOnly) {
-        componentsToRelease.add(appToRelease);
-      } else {
-        if (appToRelease.getComponents().isEmpty()) {
-          throw new IllegalArgumentException(String.format("componentsOnly flag was raised, but %s has none.", appKey));
-        }
-      }
-
-      if (components == null || components.isEmpty()) {
-        componentsToRelease.addAll(appToRelease.getComponents());
-      } else {
-        for (String componentKey : components) {
-          Optional<App> fetchedComponent = appService.get(componentKey);
-
-          if (fetchedComponent.isEmpty() || !appToRelease.getComponents().contains(fetchedComponent.get())) {
-            throw new NotManagedException(App.class, componentKey);
-          }
-          componentsToRelease.add(fetchedComponent.get());
-        }
-      }
-      List<Version> versionsToDeploy = new ArrayList<>();
-
-      for (App component : componentsToRelease) {
-        versionsToDeploy.add(new Version(component, versionName));
-      }
-
-      deploymentService.deployAll(versionsToDeploy, envKey, urlEncodedTicket, LocalDateTime.now());
+      serviceOrchestrator.release(appKey, components, envKey, versionName, jiraTicket, componentsOnly);
     } catch (Exception ex) {
-      throw new EntityAdditionException(Deployment.class, ex);
+      throw new EntityAdditionException(Version.class, ex);
     }
   }
 
@@ -163,12 +114,7 @@ class ApiController {
   @ResponseStatus(value = HttpStatus.OK)
   ResponseEntity<List<Version>> getAllVersions(@PathVariable("key") String key) {
     try {
-      Optional<App> fetchedApp = appService.get(key);
-
-      if (fetchedApp.isEmpty()) {
-        throw new NotManagedException(App.class, key);
-      }
-      return ResponseEntity.ok(fetchedApp.get().getVersions());
+      return ResponseEntity.ok(serviceOrchestrator.getAppVersions(key));
     } catch (NotManagedException ex) {
       throw new EntityFetchException(App.class, ex);
     }
@@ -179,12 +125,7 @@ class ApiController {
   @ResponseStatus(value = HttpStatus.OK)
   ResponseEntity<List<Environment>> getAllAppEnvs(@PathVariable("key") String key) {
     try {
-      Optional<App> fetched = appService.get(key);
-
-      if (fetched.isEmpty()) {
-        throw new NotManagedException(App.class, key);
-      }
-      return ResponseEntity.ok(fetched.get().getEnvs());
+      return ResponseEntity.ok(serviceOrchestrator.getAppEnvironments(key));
     } catch (NotManagedException ex) {
       throw new EntityFetchException(Environment.class, ex);
     }
@@ -201,7 +142,7 @@ class ApiController {
       if (result.hasErrors()) {
         throw new HttpMessageConversionException(getBindingResultErrorMessage(result));
       }
-      environmentService.save(environmentService.entityFromDto(envDto));
+      serviceOrchestrator.addEnvironment(envDto);
     } catch (HttpMessageConversionException | NotManagedException | DuplicateKeyException ex) {
       throw new EntityAdditionException(Environment.class, ex);
     }
@@ -219,7 +160,7 @@ class ApiController {
       if (result.hasErrors()) {
         throw new HttpMessageConversionException("Environment could not be updated: " + getBindingResultErrorMessage(result));
       }
-      environmentService.update(appKey, envKey, envDto);
+      serviceOrchestrator.updateEnvironment(appKey, envKey, envDto);
     } catch (Exception ex) {
       throw new EntityUpdateException(Environment.class, ex);
     }
@@ -232,7 +173,7 @@ class ApiController {
   void deleteAppEnv(@PathVariable("key") String appKey,
                     @PathVariable("envKey") String envKey) {
     try {
-      environmentService.delete(appKey, envKey);
+      serviceOrchestrator.deleteEnvironment(appKey, envKey);
     } catch (NotManagedException | DataIntegrityViolationException ex) {
       throw new EntityDeletionOrArchivationException(Environment.class, ex);
     }

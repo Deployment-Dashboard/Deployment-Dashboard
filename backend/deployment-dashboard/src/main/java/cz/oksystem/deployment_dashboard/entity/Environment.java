@@ -1,17 +1,14 @@
 package cz.oksystem.deployment_dashboard.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Entity
-@Table(name = "envs", uniqueConstraints = @UniqueConstraint(columnNames = {"app", "name"}))
-public class Environment {
+@Table(name = "envs", uniqueConstraints = @UniqueConstraint(columnNames = {"app_id", "name"}))
+@AssociationOverride(name = "deployments", joinColumns = @JoinColumn(name = "env_id"))
+public class Environment extends AbstractDeploymentHolder {
 
   @Id
   @GeneratedValue
@@ -24,65 +21,54 @@ public class Environment {
   @JsonBackReference
   @NotNull
   @ManyToOne
-  @JoinColumn(name = "app")
+  @JoinColumn(name = "app_id")
   private App app;
-
-  @JsonManagedReference
-  @OneToMany(fetch = FetchType.LAZY, mappedBy = "env", cascade = CascadeType.REMOVE)
-  private final List<Deployment> deployments = new ArrayList<>();
 
 
   public Environment() {}
 
-  public Environment(App app, String name) {
+  public Environment(String name, App app) {
     if (app == null) {
-      throw new IllegalArgumentException("App should not be empty.");
+      throw new IllegalArgumentException(
+        "App is null."
+      );
     }
     if (name == null || name.isEmpty()) {
-      throw new IllegalArgumentException("Name should not be empty.");
+      throw new IllegalArgumentException(
+        "Name is empty."
+      );
     }
     this.app = app;
     this.name = name;
   }
 
   // Getters
-  public Long getId() {
-    return id;
-  }
+  public String getName() { return this.name; }
 
-  public String getName() {
-    return name;
-  }
-
-  public App getApp() {
-    return app;
-  }
-
-  public List<Deployment> getDeployments() { return deployments; }
+  public App getApp() { return this.app; }
 
   // Setters
-  public void setName(String name) {
-    if (name == null || name.isEmpty()) {
-      throw new IllegalArgumentException("Name should not be empty.");
+  public void setName(String newName) {
+    if (newName == null || newName.isEmpty()) {
+      throw new IllegalArgumentException(
+        "Name is empty."
+      );
     }
-    this.name = name;
+    this.name = newName;
   }
 
-  public void setApp(App app) {
-    if (app == null) {
-      throw new IllegalArgumentException("App should not be empty.");
+  public void setApp(App newApp) {
+    if (newApp == null) {
+      throw new IllegalArgumentException(
+        "App is null."
+      );
     }
-    this.app.removeEnvironment(this);
-    this.app = app;
-    app.addEnvironment(this);
-  }
-
-  public void addDeployment(Deployment deployment) {
-    deployments.add(deployment);
-  }
-
-  public void removeDeployment(Deployment deployment) {
-    deployments.remove(deployment);
+    if (this.app != null) {
+      throw new IllegalStateException(
+        "Environment already assigned to an App."
+      );
+    }
+    this.app = newApp;
   }
 
   @Override
@@ -91,11 +77,7 @@ public class Environment {
       "id=" + id +
       ", name='" + name + '\'' +
       ", app=" + app +
-      ", deployments=" + deployments +
+      ", deployments=" + this.getDeployments() +
       '}';
-  }
-
-  public boolean hasDeployment() {
-    return !deployments.isEmpty();
   }
 }

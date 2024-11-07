@@ -1,4 +1,4 @@
-package cz.oksystem.deployment_dashboard.entity;
+package cz.oksystem.deployment_dashboard.exceptions;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;

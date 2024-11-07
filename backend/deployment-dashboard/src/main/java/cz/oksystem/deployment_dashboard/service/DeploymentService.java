@@ -1,9 +1,10 @@
-package cz.oksystem.deployment_dashboard.serviceAndRepository;
+package cz.oksystem.deployment_dashboard.service;
 
 import cz.oksystem.deployment_dashboard.entity.Deployment;
 import cz.oksystem.deployment_dashboard.entity.Environment;
 import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
+import cz.oksystem.deployment_dashboard.repository.DeploymentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,14 +27,12 @@ public class DeploymentService {
 
   @Transactional
   public Deployment save(Deployment deployment) {
-    deployment.getEnv().addDeployment(deployment);
+    deployment.getEnvironment().addDeployment(deployment);
     deployment.getVersion().addDeployment(deployment);
 
     return deploymentRepository.save(deployment);
   }
 
-  // TODO tohle změnit a sypat entries o deploymentu pokud je to pro celou appku tak i komponentám, bude pak hell to kontrolovat
-  //  pokud třeba appka bude mít release a pak se vytvoří komponenta, která v době toho release ještě neexistovala <
   @Transactional
   public Deployment deploy(Version version, String envKey, String urlEncodedTicket, LocalDateTime date) {
     String appKey = version.getApp().getKey();
@@ -51,7 +50,7 @@ public class DeploymentService {
       throw new CustomExceptions.NotManagedException(Environment.class, appKey + envKey);
     }
 
-    return save(new Deployment(date, urlEncodedTicket, fetchedEnv.get(), version));
+    return this.save(new Deployment(fetchedEnv.get(), version, urlEncodedTicket, date));
   }
 
   @Transactional
@@ -59,7 +58,7 @@ public class DeploymentService {
     List<Deployment> deployments = new ArrayList<>();
 
     for (Version version: versions) {
-      deployments.add(deploy(version, envKey, urlEncodedTicket, date));
+      deployments.add(this.deploy(version, envKey, urlEncodedTicket, date));
     }
     return deployments;
   }

@@ -1,8 +1,10 @@
-package cz.oksystem.deployment_dashboard.serviceAndRepository;
+package cz.oksystem.deployment_dashboard.service;
 
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Version;
-import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
+import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.DuplicateKeyException;
+import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.NotManagedException;
+import cz.oksystem.deployment_dashboard.repository.VersionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,17 +22,16 @@ public class VersionService {
 
   @Transactional
   public Version save(Version version) {
-    if (exists(version.getApp().getKey(), version.getName())) {
-      throw new CustomExceptions.DuplicateKeyException(Version.class, version.getApp().getKey() + "-" + version.getName());
+    if (this.exists(version.getApp().getKey(), version.getName())) {
+      throw new DuplicateKeyException(Version.class, version.getApp().getKey() + " ver. " + version.getName());
     }
 
     Optional<App> fetchedApp = appService.get(version.getApp().getKey());
 
     if (fetchedApp.isEmpty()) {
-      throw new CustomExceptions.NotManagedException(App.class, version.getApp().getKey());
+      throw new NotManagedException(App.class, version.getApp().getKey());
     }
     fetchedApp.get().addVersion(version);
-
     return versionRepository.save(version);
   }
 

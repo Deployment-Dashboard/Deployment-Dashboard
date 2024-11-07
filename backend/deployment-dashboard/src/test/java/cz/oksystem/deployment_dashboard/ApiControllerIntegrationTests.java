@@ -5,10 +5,10 @@ import cz.oksystem.deployment_dashboard.dto.AppDto;
 import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Environment;
-import cz.oksystem.deployment_dashboard.serviceAndRepository.AppService;
-import cz.oksystem.deployment_dashboard.serviceAndRepository.DeploymentService;
-import cz.oksystem.deployment_dashboard.serviceAndRepository.EnvironmentService;
-import cz.oksystem.deployment_dashboard.serviceAndRepository.VersionService;
+import cz.oksystem.deployment_dashboard.service.AppService;
+import cz.oksystem.deployment_dashboard.service.DeploymentService;
+import cz.oksystem.deployment_dashboard.service.EnvironmentService;
+import cz.oksystem.deployment_dashboard.service.VersionService;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,7 +64,7 @@ class ApiControllerIntegrationTests {
 
   @BeforeEach
   void setup() {
-    appService.resetArchivationCounter();
+    AppService.resetArchivationCounter();
   }
 
 	@Test
@@ -484,7 +484,7 @@ class ApiControllerIntegrationTests {
   @Test
   void deleteAppWithDeploymentFails() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    envService.save(new Environment(app, "test"));
+    envService.save(new Environment("test", app));
 
     mockMvc.perform(
         get("/api/apps/dd/envs/test/versions/1-0"))
@@ -613,9 +613,9 @@ class ApiControllerIntegrationTests {
     entityManager.flush();
     entityManager.refresh(app);
 
-    Assertions.assertFalse(app.getEnvs().isEmpty());
+    Assertions.assertFalse(app.getEnvironments().isEmpty());
     Assertions.assertEquals(fetchedEnv.get().getApp(), app);
-    Assertions.assertEquals(app.getEnvs().getFirst(), fetchedEnv.get());
+    Assertions.assertEquals(app.getEnvironments().getFirst(), fetchedEnv.get());
   }
 
   @Test
@@ -679,22 +679,22 @@ class ApiControllerIntegrationTests {
     entityManager.flush();
     entityManager.refresh(app);
 
-    Assertions.assertFalse(app.getEnvs().isEmpty());
+    Assertions.assertFalse(app.getEnvironments().isEmpty());
     Assertions.assertEquals(testEnv.get().getApp(), app);
     Assertions.assertEquals(prodEnv.get().getApp(), app);
-    Assertions.assertTrue(app.getEnvs().contains(testEnv.get()));
-    Assertions.assertTrue(app.getEnvs().contains(prodEnv.get()));
+    Assertions.assertTrue(app.getEnvironments().contains(testEnv.get()));
+    Assertions.assertTrue(app.getEnvironments().contains(prodEnv.get()));
   }
 
   @Test
-  void getEnvsSucceeds() throws Exception {
+  void getEnvironmentsSucceeds() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    List<Environment> envs = envService.saveAll(new Environment(app, "test"), new Environment(app, "prod"), new Environment(app, "integ"), new Environment(app, "mpsv-prod"));
+    List<Environment> envs = envService.saveAll(new Environment("test", app), new Environment("prod", app), new Environment("integ", app), new Environment("mpsv-prod", app));
 
     entityManager.flush();
     entityManager.refresh(app);
 
-    envs.forEach(env -> Assertions.assertTrue(app.getEnvs().contains(env)));
+    envs.forEach(env -> Assertions.assertTrue(app.getEnvironments().contains(env)));
 
     MvcResult result = mockMvc.perform(
       get("/api/apps/dd/envs")
@@ -715,7 +715,7 @@ class ApiControllerIntegrationTests {
   @Test
   void updateEmptyEnvJsonFails() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    envService.save(new Environment(app, "test"));
+    envService.save(new Environment("test", app));
     EnvironmentDto envDto = new EnvironmentDto();
 
     mockMvc.perform(
@@ -737,7 +737,7 @@ class ApiControllerIntegrationTests {
   @Test
   void updateEmptyNameEnvJsonFails() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    envService.save(new Environment(app, "test"));
+    envService.save(new Environment("test", app));
     EnvironmentDto envDto = new EnvironmentDto();
     envDto.setAppKey("dd");
 
@@ -759,7 +759,7 @@ class ApiControllerIntegrationTests {
   @Test
   void updateEmptyAppKeyEnvJsonFails() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    envService.save(new Environment(app, "test"));
+    envService.save(new Environment("test", app));
     EnvironmentDto envDto = new EnvironmentDto();
     envDto.setName("prod");
 
@@ -781,7 +781,7 @@ class ApiControllerIntegrationTests {
   @Test
   void updateValidEnvSucceeds() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    envService.save(new Environment(app, "test"));
+    envService.save(new Environment("test", app));
     EnvironmentDto envDto = new EnvironmentDto("dd", "prod");
 
     mockMvc.perform(
@@ -803,7 +803,7 @@ class ApiControllerIntegrationTests {
 
     Assertions.assertFalse(envService.exists("dd", "test"));
     Assertions.assertTrue(envService.exists("dd", "prod"));
-    Assertions.assertTrue(app.getEnvs().contains(fetchedEnv.get()));
+    Assertions.assertTrue(app.getEnvironments().contains(fetchedEnv.get()));
   }
 
   // deleteAppEnv tests
@@ -818,20 +818,20 @@ class ApiControllerIntegrationTests {
   @Test
   void deleteExistingEnvSucceeds() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    envService.save(new Environment(app, "test"));
+    envService.save(new Environment("test", app));
 
     mockMvc.perform(
       delete("/api/apps/dd/envs/test"))
       .andExpect(status().isOk());
 
     Assertions.assertFalse(envService.exists("dd", "test"));
-    Assertions.assertTrue(app.getEnvs().isEmpty());
+    Assertions.assertTrue(app.getEnvironments().isEmpty());
   }
 
   @Test
   void deleteEnvWithDeploymentFails() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    envService.save(new Environment(app, "test"));
+    envService.save(new Environment("test", app));
 
     mockMvc.perform(
         get("/api/apps/dd/envs/test/versions/1-0"))

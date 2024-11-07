@@ -1,6 +1,6 @@
-package cz.oksystem.deployment_dashboard;
+package cz.oksystem.deployment_dashboard.exceptions;
 
-import cz.oksystem.deployment_dashboard.entity.ErrorBody;
+import cz.oksystem.deployment_dashboard.exceptions.ErrorBody;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.EntityAdditionException;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.EntityDeletionOrArchivationException;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.EntityFetchException;

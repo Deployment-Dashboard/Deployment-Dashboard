@@ -1,11 +1,11 @@
-package cz.oksystem.deployment_dashboard.serviceAndRepository;
+package cz.oksystem.deployment_dashboard.service;
 
 import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Environment;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.DuplicateKeyException;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.NotManagedException;
-import org.springframework.dao.DataIntegrityViolationException;
+import cz.oksystem.deployment_dashboard.repository.EnvironmentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,14 +25,25 @@ public class EnvironmentService {
   }
 
   @Transactional
-  public Environment save(Environment env) {
-    if (!appService.exists(env.getApp())) {
-      throw new NotManagedException(App.class, env.getApp().getKey());
+  public Environment save(Environment newEnv) {
+    if (!appService.exists(newEnv.getApp())) {
+      throw new NotManagedException(App.class, newEnv.getApp().getKey());
     }
-    if (exists(env.getApp().getKey(), env.getName())) {
-      throw new DuplicateKeyException(Environment.class, env.getApp().getKey() + "-" + env.getName());
+    if (this.exists(newEnv.getApp().getKey(), newEnv.getName())) {
+      throw new DuplicateKeyException(Environment.class, newEnv.getApp().getKey() + "-" + newEnv.getName());
     }
-    return environmentRepository.save(env);
+    newEnv.getApp().addEnvironment(newEnv);
+    return environmentRepository.save(newEnv);
+  }
+
+  @Transactional
+  public List<Environment> saveAll(List<Environment> envs) {
+    List<Environment> savedEnvs = new ArrayList<>();
+
+    for (Environment env : envs) {
+      savedEnvs.add(this.save(env));
+    }
+    return savedEnvs;
   }
 
   @Transactional
@@ -42,17 +53,17 @@ public class EnvironmentService {
     envsToSave.add(env);
     Collections.addAll(envsToSave, envs);
 
-    return saveAll(envsToSave);
+    return this.saveAll(envsToSave);
   }
 
-  @Transactional
-  public List<Environment> saveAll(List<Environment> envs) {
-    List<Environment> savedEnvs = new ArrayList<>();
+  @Transactional(readOnly = true)
+  public Environment entityFromDto(EnvironmentDto envDto) {
+    Optional<App> app = appService.get(envDto.getAppKey());
 
-    for (Environment env: envs) {
-      savedEnvs.add(save(env));
+    if (app.isEmpty()) {
+      throw new NotManagedException(App.class, envDto.getAppKey());
     }
-    return savedEnvs;
+    return new Environment(envDto.getName(), app.get());
   }
 
   @Transactional
@@ -62,7 +73,7 @@ public class EnvironmentService {
     }
 
     Optional<App> fetchedApp = appService.get(updateWith.getAppKey());
-    Optional<Environment> fetchedEnv = get(appKey, keyToUpdate);
+    Optional<Environment> fetchedEnv = this.get(appKey, keyToUpdate);
 
     if (fetchedApp.isEmpty()) {
       throw new NotManagedException(App.class, updateWith.getAppKey());
@@ -74,14 +85,10 @@ public class EnvironmentService {
     Environment envToUpdate = fetchedEnv.get();
     App newApp = fetchedApp.get();
 
-    if (exists(newApp.getKey(), updateWith.getName())
-      && !newApp.getKey().equals(appKey)
-      && !updateWith.getName().equals(keyToUpdate)) {
-        throw new DuplicateKeyException(Environment.class, newApp.getKey() + "-" + updateWith.getName());
+    if (this.exists(envToUpdate.getApp().getKey(), updateWith.getName())) {
+      throw new DuplicateKeyException(Environment.class, newApp.getKey() + "-" + updateWith.getName());
     }
-
     envToUpdate.setName(updateWith.getName());
-    envToUpdate.setApp(newApp);
   }
 
   @Transactional
@@ -90,7 +97,7 @@ public class EnvironmentService {
       throw new NotManagedException(App.class, appKey);
     }
 
-    Optional<Environment> fetchedEnv = get(appKey, envKey);
+    Optional<Environment> fetchedEnv = this.get(appKey, envKey);
 
     if (fetchedEnv.isEmpty()) {
       throw new NotManagedException(Environment.class, envKey);
@@ -98,10 +105,10 @@ public class EnvironmentService {
 
     Environment envToDelete = fetchedEnv.get();
 
-    if (envToDelete.hasDeployment()) {
-      throw new DataIntegrityViolationException("Environment has deployments!");
+    if (!envToDelete.hasDeployment()) {
+      envToDelete.getApp().removeEnvironment(envToDelete);
+      environmentRepository.delete(envToDelete);
     }
-    environmentRepository.delete(envToDelete);
   }
 
   @Transactional(readOnly = true)
@@ -120,16 +127,5 @@ public class EnvironmentService {
     } else {
       return Optional.empty();
     }
-  }
-
-  @Transactional(readOnly = true)
-  public Environment entityFromDto(EnvironmentDto envDto) {
-    Optional<App> app = appService.get(envDto.getAppKey());
-
-    if (app.isEmpty()) {
-      throw new NotManagedException(App.class, envDto.getAppKey());
-    }
-
-    return new Environment(app.get(), envDto.getName());
   }
 }

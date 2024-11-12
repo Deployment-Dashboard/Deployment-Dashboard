@@ -1,29 +1,15 @@
 package cz.oksystem.deployment_dashboard.service;
 
 import cz.oksystem.deployment_dashboard.entity.Deployment;
-import cz.oksystem.deployment_dashboard.entity.Environment;
-import cz.oksystem.deployment_dashboard.entity.Version;
-import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.repository.DeploymentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
 @Service
 public class DeploymentService {
   private final DeploymentRepository deploymentRepository;
-  private final EnvironmentService environmentService;
-  private final VersionService versionService;
 
-  public DeploymentService(DeploymentRepository deploymentRepository, EnvironmentService environmentService, VersionService versionService) {
-    this.deploymentRepository = deploymentRepository;
-    this.environmentService = environmentService;
-    this.versionService = versionService;
-  }
+  public DeploymentService(DeploymentRepository deploymentRepository) { this.deploymentRepository = deploymentRepository; }
 
   @Transactional
   public Deployment save(Deployment deployment) {
@@ -31,35 +17,5 @@ public class DeploymentService {
     deployment.getVersion().addDeployment(deployment);
 
     return deploymentRepository.save(deployment);
-  }
-
-  @Transactional
-  public Deployment deploy(Version version, String envKey, String urlEncodedTicket, LocalDateTime date) {
-    String appKey = version.getApp().getKey();
-    Optional<Version> fetchedVersion = versionService.get(appKey, version.getName());
-
-    if (fetchedVersion.isEmpty()) {
-      version = versionService.save(version);
-    } else {
-      version = fetchedVersion.get();
-    }
-
-    Optional<Environment> fetchedEnv = environmentService.get(appKey, envKey);
-
-    if (fetchedEnv.isEmpty()) {
-      throw new CustomExceptions.NotManagedException(Environment.class, appKey + envKey);
-    }
-
-    return this.save(new Deployment(fetchedEnv.get(), version, urlEncodedTicket, date));
-  }
-
-  @Transactional
-  public List<Deployment> deployAll(List<Version> versions, String envKey, String urlEncodedTicket, LocalDateTime date) {
-    List<Deployment> deployments = new ArrayList<>();
-
-    for (Version version: versions) {
-      deployments.add(this.deploy(version, envKey, urlEncodedTicket, date));
-    }
-    return deployments;
   }
 }

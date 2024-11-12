@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import java.time.LocalDateTime;
 
 public class ErrorBody {
+
   private LocalDateTime timestamp;
   private HttpStatus statusCode;
   private String message;
@@ -34,55 +35,55 @@ public class ErrorBody {
 
   // Getters
   public LocalDateTime getTimestamp() {
-    return timestamp;
+    return this.timestamp;
   }
 
   public HttpStatus getStatusCode() {
-    return statusCode;
+    return this.statusCode;
   }
 
   @JsonProperty("statusCode")
   public int getStatusCodeValue() {
-    return statusCode.value();
+    return this.statusCode.value();
   }
 
   public String getMessage() {
-    return message;
+    return this.message;
   }
 
   public String getDetails() {
-    return details;
+    return this.details;
   }
 
   public String getPath() {
-    return path;
+    return this.path;
   }
 
 
   // Setters
-  public void setTimestamp(LocalDateTime timestamp) {
-    this.timestamp = timestamp;
+  public void setTimestamp(LocalDateTime newTimestamp) {
+    this.timestamp = newTimestamp;
   }
 
-  public void setStatusCode(HttpStatus statusCode) {
-    this.statusCode = statusCode;
+  public void setStatusCode(HttpStatus newStatusCode) {
+    this.statusCode = newStatusCode;
   }
 
   @JsonSetter("statusCode")
-  public void setStatusCode(int statusCode) {
-    this.statusCode = HttpStatus.valueOf(statusCode);
+  public void setStatusCode(int newStatusCode) {
+    this.statusCode = HttpStatus.valueOf(newStatusCode);
   }
 
-  public void setMessage(String message) {
-    this.message = message;
+  public void setMessage(String newMessage) {
+    this.message = newMessage;
   }
 
-  public void setDetails(String details) {
-    this.details = details;
+  public void setDetails(String newDetails) {
+    this.details = newDetails;
   }
 
-  public void setPath(String path) {
-    this.path = path;
+  public void setPath(String newPath) {
+    this.path = newPath;
   }
 
   public String toJson() throws JsonProcessingException {

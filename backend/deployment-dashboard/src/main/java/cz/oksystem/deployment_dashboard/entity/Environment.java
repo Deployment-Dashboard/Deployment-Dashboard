@@ -14,6 +14,7 @@ public class Environment extends AbstractDeploymentHolder {
   @GeneratedValue
   @Column(name = "env_id")
   private Long id;
+  
   @NotBlank
   @Column(name = "name")
   private String name;

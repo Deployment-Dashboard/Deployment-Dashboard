@@ -15,7 +15,7 @@ public class AppDto {
   private String name;
 
   @Nullable
-  private String parent;
+  private String parentKey;
 
   @Nullable
   private LocalDateTime archivedTimestamp;
@@ -31,42 +31,30 @@ public class AppDto {
     this(key, name, parent, null);
   }
 
-  public AppDto(String key, String name, String parent, LocalDateTime archivedTimestamp) {
+  public AppDto(String key, String name, @Nullable String parentKey, @Nullable LocalDateTime archivedTimestamp) {
     this.key = key;
     this.name = name;
-    this.parent = parent;
+    this.parentKey = parentKey;
     this.archivedTimestamp = archivedTimestamp;
   }
 
   // Getters
-  public String getKey() { return key; }
+  public String getKey() { return this.key; }
 
-  public String getName() { return name; }
+  public String getName() { return this.name; }
 
-  public Optional<String> getParent() { return Optional.ofNullable(parent); }
+  public Optional<String> getParentKey() { return Optional.ofNullable(this.parentKey); }
 
-  public Optional<LocalDateTime> getArchivedTimestamp() { return Optional.ofNullable(archivedTimestamp); }
+  public Optional<LocalDateTime> getArchivedTimestamp() { return Optional.ofNullable(this.archivedTimestamp); }
 
   // Setters
-  public void setKey(String key) {
-    this.key = key;
+  public void setKey(String newKey) {
+    this.key = newKey;
   }
 
-  public void setName(String name) {
-    this.name = name;
-  }
+  public void setName(String newName) { this.name = newName; }
 
-  public void setParent(String parent) { this.parent = parent; }
+  public void setParentKey(@Nullable String newParentKey) { this.parentKey = newParentKey; }
 
-  public void setArchivedTimestamp(LocalDateTime archivedTimestamp) { this.archivedTimestamp = archivedTimestamp; }
-
-  @Override
-  public String toString() {
-    return "AppDto{" +
-      "key='" + key + '\'' +
-      ", name='" + name + '\'' +
-      ", parent='" + parent + '\'' +
-      ", archivedTimestamp=" + archivedTimestamp +
-      '}';
-  }
+  public void setArchivedTimestamp(@Nullable LocalDateTime newArchivedTimestamp) { this.archivedTimestamp = newArchivedTimestamp; }
 }

@@ -3,13 +3,13 @@ package cz.oksystem.deployment_dashboard;
 import cz.oksystem.deployment_dashboard.dto.AppDto;
 import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
 import cz.oksystem.deployment_dashboard.entity.App;
+import cz.oksystem.deployment_dashboard.entity.Deployment;
 import cz.oksystem.deployment_dashboard.entity.Environment;
 import cz.oksystem.deployment_dashboard.entity.Version;
-import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.*;
+import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.service.ServiceOrchestrator;
 import jakarta.validation.Valid;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConversionException;
@@ -47,8 +47,11 @@ class ApiController {
         throw new HttpMessageConversionException(getBindingResultErrorMessage(result));
       }
       serviceOrchestrator.addApp(appDto);
-    } catch (HttpMessageConversionException | DuplicateKeyException | RecursiveAppParentingException | NotManagedException ex) {
-      throw new EntityAdditionException(App.class, ex);
+    } catch (HttpMessageConversionException
+             | CustomExceptions.NotManagedException
+             | CustomExceptions.DuplicateKeyException
+             | CustomExceptions.RecursiveAppParentingException ex) {
+      throw new CustomExceptions.EntityAdditionException(App.class, ex);
     }
   }
 
@@ -64,8 +67,11 @@ class ApiController {
         throw new HttpMessageConversionException(getBindingResultErrorMessage(result));
       }
       serviceOrchestrator.updateApp(key, appDto);
-    } catch (HttpMessageConversionException | NotManagedException | DuplicateKeyException | RecursiveAppParentingException ex) {
-      throw new EntityUpdateException(App.class, ex);
+    } catch (HttpMessageConversionException
+             | CustomExceptions.NotManagedException
+             | CustomExceptions.DuplicateKeyException
+             | CustomExceptions.RecursiveAppParentingException ex) {
+      throw new CustomExceptions.EntityUpdateException(App.class, ex);
     }
   }
 
@@ -77,8 +83,9 @@ class ApiController {
                           @RequestParam(value = "hard_delete", required = false) boolean hardDelete) {
     try {
       serviceOrchestrator.deleteApp(key, hardDelete);
-    } catch (NotManagedException | DataIntegrityViolationException ex) {
-      throw new EntityDeletionOrArchivationException(App.class, ex);
+    } catch (CustomExceptions.NotManagedException
+             | CustomExceptions.DeletionNotAllowedException ex) {
+      throw new CustomExceptions.EntityDeletionOrArchivationException(App.class, ex);
     }
   }
 
@@ -100,11 +107,11 @@ class ApiController {
                   @RequestParam(value = "ticket", required = false) String jiraTicket,
                   @RequestParam(value = "component", required = false) List<String> components,
                   @RequestParam(value = "components_only", required = false) boolean componentsOnly) {
-    //versionDeploymentOrchestrator.release(appKey, envKey, versionName, jiraTicket, components, componentsOnly);
     try {
       serviceOrchestrator.release(appKey, components, envKey, versionName, jiraTicket, componentsOnly);
-    } catch (Exception ex) {
-      throw new EntityAdditionException(Version.class, ex);
+    } catch (CustomExceptions.NotManagedException
+             | CustomExceptions.NoSuchAppComponentException ex) {
+      throw new CustomExceptions.EntityAdditionException(Deployment.class, ex);
     }
   }
 
@@ -115,8 +122,8 @@ class ApiController {
   ResponseEntity<List<Version>> getAllVersions(@PathVariable("key") String key) {
     try {
       return ResponseEntity.ok(serviceOrchestrator.getAppVersions(key));
-    } catch (NotManagedException ex) {
-      throw new EntityFetchException(App.class, ex);
+    } catch (CustomExceptions.NotManagedException ex) {
+      throw new CustomExceptions. EntityFetchException(App.class, ex);
     }
   }
 
@@ -126,8 +133,8 @@ class ApiController {
   ResponseEntity<List<Environment>> getAllAppEnvs(@PathVariable("key") String key) {
     try {
       return ResponseEntity.ok(serviceOrchestrator.getAppEnvironments(key));
-    } catch (NotManagedException ex) {
-      throw new EntityFetchException(Environment.class, ex);
+    } catch (CustomExceptions.NotManagedException ex) {
+      throw new CustomExceptions.EntityFetchException(Environment.class, ex);
     }
   }
 
@@ -143,8 +150,10 @@ class ApiController {
         throw new HttpMessageConversionException(getBindingResultErrorMessage(result));
       }
       serviceOrchestrator.addEnvironment(envDto);
-    } catch (HttpMessageConversionException | NotManagedException | DuplicateKeyException ex) {
-      throw new EntityAdditionException(Environment.class, ex);
+    } catch (HttpMessageConversionException
+             | CustomExceptions.NotManagedException
+             | CustomExceptions.DuplicateKeyException ex) {
+      throw new CustomExceptions.EntityAdditionException(Environment.class, ex);
     }
   }
 
@@ -161,8 +170,10 @@ class ApiController {
         throw new HttpMessageConversionException("Environment could not be updated: " + getBindingResultErrorMessage(result));
       }
       serviceOrchestrator.updateEnvironment(appKey, envKey, envDto);
-    } catch (Exception ex) {
-      throw new EntityUpdateException(Environment.class, ex);
+    } catch (HttpMessageConversionException
+             | CustomExceptions.NotManagedException
+             | CustomExceptions.DuplicateKeyException ex) {
+      throw new CustomExceptions.EntityUpdateException(Environment.class, ex);
     }
   }
 
@@ -174,8 +185,9 @@ class ApiController {
                     @PathVariable("envKey") String envKey) {
     try {
       serviceOrchestrator.deleteEnvironment(appKey, envKey);
-    } catch (NotManagedException | DataIntegrityViolationException ex) {
-      throw new EntityDeletionOrArchivationException(Environment.class, ex);
+    } catch (CustomExceptions.NotManagedException
+             | CustomExceptions.DeletionNotAllowedException ex) {
+      throw new CustomExceptions.EntityDeletionOrArchivationException(Environment.class, ex);
     }
   }
 }

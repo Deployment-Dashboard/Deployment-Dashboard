@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+// TODO projít services a všechny cross-checky přesunout sem
 @Service
 public class ServiceOrchestrator {
   private final AppService appService;
@@ -31,39 +32,39 @@ public class ServiceOrchestrator {
 
 
   public void addApp(AppDto appDto) {
-    appService.save(appService.entityFromDto(appDto));
+    appService.save(this.appFromDto(appDto));
   }
 
   public void updateApp(String appKey, AppDto appDto) {
-    appService.update(appKey, appDto);
+    appService.update(appKey, this.appFromDto(appDto));
   }
 
   public void deleteApp(String appKey, boolean hardDelete) {
-    if (hardDelete) {
-      appService.delete(appKey);
-    } else {
-      appService.archive(appKey);
-    }
+    appService.delete(appKey, hardDelete);
   }
 
   public List<Environment> getAppEnvironments(String appKey) {
-    App fetchedApp = appService.get(appKey).orElseThrow(() -> new CustomExceptions.NotManagedException(App.class, appKey));
+    App fetchedApp = appService.get(appKey).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(App.class, appKey)
+    );
 
     return fetchedApp.getEnvironments();
   }
 
   public List<Version> getAppVersions(String appKey) {
-    App fetchedApp = appService.get(appKey).orElseThrow(() -> new CustomExceptions.NotManagedException(App.class, appKey));
+    App fetchedApp = appService.get(appKey).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(App.class, appKey)
+    );
 
     return fetchedApp.getVersions();
   }
 
   public void addEnvironment(EnvironmentDto envDto) {
-    environmentService.save(environmentService.entityFromDto(envDto));
+    environmentService.save(this.environmentFromDto(envDto));
   }
 
   public void updateEnvironment(String appKey, String envKey, EnvironmentDto envDto) {
-    environmentService.update(appKey, envKey, envDto);
+    environmentService.update(appKey, envKey, this.environmentFromDto(envDto));
   }
 
   public void deleteEnvironment(String appKey, String envKey) {
@@ -72,11 +73,13 @@ public class ServiceOrchestrator {
 
   @Transactional
   public void release(String appKey, List<String> components, String envKey, String versionName, String jiraTicket, boolean componentsOnly) {
-    App mainApp = appService.get(appKey)
-      .orElseThrow(() -> new CustomExceptions.NotManagedException(App.class, appKey));
+    App mainApp = appService.get(appKey).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(App.class, appKey)
+    );
 
-    Environment envToDeployTo = environmentService.get(appKey, envKey)
-      .orElseThrow(() -> new CustomExceptions.NotManagedException(Environment.class, envKey));
+    Environment envToDeployTo = environmentService.get(appKey, envKey).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(Environment.class, appKey + "-" + envKey)
+    );
 
     List<App> mainAppComponents = mainApp.getComponents();
     List<App> versionedApps = new ArrayList<>();
@@ -87,15 +90,14 @@ public class ServiceOrchestrator {
 
     if (components != null && !components.isEmpty()) {
       for (String componentKey : components) {
-        App fetchedComponent = appService.get(componentKey)
-          .orElseThrow(() -> new CustomExceptions.NotManagedException(App.class, appKey));
+        App fetchedComponent = appService.get(componentKey).orElseThrow(
+          () -> new CustomExceptions.NotManagedException(App.class, appKey)
+        );
 
         if (mainAppComponents.contains(fetchedComponent)) {
           versionedApps.add(fetchedComponent);
         } else {
-          throw new IllegalArgumentException(
-            String.format("%s is not a component of %s", componentKey, appKey)
-          );
+          throw new CustomExceptions.NoSuchAppComponentException(componentKey, appKey);
         }
       }
     } else if (componentsOnly){
@@ -103,10 +105,37 @@ public class ServiceOrchestrator {
     }
 
     for (App versionedApp : versionedApps) {
-      Version appVersion = versionService.get(versionedApp.getKey(), versionName)
-        .orElseGet(() -> versionService.save(new Version(versionedApp, versionName, jiraTicket)));
+      Version appVersion = versionService.get(versionedApp.getKey(), versionName).orElseGet(
+        () -> versionService.save(new Version(versionedApp, versionName, jiraTicket))
+      );
 
-      deploymentService.save(new Deployment(envToDeployTo, appVersion, jiraTicket, LocalDateTime.now()));
+      deploymentService.save(
+        new Deployment(envToDeployTo, appVersion, jiraTicket, LocalDateTime.now())
+      );
     }
+  }
+
+  public App appFromDto(AppDto appDto) {
+    App newApp = new App(appDto.getKey(), appDto.getName());
+
+    appDto.getParentKey().ifPresent(
+      parentKey -> {
+        App parent = appService.get(parentKey).orElseThrow(
+          () -> new CustomExceptions.NotManagedException(App.class, parentKey));
+        newApp.setParent(parent);
+      }
+    );
+
+    newApp.setArchivedTimestamp(appDto.getArchivedTimestamp().orElse(null));
+
+    return newApp;
+  }
+
+  public Environment environmentFromDto(EnvironmentDto envDto) {
+    App fetchedApp = appService.get(envDto.getAppKey()).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(App.class, envDto.getAppKey())
+    );
+
+    return new Environment(envDto.getName(), fetchedApp);
   }
 }

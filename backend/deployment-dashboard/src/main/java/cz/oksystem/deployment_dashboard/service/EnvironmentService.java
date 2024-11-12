@@ -1,10 +1,8 @@
 package cz.oksystem.deployment_dashboard.service;
 
-import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Environment;
-import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.DuplicateKeyException;
-import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.NotManagedException;
+import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.repository.EnvironmentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,21 +15,15 @@ import java.util.Optional;
 @Service
 public class EnvironmentService {
   private final EnvironmentRepository environmentRepository;
-  private final AppService appService;
 
-  public EnvironmentService(EnvironmentRepository environmentRepository, AppService appService) {
+  public EnvironmentService(EnvironmentRepository environmentRepository) {
     this.environmentRepository = environmentRepository;
-    this.appService = appService;
   }
 
   @Transactional
   public Environment save(Environment newEnv) {
-    if (!appService.exists(newEnv.getApp())) {
-      throw new NotManagedException(App.class, newEnv.getApp().getKey());
-    }
-    if (this.exists(newEnv.getApp().getKey(), newEnv.getName())) {
-      throw new DuplicateKeyException(Environment.class, newEnv.getApp().getKey() + "-" + newEnv.getName());
-    }
+    this.validate(newEnv);
+
     newEnv.getApp().addEnvironment(newEnv);
     return environmentRepository.save(newEnv);
   }
@@ -57,75 +49,54 @@ public class EnvironmentService {
   }
 
   @Transactional(readOnly = true)
-  public Environment entityFromDto(EnvironmentDto envDto) {
-    Optional<App> app = appService.get(envDto.getAppKey());
-
-    if (app.isEmpty()) {
-      throw new NotManagedException(App.class, envDto.getAppKey());
-    }
-    return new Environment(envDto.getName(), app.get());
+  void validate(Environment env) {
+    this.get(env.getApp().getKey(), env.getName()).ifPresent(fetchedEnv -> {
+      if (fetchedEnv != env) {
+        throw new CustomExceptions.DuplicateKeyException(
+          Environment.class, env.getApp().getKey(), env.getName()
+        );
+      }
+    });
   }
 
   @Transactional
-  public void update(String appKey, String keyToUpdate, EnvironmentDto updateWith) {
-    if (!appService.exists(appKey)) {
-      throw new NotManagedException(App.class, appKey);
-    }
+  public void update(String appKey, String envKeyToUpdate, Environment updateWith) {
+    Environment envToUpdate = this.get(appKey, envKeyToUpdate).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(
+        Environment.class, App.class, envKeyToUpdate, appKey
+      )
+    );
 
-    Optional<App> fetchedApp = appService.get(updateWith.getAppKey());
-    Optional<Environment> fetchedEnv = this.get(appKey, keyToUpdate);
-
-    if (fetchedApp.isEmpty()) {
-      throw new NotManagedException(App.class, updateWith.getAppKey());
-    }
-    if (fetchedEnv.isEmpty()) {
-      throw new NotManagedException(Environment.class, keyToUpdate);
-    }
-
-    Environment envToUpdate = fetchedEnv.get();
-    App newApp = fetchedApp.get();
-
-    if (this.exists(envToUpdate.getApp().getKey(), updateWith.getName())) {
-      throw new DuplicateKeyException(Environment.class, newApp.getKey() + "-" + updateWith.getName());
-    }
     envToUpdate.setName(updateWith.getName());
+
+    this.validate(envToUpdate);
   }
 
   @Transactional
-  public void delete(String appKey, String envKey) {
-    if (!appService.exists(appKey)) {
-      throw new NotManagedException(App.class, appKey);
+  public void delete(String appKey, String envKeyToDelete) {
+    Environment envToDelete = this.get(appKey, envKeyToDelete).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(
+        Environment.class, App.class, envKeyToDelete, appKey
+      )
+    );
+
+    if (envToDelete.hasDeployment()) {
+      throw new CustomExceptions.DeletionNotAllowedException(
+        Environment.class, envKeyToDelete
+      );
     }
 
-    Optional<Environment> fetchedEnv = this.get(appKey, envKey);
-
-    if (fetchedEnv.isEmpty()) {
-      throw new NotManagedException(Environment.class, envKey);
-    }
-
-    Environment envToDelete = fetchedEnv.get();
-
-    if (!envToDelete.hasDeployment()) {
-      envToDelete.getApp().removeEnvironment(envToDelete);
-      environmentRepository.delete(envToDelete);
-    }
+    envToDelete.getApp().removeEnvironment(envToDelete);
+    environmentRepository.delete(envToDelete);
   }
 
   @Transactional(readOnly = true)
   public boolean exists(String appKey, String envKey) {
-    Optional<App> fetchedApp = appService.get(appKey);
-
-    return fetchedApp.isPresent() && environmentRepository.existsByAppAndName(fetchedApp.get(), envKey);
+    return environmentRepository.existsByAppKeyAndName(appKey, envKey);
   }
 
   @Transactional(readOnly = true)
   public Optional<Environment> get(String appKey, String name) {
-    Optional<App> fetchedApp = appService.get(appKey);
-
-    if (fetchedApp.isPresent()) {
-      return environmentRepository.findByAppAndName(fetchedApp.get(), name);
-    } else {
-      return Optional.empty();
-    }
+    return environmentRepository.findByAppKeyAndName(appKey, name);
   }
 }

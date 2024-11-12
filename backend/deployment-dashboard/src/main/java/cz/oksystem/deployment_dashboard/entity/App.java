@@ -12,9 +12,8 @@ import java.util.*;
 // TODO PRO CELÝ PROJEKT - custom anotace na kontrolu inicializace a rozchodit Lombok kvůli té kupě getterů
 
 @Entity
-@Table(name = "apps")
+@Table(name = "apps", uniqueConstraints = @UniqueConstraint(columnNames = {"app_key", "archived_timestamp"}))
 public class App {
-
 
   @Id
   @GeneratedValue
@@ -57,6 +56,10 @@ public class App {
   }
 
   public App(String key, String name, @Nullable App parent) {
+    this(key, name, parent, null);
+  }
+
+  public App(String key, String name, @Nullable App parent, @Nullable LocalDateTime archivedTimestamp) {
     if (key == null || key.isEmpty()) {
       throw new IllegalArgumentException(
         "Key is empty."
@@ -70,6 +73,7 @@ public class App {
     this.key = key;
     this.name = name;
     this.parent = parent;
+    this.archivedTimestamp = archivedTimestamp;
   }
 
   // Getters
@@ -118,8 +122,8 @@ public class App {
     this.name = newName.toLowerCase();
   }
 
-  public void setArchivedTimestamp(@Nullable LocalDateTime archivedTimestamp) {
-    this.archivedTimestamp = archivedTimestamp;
+  public void setArchivedTimestamp(@Nullable LocalDateTime newArchivedTimestamp) {
+    this.archivedTimestamp = newArchivedTimestamp;
   }
 
   public void setParent(@Nullable App newParent) {
@@ -133,7 +137,7 @@ public class App {
         "Environment is null."
       );
     }
-    environments.add(newEnvironment);
+    this.environments.add(newEnvironment);
   }
 
   public void removeEnvironment(Environment environmentToRemove) {
@@ -159,7 +163,7 @@ public class App {
         "Component is null."
       );
     }
-    components.add(newComponent);
+    this.components.add(newComponent);
   }
 
   public void removeComponent(App componentToRemove) {

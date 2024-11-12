@@ -1,9 +1,7 @@
 package cz.oksystem.deployment_dashboard.service;
 
-import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Version;
-import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.DuplicateKeyException;
-import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.NotManagedException;
+import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.repository.VersionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,43 +11,30 @@ import java.util.Optional;
 @Service
 public class VersionService {
   private final VersionRepository versionRepository;
-  private final AppService appService;
 
-  public VersionService(VersionRepository versionRepository, AppService appService) {
+  public VersionService(VersionRepository versionRepository) {
     this.versionRepository = versionRepository;
-    this.appService = appService;
   }
 
   @Transactional
-  public Version save(Version version) {
-    if (this.exists(version.getApp().getKey(), version.getName())) {
-      throw new DuplicateKeyException(Version.class, version.getApp().getKey() + " ver. " + version.getName());
+  public Version save(Version newVersion) {
+    if (this.exists(newVersion.getApp().getKey(), newVersion.getName())) {
+      throw new CustomExceptions.DuplicateKeyException(
+        Version.class, newVersion.getApp().getKey(), newVersion.getName()
+      );
     }
 
-    Optional<App> fetchedApp = appService.get(version.getApp().getKey());
-
-    if (fetchedApp.isEmpty()) {
-      throw new NotManagedException(App.class, version.getApp().getKey());
-    }
-    fetchedApp.get().addVersion(version);
-    return versionRepository.save(version);
+    newVersion.getApp().addVersion(newVersion);
+    return versionRepository.save(newVersion);
   }
 
   @Transactional(readOnly = true)
-  public Optional<Version> get(String appKey, String name) {
-    Optional<App> fetchedApp = appService.get(appKey);
-
-    if (fetchedApp.isPresent()) {
-      return versionRepository.findByAppAndName(fetchedApp.get(), name);
-    } else {
-      return Optional.empty();
-    }
+  public Optional<Version> get(String appKey, String versionName) {
+    return versionRepository.findByAppAndName(appKey, versionName);
   }
 
   @Transactional(readOnly = true)
-  public boolean exists(String appKey, String version) {
-    Optional<App> fetchedApp = appService.get(appKey);
-
-    return fetchedApp.isPresent() && versionRepository.existsByAppAndName(fetchedApp.get(), version);
+  public boolean exists(String appKey, String versionName) {
+    return versionRepository.existsByAppAndName(appKey, versionName);
   }
 }

@@ -1,23 +1,24 @@
 package cz.oksystem.deployment_dashboard.service;
 
-import cz.oksystem.deployment_dashboard.dto.AppDto;
 import cz.oksystem.deployment_dashboard.entity.App;
-import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.DuplicateKeyException;
-import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.NotManagedException;
-import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.RecursiveAppParentingException;
+import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.repository.AppRepository;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 // TODO - přidat podporu pro unarchive (podle vývoje API)
 @Service
 public class AppService {
+
   private final AppRepository appRepository;
-  private static final HashMap<String, Integer> archivationCounter = new HashMap<>();
 
   public AppService(AppRepository appRepository) {
     this.appRepository = appRepository;
@@ -25,10 +26,11 @@ public class AppService {
 
   @Transactional
   public App save(App newApp) {
-    this.validate(newApp);
+    this.validate(newApp, true);
 
     newApp.getParent().ifPresent(
-      parent -> parent.addComponent(newApp));
+      parent -> parent.addComponent(newApp)
+    );
 
     return appRepository.save(newApp);
   }
@@ -54,128 +56,82 @@ public class AppService {
   }
 
   @Transactional(readOnly = true)
-  public App entityFromDto(AppDto appDto) {
-    App newApp = new App(appDto.getKey(), appDto.getName());
-
-    appDto.getParent().ifPresent(parentKey -> {
-      App parent = this.get(parentKey)
-        .orElseThrow(() -> new NotManagedException(App.class, parentKey));
-      newApp.setParent(parent);
-    });
-
-    this.validate(newApp);
-
-    if (appDto.getArchivedTimestamp().isPresent()) {
-      this.archive(newApp);
-    }
-    return newApp;
-  }
-
-  @Transactional(readOnly = true)
-  void validate(App app) {
-    if (this.exists(app)) {
-      throw new DuplicateKeyException(App.class, app.getKey());
+  void validate(App app, boolean isNew) {
+    if (isNew) {
+      this.get(app.getKey()).ifPresent(fetchedApp -> {
+        if (!app.equals(fetchedApp)) {
+          throw new CustomExceptions.DuplicateKeyException(App.class, app.getKey());
+        }
+      });
     }
 
     app.getParent().ifPresent(parentApp -> {
       if (!this.exists(parentApp)) {
-        throw new NotManagedException(App.class, parentApp.getKey());
+        throw new CustomExceptions.NotManagedException(App.class, parentApp.getKey());
       }
       if (app.hasCycle()) {
-        throw new RecursiveAppParentingException();
+        throw new CustomExceptions.RecursiveAppParentingException();
       }
     });
   }
 
-  @Transactional
-  public App update(String keyToUpdate, App updateWith) {
-    Optional<App> fetchedApp = this.get(keyToUpdate);
+  @Transactional(propagation = Propagation.REQUIRED, isolation = Isolation.DEFAULT)
+  public App update(String appKeyToUpdate, App updateWith) {
+    App appToUpdate = this.get(appKeyToUpdate).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(App.class, appKeyToUpdate)
+    );
 
-    if (fetchedApp.isEmpty()) {
-      throw new NotManagedException(App.class, keyToUpdate);
+    if (this.exists(updateWith.getKey())
+      && !updateWith.getKey().equals(appToUpdate.getKey())) {
+      throw new CustomExceptions.DuplicateKeyException(App.class, updateWith.getKey());
     }
-
-    if (!keyToUpdate.equals(updateWith.getKey())
-        && this.exists(updateWith.getKey())) {
-      throw new DuplicateKeyException(App.class, updateWith.getKey());
-    }
-
-    App appToUpdate = fetchedApp.get();
 
     appToUpdate.setKey(updateWith.getKey());
     appToUpdate.setName(updateWith.getName());
 
-    if (appToUpdate.getParent().isPresent()) {
-      appToUpdate.getParent().get().removeComponent(appToUpdate);
-    }
+    appToUpdate.getParent().ifPresent(
+      parent -> parent.removeComponent(appToUpdate)
+    );
+
     appToUpdate.setParent(updateWith.getParent().orElse(null));
-    if (appToUpdate.getParent().isPresent()) {
-      appToUpdate.getParent().get().addComponent(appToUpdate);
-    }
 
-    this.validate(appToUpdate);
+    appToUpdate.getParent().ifPresent(
+      parent -> parent.addComponent(appToUpdate)
+    );
 
-    if (updateWith.getArchivedTimestamp().isPresent()) {
-      this.archive(appToUpdate);
-    }
+    appToUpdate.setArchivedTimestamp(updateWith.getArchivedTimestamp().orElse(null));
+
+    this.validate(appToUpdate, false);
 
     return appToUpdate;
   }
 
   @Transactional
-  public App update(String keyToUpdate, AppDto updateWith) {
-    return this.update(keyToUpdate, entityFromDto(updateWith));
-  }
+  public void delete(String appKeyToDelete, boolean hardDelete) {
+    App appToDelete = this.get(appKeyToDelete).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(App.class, appKeyToDelete)
+    );
 
-  @Transactional
-  public void archive(App appToArchive) throws NotManagedException {
-    if (!this.exists(appToArchive)) {
-      throw new NotManagedException(App.class, appToArchive.getKey());
+    if (!hardDelete) {
+      appToDelete.setArchivedTimestamp(LocalDateTime.now());
+      return;
     }
-    if (appToArchive.getArchivedTimestamp().isEmpty()) {
-      appToArchive.setArchivedTimestamp(LocalDateTime.now());
-      appToArchive.setKey(this.getArchivationKey(appToArchive.getKey()));
-    }
-  }
 
-  @Transactional
-  public void archive(String key) throws NotManagedException {
-    Optional<App> appToArchive = get(key);
-
-    if (appToArchive.isPresent()) {
-      this.archive(appToArchive.get());
+    if (appToDelete.hasDeployment()) {
+      throw new CustomExceptions.DeletionNotAllowedException(
+        App.class, appToDelete.getKey()
+      );
     }
-  }
 
-  public String getArchivationKey(String appKey) {
-    int count = archivationCounter.getOrDefault(appKey, 1);
-    archivationCounter.put(appKey, count + 1);
-    return String.format("%s (archiv #%d)", appKey, count);
-  }
+    for (App component : appToDelete.getComponents()) {
+      this.delete(component.getKey(), true);
+    }
 
-  @Transactional
-  public void delete(App app) {
-    if (!this.exists(app)) {
-      throw new NotManagedException(App.class, app.getKey());
-    }
-    if (app.hasDeployment()) {
-      throw new DataIntegrityViolationException("App has deployments.");
-    }
-    if (app.getParent().isPresent()) {
-      app.getParent().get().removeComponent(app);
-    }
-    appRepository.delete(app);
-  }
+    appToDelete.getParent().ifPresent(
+      parent -> parent.removeComponent(appToDelete)
+    );
 
-  @Transactional
-  public void delete(String key) {
-    Optional<App> appToDelete = this.get(key);
-
-    if (appToDelete.isPresent()) {
-      this.delete(appToDelete.get());
-    } else {
-      throw new NotManagedException(App.class, key);
-    }
+    appRepository.delete(appToDelete);
   }
 
   @Transactional(readOnly = true)
@@ -198,14 +154,5 @@ public class AppService {
     return alsoArchived
       ? appRepository.findByKeyAndArchivedTimestampIsNull(key)
       : appRepository.findByKey(key);
-  }
-
-  @Transactional(readOnly = true)
-  public Optional<App> getProject(String key) {
-    return appRepository.findByKeyAndParentIsNull(key);
-  }
-
-  public static void resetArchivationCounter() {
-    archivationCounter.clear();
   }
 }

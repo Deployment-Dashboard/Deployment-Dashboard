@@ -12,6 +12,7 @@ import java.util.List;
 
 @MappedSuperclass
 public abstract class AbstractDeploymentHolder {
+
   @JsonManagedReference
   @OneToMany(fetch = FetchType.LAZY)
   protected List<Deployment> deployments = new ArrayList<>();

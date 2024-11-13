@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Script to create backup of folder from given source to given destination
-# Pattern of backup FOLDER_NAME-ddmmYYY-HHMMSS
+# Pattern of backup FOLDER_NAME-ddmmYYYY-HHMMSS
 # Keeps maximum of 7 backups, oldest is deleted
 # Example usage for cron: 0 2 * * * /home/developer/deploydash/dbbackup.sh /home/developer/deploydash/db/data /home/developer/deploydash/db/backup
 #

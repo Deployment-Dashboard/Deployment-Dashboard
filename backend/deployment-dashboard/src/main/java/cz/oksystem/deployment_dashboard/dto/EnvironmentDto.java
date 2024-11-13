@@ -20,19 +20,17 @@ public class EnvironmentDto {
 
   // Getters
   public String getName() {
-    return name;
+    return this.name;
   }
 
   public String getAppKey() {
-    return appKey;
+    return this.appKey;
   }
 
   // Setters
-  public void setName(String name) {
-    this.name = name;
+  public void setName(String newName) {
+    this.name = newName;
   }
 
-  public void setAppKey(String appKey) {
-    this.appKey = appKey;
-  }
+  public void setAppKey(String newAppKey) { this.appKey = newAppKey; }
 }

@@ -9,8 +9,10 @@ import org.springframework.lang.Nullable;
 import java.time.LocalDateTime;
 import java.util.*;
 
+// TODO PRO CELÝ PROJEKT - custom anotace na kontrolu inicializace a rozchodit Lombok kvůli té kupě getterů
+
 @Entity
-@Table(name = "apps")
+@Table(name = "apps", uniqueConstraints = @UniqueConstraint(columnNames = {"app_key", "archived_timestamp"}))
 public class App {
 
   @Id
@@ -30,44 +32,44 @@ public class App {
 
   @JsonBackReference
   @Nullable
-  @ManyToOne(cascade = CascadeType.ALL)
+  @ManyToOne
   @JoinColumn(name = "parent_id")
   private App parent;
 
   @JsonManagedReference
-  @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.REMOVE)
-  private final List<Environment> envs = new ArrayList<>();
+  @OneToMany(fetch = FetchType.LAZY, mappedBy = "app")
+  private final List<Environment> environments = new ArrayList<>();
 
   @JsonManagedReference
-  @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.REMOVE)
+  @OneToMany(fetch = FetchType.LAZY, mappedBy = "app")
   private final List<Version> versions = new ArrayList<>();
 
   @JsonManagedReference
-  @OneToMany(fetch = FetchType.LAZY, mappedBy = "parent", cascade = CascadeType.REMOVE)
+  @OneToMany(fetch = FetchType.LAZY, mappedBy = "parent")
   private final List<App> components = new ArrayList<>();
 
 
   public App() {}
 
   public App(String key, String name) {
-    this(key, name, null, null);
+    this(key, name, null);
   }
 
-  public App(String key, String name, App parent) {
+  public App(String key, String name, @Nullable App parent) {
     this(key, name, parent, null);
   }
 
-  public App(String key, String name, App parent, LocalDateTime archivedTimestamp) {
+  public App(String key, String name, @Nullable App parent, @Nullable LocalDateTime archivedTimestamp) {
     if (key == null || key.isEmpty()) {
-      throw new IllegalArgumentException("Key should not be empty.");
+      throw new IllegalArgumentException(
+        "Key is empty."
+      );
     }
     if (name == null || name.isEmpty()) {
-      throw new IllegalArgumentException("Name should not be empty.");
+      throw new IllegalArgumentException(
+        "Name is empty."
+      );
     }
-    if (this == parent) {
-      throw new IllegalStateException("App cannot be a parent of itself.");
-    }
-
     this.key = key;
     this.name = name;
     this.parent = parent;
@@ -75,69 +77,122 @@ public class App {
   }
 
   // Getters
-  public String getKey() { return key; }
+  public String getKey() { return this.key; }
 
-  public String getName() { return name; }
+  public String getName() { return this.name; }
 
-  public Optional<App> getParent() { return Optional.ofNullable(parent); }
-
-  public Optional<LocalDateTime> getArchivedTimestamp() { return Optional.ofNullable(archivedTimestamp); }
-
-  public List<Version> getVersions() { return Collections.unmodifiableList(versions); }
-
-  public List<Environment> getEnvs() { return Collections.unmodifiableList(envs); }
-
-  public void addComponent(App app) {
-    if (this == app) {
-      throw new IllegalStateException("App cannot be a component of itself.");
-    }
-    components.add(app);
+  public Optional<LocalDateTime> getArchivedTimestamp() {
+    return Optional.ofNullable(this.archivedTimestamp);
   }
 
-  public void removeComponent(App app) {
-    components.remove(app);
+  public Optional<App> getParent() {
+    return Optional.ofNullable(this.parent);
   }
 
-  public void addEnvironment(Environment env) { envs.add(env); }
+  public List<Environment> getEnvironments() {
+    return this.parent == null
+      ? Collections.unmodifiableList(this.environments)
+      : this.parent.getEnvironments();
+  }
 
-  public void removeEnvironment(Environment env) { envs.remove(env); }
+  public List<Version> getVersions() {
+    return Collections.unmodifiableList(this.versions);
+  }
 
-  public void addVersion(Version version) { versions.add(version); }
-
-  public void removeVersion(Version version) { versions.remove(version); }
-
-  public List<App> getComponents() { return Collections.unmodifiableList(components); }
+  public List<App> getComponents() {
+    return Collections.unmodifiableList(this.components);
+  }
 
   // Setters
-  public void setKey(String key) {
-    if (key == null || key.isEmpty()) {
-      throw new IllegalArgumentException("Key should not be empty.");
+  public void setKey(String newKey) {
+    if (newKey == null || newKey.isEmpty()) {
+      throw new IllegalArgumentException(
+        "Key is empty."
+      );
     }
-    this.key = key.toLowerCase();
+    this.key = newKey.toLowerCase();
   }
 
-  public void setName(String name) {
-    if (name == null || name.isEmpty()) {
-      throw new IllegalArgumentException("Name should not be empty.");
+  public void setName(String newName) {
+    if (newName == null || newName.isEmpty()) {
+      throw new IllegalArgumentException(
+        "Name is empty."
+      );
     }
-    this.name = name.toLowerCase();
+    this.name = newName.toLowerCase();
   }
 
-  public void setParent(App parent) {
-    if (this.parent != null) {
-      parent.removeComponent(this);
-    }
-    this.parent = parent;
-    if (parent != null) {
-      parent.addComponent(this);
-    }
+  public void setArchivedTimestamp(@Nullable LocalDateTime newArchivedTimestamp) {
+    this.archivedTimestamp = newArchivedTimestamp;
   }
 
-  public void setArchivedTimestamp(LocalDateTime archivedTimestamp) { this.archivedTimestamp = archivedTimestamp; }
+  public void setParent(@Nullable App newParent) {
+    this.parent = newParent;
+  }
+
+  // List field accessors
+  public void addEnvironment(Environment newEnvironment) {
+    if (newEnvironment == null) {
+      throw new IllegalArgumentException(
+        "Environment is null."
+      );
+    }
+    this.environments.add(newEnvironment);
+  }
+
+  public void removeEnvironment(Environment environmentToRemove) {
+    this.environments.remove(environmentToRemove);
+  }
+
+  public void addVersion(Version newVersion) {
+    if (newVersion == null) {
+      throw new IllegalArgumentException(
+        "Version is null."
+      );
+    }
+    this.versions.add(newVersion);
+  }
+
+  public void removeVersion(Version versionToRemove) {
+    this.versions.remove(versionToRemove);
+  }
+
+  public void addComponent(App newComponent) {
+    if (newComponent == null) {
+      throw new IllegalArgumentException(
+        "Component is null."
+      );
+    }
+    this.components.add(newComponent);
+  }
+
+  public void removeComponent(App componentToRemove) {
+    this.components.remove(componentToRemove);
+  }
+
+  // Properties
+  public boolean isComponent() {
+    return this.parent != null;
+  }
 
   public boolean hasDeployment() {
-    for (Environment env: envs) {
-      if (env.hasDeployment()) {
+    for (Version ver : this.versions) {
+      if (ver.hasDeployment()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public boolean hasCycle() {
+    App slow = this, fast = this;
+
+    while (slow != null && fast != null
+      && fast.parent != null) {
+      slow = slow.parent;
+      fast = fast.parent.parent;
+
+      if (slow == fast) {
         return true;
       }
     }

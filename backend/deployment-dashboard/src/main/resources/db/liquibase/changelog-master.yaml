@@ -1,0 +1,11 @@
+databaseChangeLog:
+# vsechny inkremety ze slozky:
+  - includeAll:
+      path: changeset/
+      relativeToChangelogFile: true
+# nebo jednotlive:
+#  - include:
+#      file: /db/liquibase/changeset/000000000000_init_schema.xml
+#  - include:
+#      file: /db/liquibase/changeset/202411052054_added_example_table.xml
+

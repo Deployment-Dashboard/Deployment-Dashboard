@@ -5,13 +5,12 @@ import cz.oksystem.deployment_dashboard.dto.AppDto;
 import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Environment;
-import cz.oksystem.deployment_dashboard.serviceAndRepository.AppService;
-import cz.oksystem.deployment_dashboard.serviceAndRepository.DeploymentService;
-import cz.oksystem.deployment_dashboard.serviceAndRepository.EnvironmentService;
-import cz.oksystem.deployment_dashboard.serviceAndRepository.VersionService;
-import jakarta.persistence.EntityManager;
+import cz.oksystem.deployment_dashboard.entity.Version;
+import cz.oksystem.deployment_dashboard.service.AppService;
+import cz.oksystem.deployment_dashboard.service.DeploymentService;
+import cz.oksystem.deployment_dashboard.service.EnvironmentService;
+import cz.oksystem.deployment_dashboard.service.VersionService;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -58,14 +57,6 @@ class ApiControllerIntegrationTests {
   @Autowired
   private DeploymentService depService;
 
-  @Autowired
-  private EntityManager entityManager;
-
-
-  @BeforeEach
-  void setup() {
-    appService.resetArchivationCounter();
-  }
 
 	@Test
 	void contextLoads() throws Exception {
@@ -230,35 +221,6 @@ class ApiControllerIntegrationTests {
     Assertions.assertFalse(app.getComponents().isEmpty());
     Assertions.assertTrue(app.getComponents().contains(fe.get()));
     Assertions.assertTrue(app.getComponents().contains(db.get()));
-  }
-
-  // verify that an app that is a parent of itself gets rejected
-  @Test
-  void addRecursiveAppFails() throws Exception {
-    AppDto appDto = new AppDto("dd", "deployment dashboard", "dd");
-
-    MvcResult result = mockMvc.perform(
-      post("/api/apps")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto)))
-      .andDo(print())
-      .andExpect(status().isConflict())
-      .andReturn();
-
-    mockMvc.perform(
-        post("/api/apps")
-          .characterEncoding("utf-8")
-          .contentType(MediaType.APPLICATION_JSON)
-          .content(objectMapper.writeValueAsString(appDto))
-          .accept(MediaType.APPLICATION_JSON))
-      .andDo(print())
-      .andExpect(status().isConflict())
-      .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
-      .andExpect(jsonPath("$.message").value("App could not be added."))
-      .andExpect(jsonPath("$.details").value("App cannot be a parent of itself."))
-      .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps"));
   }
 
   // verify that a duplicate app is rejected
@@ -436,8 +398,27 @@ class ApiControllerIntegrationTests {
       .andExpect(jsonPath("$.path").value("/api/apps/dd"));
   }
 
+  @Test
+  void updateMakeRecursiveAppFails() throws Exception {
+    appService.save(new App("dd", "deployment dashboard"));
+    AppDto appDto = new AppDto("dd", "deployment dashboard", "dd");
+
+    mockMvc.perform(
+        put("/api/apps/dd")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto))
+          .accept(MediaType.APPLICATION_JSON))
+      .andDo(print())
+      .andExpect(status().isConflict())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
+      .andExpect(jsonPath("$.message").value("App could not be updated."))
+      .andExpect(jsonPath("$.details").value("App to app relationship forms a circle."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
+  }
+
   // deleteApp tests
-  // TODO otestovat odebrání app, která má deployment + archivaci
 
   // verify that deleting a nonexisting key returns NotFound
   @Test
@@ -467,6 +448,38 @@ class ApiControllerIntegrationTests {
     Assertions.assertFalse(appService.exists("dd"));
   }
 
+  @Test
+  void archiveExistingAppSucceeds() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+
+    mockMvc.perform(
+      delete("/api/apps/dd"))
+      .andExpect(status().isOk());
+
+    Assertions.assertTrue(app.getArchivedTimestamp().isPresent());
+  }
+
+  @Test
+  void deleteAppWithDeploymentFails() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    envService.save(new Environment("test", app));
+
+    mockMvc.perform(
+        get("/api/apps/dd/envs/test/versions/1-0"))
+      .andDo(print())
+      .andExpect(status().isOk());
+
+    Assertions.assertTrue(app.hasDeployment());
+
+    mockMvc.perform(
+        delete("/api/apps/dd?hard_delete=true"))
+      .andExpect(status().isConflict())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
+      .andExpect(jsonPath("$.message").value("App could not be archived/deleted."))
+      .andExpect(jsonPath("$.details").value("App with key 'dd' has deployments."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
+  }
   // addAppEnv tests
 
   // verify that empty Environment JSON gets rejected
@@ -572,12 +585,9 @@ class ApiControllerIntegrationTests {
     Assertions.assertTrue(fetchedApp.isPresent());
     Assertions.assertTrue(fetchedEnv.isPresent());
 
-    entityManager.flush();
-    entityManager.refresh(app);
-
-    Assertions.assertFalse(app.getEnvs().isEmpty());
+    Assertions.assertFalse(app.getEnvironments().isEmpty());
     Assertions.assertEquals(fetchedEnv.get().getApp(), app);
-    Assertions.assertEquals(app.getEnvs().getFirst(), fetchedEnv.get());
+    Assertions.assertEquals(app.getEnvironments().getFirst(), fetchedEnv.get());
   }
 
   @Test
@@ -605,7 +615,7 @@ class ApiControllerIntegrationTests {
       .andExpect(status().isConflict())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
       .andExpect(jsonPath("$.message").value("Environment could not be added."))
-      .andExpect(jsonPath("$.details").value("Environment with key 'dd-test' already exists."))
+      .andExpect(jsonPath("$.details").value("Environment with key 'test' for App 'dd' already exists."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
       .andExpect(jsonPath("$.path").value("/api/apps/dd/envs"));
   }
@@ -638,25 +648,19 @@ class ApiControllerIntegrationTests {
     Assertions.assertTrue(testEnv.isPresent());
     Assertions.assertTrue(prodEnv.isPresent());
 
-    entityManager.flush();
-    entityManager.refresh(app);
-
-    Assertions.assertFalse(app.getEnvs().isEmpty());
+    Assertions.assertFalse(app.getEnvironments().isEmpty());
     Assertions.assertEquals(testEnv.get().getApp(), app);
     Assertions.assertEquals(prodEnv.get().getApp(), app);
-    Assertions.assertTrue(app.getEnvs().contains(testEnv.get()));
-    Assertions.assertTrue(app.getEnvs().contains(prodEnv.get()));
+    Assertions.assertTrue(app.getEnvironments().contains(testEnv.get()));
+    Assertions.assertTrue(app.getEnvironments().contains(prodEnv.get()));
   }
 
   @Test
-  void getEnvsSucceeds() throws Exception {
+  void getEnvironmentsSucceeds() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    List<Environment> envs = envService.saveAll(new Environment(app, "test"), new Environment(app, "prod"), new Environment(app, "integ"), new Environment(app, "mpsv-prod"));
+    List<Environment> envs = envService.saveAll(new Environment("test", app), new Environment("prod", app), new Environment("integ", app), new Environment("mpsv-prod", app));
 
-    entityManager.flush();
-    entityManager.refresh(app);
-
-    envs.forEach(env -> Assertions.assertTrue(app.getEnvs().contains(env)));
+    envs.forEach(env -> Assertions.assertTrue(app.getEnvironments().contains(env)));
 
     MvcResult result = mockMvc.perform(
       get("/api/apps/dd/envs")
@@ -677,7 +681,7 @@ class ApiControllerIntegrationTests {
   @Test
   void updateEmptyEnvJsonFails() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    envService.save(new Environment(app, "test"));
+    envService.save(new Environment("test", app));
     EnvironmentDto envDto = new EnvironmentDto();
 
     mockMvc.perform(
@@ -699,7 +703,7 @@ class ApiControllerIntegrationTests {
   @Test
   void updateEmptyNameEnvJsonFails() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    envService.save(new Environment(app, "test"));
+    envService.save(new Environment("test", app));
     EnvironmentDto envDto = new EnvironmentDto();
     envDto.setAppKey("dd");
 
@@ -721,7 +725,7 @@ class ApiControllerIntegrationTests {
   @Test
   void updateEmptyAppKeyEnvJsonFails() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    envService.save(new Environment(app, "test"));
+    envService.save(new Environment("test", app));
     EnvironmentDto envDto = new EnvironmentDto();
     envDto.setName("prod");
 
@@ -743,7 +747,7 @@ class ApiControllerIntegrationTests {
   @Test
   void updateValidEnvSucceeds() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    envService.save(new Environment(app, "test"));
+    envService.save(new Environment("test", app));
     EnvironmentDto envDto = new EnvironmentDto("dd", "prod");
 
     mockMvc.perform(
@@ -760,16 +764,12 @@ class ApiControllerIntegrationTests {
     Assertions.assertTrue(fetchedApp.isPresent());
     Assertions.assertTrue(fetchedEnv.isPresent());
 
-    entityManager.flush();
-    entityManager.refresh(app);
-
     Assertions.assertFalse(envService.exists("dd", "test"));
     Assertions.assertTrue(envService.exists("dd", "prod"));
-    Assertions.assertTrue(app.getEnvs().contains(fetchedEnv.get()));
+    Assertions.assertTrue(app.getEnvironments().contains(fetchedEnv.get()));
   }
 
   // deleteAppEnv tests
-  // TODO otestovat odebrání env, které má deployment
 
   @Test
   void deleteNonexistentEnvFails() throws Exception {
@@ -781,13 +781,149 @@ class ApiControllerIntegrationTests {
   @Test
   void deleteExistingEnvSucceeds() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
-    envService.save(new Environment(app, "test"));
+    envService.save(new Environment("test", app));
 
     mockMvc.perform(
       delete("/api/apps/dd/envs/test"))
       .andExpect(status().isOk());
 
     Assertions.assertFalse(envService.exists("dd", "test"));
-    Assertions.assertTrue(app.getEnvs().isEmpty());
+    Assertions.assertTrue(app.getEnvironments().isEmpty());
+  }
+
+  @Test
+  void deleteEnvWithDeploymentFails() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    envService.save(new Environment("test", app));
+
+    mockMvc.perform(
+        get("/api/apps/dd/envs/test/versions/1-0"))
+      .andDo(print())
+      .andExpect(status().isOk());
+
+    Assertions.assertTrue(app.hasDeployment());
+
+    mockMvc.perform(
+        delete("/api/apps/dd/envs/test"))
+      .andExpect(status().isConflict())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
+      .andExpect(jsonPath("$.message").value("Environment could not be archived/deleted."))
+      .andExpect(jsonPath("$.details").value("Environment with key 'test' has deployments."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test"));
+  }
+
+  // newVersion tests
+
+  @Test
+  void deployNonexistentAppFails() throws Exception {
+    mockMvc.perform(
+      get("/api/apps/dd/envs/test/versions/1-0"))
+      .andExpect(status().isNotFound())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.NOT_FOUND.value()))
+      .andExpect(jsonPath("$.message").value("Deployment could not be added."))
+      .andExpect(jsonPath("$.details").value("App with key 'dd' is not managed."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test/versions/1-0"));
+  }
+
+  @Test
+  void deployNonexistendEnvFails() throws Exception {
+    appService.save(new App("dd", "deployment dashboard"));
+
+    mockMvc.perform(
+        get("/api/apps/dd/envs/test/versions/1-0"))
+      .andExpect(status().isNotFound())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.NOT_FOUND.value()))
+      .andExpect(jsonPath("$.message").value("Deployment could not be added."))
+      .andExpect(jsonPath("$.details").value("Environment with key 'dd-test' is not managed."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test/versions/1-0"));
+  }
+
+  @Test
+  void deployValidVersionSucceeds() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    Environment env = envService.save(new Environment("test", app));
+
+    mockMvc.perform(
+        get("/api/apps/dd/envs/test/versions/1-0"))
+      .andExpect(status().isOk());
+
+    Optional<Version> fetchedVersion = verService.get(app.getKey(), "1-0");
+
+    Assertions.assertTrue(fetchedVersion.isPresent());
+
+    Version version = fetchedVersion.get();
+
+    Assertions.assertEquals(app, version.getApp());
+    Assertions.assertEquals("1-0", version.getName());
+    Assertions.assertFalse(app.getVersions().isEmpty());
+    Assertions.assertFalse(version.getDeployments().isEmpty());
+    Assertions.assertFalse(env.getDeployments().isEmpty());
+    Assertions.assertEquals(version.getDeployments().getFirst(), env.getDeployments().getFirst());
+  }
+
+  @Test
+  void deployValidVersionWithComponentSucceeds() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    App component = appService.save(new App("dd-fe", "front end", app));
+    Environment env = envService.save(new Environment("test", app));
+
+    mockMvc.perform(
+        get("/api/apps/dd/envs/test/versions/1-0?component=dd-fe"))
+      .andExpect(status().isOk());
+
+    Optional<Version> fetchedVersion = verService.get(app.getKey(), "1-0");
+    Assertions.assertTrue(fetchedVersion.isPresent());
+
+    Version version = fetchedVersion.get();
+
+    Assertions.assertEquals(app, version.getApp());
+    Assertions.assertEquals("1-0", version.getName());
+    Assertions.assertFalse(app.getVersions().isEmpty());
+    Assertions.assertFalse(version.getDeployments().isEmpty());
+    Assertions.assertFalse(env.getDeployments().isEmpty());
+    Assertions.assertEquals(version.getDeployments().getFirst(), env.getDeployments().getFirst());
+
+
+    Optional<Version> componentFetchedVersion = verService.get(component.getKey(), "1-0");
+    Assertions.assertTrue(componentFetchedVersion.isPresent());
+
+    Version componentVersion = componentFetchedVersion.get();
+
+    Assertions.assertEquals(component, componentVersion.getApp());
+    Assertions.assertEquals("1-0", componentVersion.getName());
+    Assertions.assertFalse(component.getVersions().isEmpty());
+    Assertions.assertFalse(componentVersion.getDeployments().isEmpty());
+    Assertions.assertFalse(env.getDeployments().isEmpty());
+    Assertions.assertEquals(componentVersion.getDeployments().getFirst(), env.getDeployments().get(1));
+  }
+
+  @Test
+  void deployValidVersionComponentOnlySucceeds() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    App component = appService.save(new App("dd-fe", "front end", app));
+    Environment env = envService.save(new Environment("test", app));
+
+    mockMvc.perform(
+        get("/api/apps/dd/envs/test/versions/1-0?component=dd-fe&components_only=true"))
+      .andExpect(status().isOk());
+
+    Optional<Version> fetchedVersion = verService.get(app.getKey(), "1-0");
+    Assertions.assertTrue(fetchedVersion.isEmpty());
+
+
+    Optional<Version> componentFetchedVersion = verService.get(component.getKey(), "1-0");
+    Assertions.assertTrue(componentFetchedVersion.isPresent());
+
+    Version componentVersion = componentFetchedVersion.get();
+
+    Assertions.assertEquals(component, componentVersion.getApp());
+    Assertions.assertEquals("1-0", componentVersion.getName());
+    Assertions.assertFalse(component.getVersions().isEmpty());
+    Assertions.assertFalse(componentVersion.getDeployments().isEmpty());
+    Assertions.assertFalse(env.getDeployments().isEmpty());
+    Assertions.assertEquals(componentVersion.getDeployments().getFirst(), env.getDeployments().getFirst());
   }
 }

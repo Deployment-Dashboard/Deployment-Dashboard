@@ -1,6 +1,5 @@
-package cz.oksystem.deployment_dashboard;
+package cz.oksystem.deployment_dashboard.exceptions;
 
-import cz.oksystem.deployment_dashboard.entity.ErrorBody;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.EntityAdditionException;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.EntityDeletionOrArchivationException;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions.EntityFetchException;
@@ -12,12 +11,11 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 
-// TODO - custom response na NotFound, momentálně hází internal server error, protože nedokáže asociovat request k vyjimce
 @ControllerAdvice
 public class GlobalExceptionHandler {
   private HttpStatus getStatusCodeForException(Throwable ex) {
     return switch (ex.getClass().getSimpleName()) {
-      case "DuplicateKeyException", "RecursiveAppParentingException" -> HttpStatus.CONFLICT;
+      case "DuplicateKeyException", "RecursiveAppParentingException", "DeletionNotAllowedException" -> HttpStatus.CONFLICT;
       case "NotManagedException" -> HttpStatus.NOT_FOUND;
       case "HttpMessageConversionException" -> HttpStatus.BAD_REQUEST;
       default -> HttpStatus.INTERNAL_SERVER_ERROR;

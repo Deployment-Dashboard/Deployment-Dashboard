@@ -1,3 +1,8 @@
+server:
+  servlet:
+    # prefix aplikace
+    context-path: /deploydash
+
 spring:
   application:
     name: deployment-dashboard
@@ -7,8 +12,11 @@ spring:
     username: test
     password: test
   h2:
+    # localhost:8080/deploydash/h2-console
     console:
       enabled: true
+      settings:
+        web-allow-others: true
   liquibase:
     enabled: true
     change-log: classpath:db/liquibase/changelog-master.yaml

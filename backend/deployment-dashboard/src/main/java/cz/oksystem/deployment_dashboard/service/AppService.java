@@ -4,8 +4,6 @@ import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.repository.AppRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -26,7 +24,7 @@ public class AppService {
 
   @Transactional
   public App save(App newApp) {
-    this.validate(newApp, true);
+    this.validate(newApp);
 
     newApp.getParent().ifPresent(
       parent -> parent.addComponent(newApp)
@@ -55,15 +53,13 @@ public class AppService {
     return this.saveAll(appsToSave);
   }
 
-  @Transactional(readOnly = true)
-  void validate(App app, boolean isNew) {
-    if (isNew) {
-      this.get(app.getKey()).ifPresent(fetchedApp -> {
-        if (!app.equals(fetchedApp)) {
-          throw new CustomExceptions.DuplicateKeyException(App.class, app.getKey());
-        }
-      });
-    }
+
+  private void validate(App app) {
+    this.get(app.getKey()).ifPresent(fetchedApp -> {
+      if (!app.equals(fetchedApp)) {
+        throw new CustomExceptions.DuplicateKeyException(App.class, app.getKey());
+      }
+    });
 
     app.getParent().ifPresent(parentApp -> {
       if (!this.exists(parentApp)) {
@@ -75,16 +71,11 @@ public class AppService {
     });
   }
 
-  @Transactional(propagation = Propagation.REQUIRED, isolation = Isolation.DEFAULT)
+  @Transactional
   public App update(String appKeyToUpdate, App updateWith) {
     App appToUpdate = this.get(appKeyToUpdate).orElseThrow(
       () -> new CustomExceptions.NotManagedException(App.class, appKeyToUpdate)
     );
-
-    if (this.exists(updateWith.getKey())
-      && !updateWith.getKey().equals(appToUpdate.getKey())) {
-      throw new CustomExceptions.DuplicateKeyException(App.class, updateWith.getKey());
-    }
 
     appToUpdate.setKey(updateWith.getKey());
     appToUpdate.setName(updateWith.getName());
@@ -101,7 +92,7 @@ public class AppService {
 
     appToUpdate.setArchivedTimestamp(updateWith.getArchivedTimestamp().orElse(null));
 
-    this.validate(appToUpdate, false);
+    this.validate(appToUpdate);
 
     return appToUpdate;
   }
@@ -134,22 +125,18 @@ public class AppService {
     appRepository.delete(appToDelete);
   }
 
-  @Transactional(readOnly = true)
   public boolean exists(String key) {
     return appRepository.existsByKey(key);
   }
 
-  @Transactional(readOnly = true)
   public boolean exists(App app) {
     return this.exists(app.getKey());
   }
 
-  @Transactional(readOnly = true)
   public Optional<App> get(String key) {
     return this.get(key, false);
   }
 
-  @Transactional(readOnly = true)
   public Optional<App> get(String key, boolean alsoArchived) {
     return alsoArchived
       ? appRepository.findByKeyAndArchivedTimestampIsNull(key)

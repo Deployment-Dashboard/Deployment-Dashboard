@@ -89,7 +89,6 @@ class ApiController {
     }
   }
 
-  // DONE - TODO testy + uklidit trošku, docela ugly
   //  nová verze - GET /api/apps/:key/envs/:envkey/versions/:version?ticket=:urlencoded_ticket_link:&component=:component_1:&component=:component_2:&components_only=true
   //  pokud neexistuje aplikace, vrací chybu
   //  pokud neexistuje prostředí, vrací chybu
@@ -115,8 +114,8 @@ class ApiController {
     }
   }
 
-  // DONE - TODO testy
-  //  získání všech verzí projektu - GET /api/apps/:key
+  // TODO vyřešit serializaci cyklů (v deployment listu chceme jméno prostředí)
+  // získání všech verzí projektu - GET /api/apps/:key
   @GetMapping("{key}")
   @ResponseStatus(value = HttpStatus.OK)
   ResponseEntity<List<Version>> getAllVersions(@PathVariable("key") String key) {
@@ -127,7 +126,8 @@ class ApiController {
     }
   }
 
-  //  získání všech prostředí - GET /api/apps/:key/envs
+  // TODO vyřešit serializaci cyklů (v deployment listu chceme jméno verze)
+  // získání všech prostředí - GET /api/apps/:key/envs
   @GetMapping("{key}/envs")
   @ResponseStatus(value = HttpStatus.OK)
   ResponseEntity<List<Environment>> getAllAppEnvs(@PathVariable("key") String key) {

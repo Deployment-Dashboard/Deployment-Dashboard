@@ -4,8 +4,6 @@ import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.repository.AppRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -55,14 +53,10 @@ public class AppService {
     return this.saveAll(appsToSave);
   }
 
-  @Transactional(readOnly = true)
-  void validate(App app, boolean isNew) {
-    if (isNew) {
-      this.get(app.getKey()).ifPresent(fetchedApp -> {
-        if (!app.equals(fetchedApp)) {
-          throw new CustomExceptions.DuplicateKeyException(App.class, app.getKey());
-        }
-      });
+  @Transactional
+  void validate(App app, boolean isNewOrKeyChanged) {
+    if (this.exists(app.getKey()) && isNewOrKeyChanged) {
+      throw new CustomExceptions.DuplicateKeyException(App.class, app.getKey());
     }
 
     app.getParent().ifPresent(parentApp -> {
@@ -75,19 +69,11 @@ public class AppService {
     });
   }
 
-  @Transactional(propagation = Propagation.REQUIRED, isolation = Isolation.DEFAULT)
+  @Transactional
   public App update(String appKeyToUpdate, App updateWith) {
     App appToUpdate = this.get(appKeyToUpdate).orElseThrow(
       () -> new CustomExceptions.NotManagedException(App.class, appKeyToUpdate)
     );
-
-    if (this.exists(updateWith.getKey())
-      && !updateWith.getKey().equals(appToUpdate.getKey())) {
-      throw new CustomExceptions.DuplicateKeyException(App.class, updateWith.getKey());
-    }
-
-    appToUpdate.setKey(updateWith.getKey());
-    appToUpdate.setName(updateWith.getName());
 
     appToUpdate.getParent().ifPresent(
       parent -> parent.removeComponent(appToUpdate)
@@ -99,9 +85,12 @@ public class AppService {
       parent -> parent.addComponent(appToUpdate)
     );
 
-    appToUpdate.setArchivedTimestamp(updateWith.getArchivedTimestamp().orElse(null));
+    this.validate(updateWith, !appToUpdate.getKey().equals(updateWith.getKey()));
 
-    this.validate(appToUpdate, false);
+    appToUpdate.setKey(updateWith.getKey());
+    appToUpdate.setName(updateWith.getName());
+
+    appToUpdate.setArchivedTimestamp(updateWith.getArchivedTimestamp().orElse(null));
 
     return appToUpdate;
   }

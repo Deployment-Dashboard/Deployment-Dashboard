@@ -50,13 +50,11 @@ public class EnvironmentService {
 
   @Transactional(readOnly = true)
   void validate(Environment env) {
-    this.get(env.getApp().getKey(), env.getName()).ifPresent(fetchedEnv -> {
-      if (fetchedEnv != env) {
-        throw new CustomExceptions.DuplicateKeyException(
-          Environment.class, env.getApp().getKey(), env.getName()
-        );
-      }
-    });
+    if (this.exists(env.getApp().getKey(), env.getName())) {
+      throw new CustomExceptions.DuplicateKeyException(
+        Environment.class, env.getApp().getKey(), env.getName()
+      );
+    }
   }
 
   @Transactional
@@ -67,9 +65,9 @@ public class EnvironmentService {
       )
     );
 
-    envToUpdate.setName(updateWith.getName());
+    this.validate(updateWith);
 
-    this.validate(envToUpdate);
+    envToUpdate.setName(updateWith.getName());
   }
 
   @Transactional

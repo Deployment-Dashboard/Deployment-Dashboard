@@ -17,6 +17,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 
 //API
@@ -98,16 +99,30 @@ class ApiController {
   //  components_only - pokud je true, nevytváříme záznam k aplikace, pouze ke komponentám
   //    musí existovat alespoň jedna komponenta
   //
-  @GetMapping("{key}/envs/{envKey}/versions/{version}")
+//  @GetMapping("{key}/envs/{envKey}/versions/{version}")
+//  @ResponseStatus(value = HttpStatus.OK)
+//  void newVersion(@PathVariable("key") String appKey,
+//                  @PathVariable("envKey") String envKey,
+//                  @PathVariable("version") String versionName,
+//                  @RequestParam(value = "ticket", required = false) String jiraTicket,
+//                  @RequestParam(value = "component", required = false) List<String> components,
+//                  @RequestParam(value = "components_only", required = false) boolean componentsOnly) {
+//    try {
+//      serviceOrchestrator.release(appKey, components, envKey, versionName, jiraTicket, componentsOnly);
+//    } catch (CustomExceptions.NotManagedException
+//             | CustomExceptions.NoSuchAppComponentException ex) {
+//      throw new CustomExceptions.EntityAdditionException(Deployment.class, ex);
+//    }
+//  }
+
+  @GetMapping("{key}/envs/{envKey}/versions")
   @ResponseStatus(value = HttpStatus.OK)
-  void newVersion(@PathVariable("key") String appKey,
-                  @PathVariable("envKey") String envKey,
-                  @PathVariable("version") String versionName,
-                  @RequestParam(value = "ticket", required = false) String jiraTicket,
-                  @RequestParam(value = "component", required = false) List<String> components,
-                  @RequestParam(value = "components_only", required = false) boolean componentsOnly) {
+  void multipleNewVersions(@PathVariable("key") String appKey,
+                           @PathVariable("envKey") String envKey,
+                           @RequestParam Map<String, String> versionedApps,
+                           @RequestParam(value = "ticket", required = false) String jiraTicket) {
     try {
-      serviceOrchestrator.release(appKey, components, envKey, versionName, jiraTicket, componentsOnly);
+      serviceOrchestrator.release(appKey, envKey, versionedApps, jiraTicket);
     } catch (CustomExceptions.NotManagedException
              | CustomExceptions.NoSuchAppComponentException ex) {
       throw new CustomExceptions.EntityAdditionException(Deployment.class, ex);

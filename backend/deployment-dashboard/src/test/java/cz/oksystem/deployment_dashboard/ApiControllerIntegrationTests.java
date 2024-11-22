@@ -325,14 +325,13 @@ class ApiControllerIntegrationTests {
   void updateNonexistentKeyFails() throws Exception {
     AppDto appDto = new AppDto("dd", "deployment dashboard");
 
-    MvcResult result = mockMvc.perform(
+    mockMvc.perform(
       put("/api/apps/dd")
         .characterEncoding("utf-8")
         .contentType(MediaType.APPLICATION_JSON)
         .content(objectMapper.writeValueAsString(appDto)))
       .andDo(print())
-      .andExpect(status().isNotFound())
-      .andReturn();
+      .andExpect(status().isNotFound());
   }
 
   // verify that valid JSON gets accepted, keep the app key
@@ -402,6 +401,27 @@ class ApiControllerIntegrationTests {
   void updateMakeRecursiveAppFails() throws Exception {
     appService.save(new App("dd", "deployment dashboard"));
     AppDto appDto = new AppDto("dd", "deployment dashboard", "dd");
+
+    mockMvc.perform(
+        put("/api/apps/dd")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto))
+          .accept(MediaType.APPLICATION_JSON))
+      .andDo(print())
+      .andExpect(status().isConflict())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
+      .andExpect(jsonPath("$.message").value("App could not be updated."))
+      .andExpect(jsonPath("$.details").value("App to app relationship forms a circle."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
+  }
+
+  @Test
+  void makeDeeperRecursiveAppFails() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    appService.save(new App("test", "intermediate", app));
+    AppDto appDto = new AppDto("dd", "deployment dashboard", "test");
 
     mockMvc.perform(
         put("/api/apps/dd")
@@ -740,6 +760,28 @@ class ApiControllerIntegrationTests {
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
       .andExpect(jsonPath("$.message").value("Environment could not be updated."))
       .andExpect(jsonPath("$.details").value(containsString("App key is blank")))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test"));
+  }
+
+  @Test
+  void updateDuplicateEnvFails() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    envService.saveAll(new Environment("test", app), new Environment("prod", app));
+
+    EnvironmentDto envDto = new EnvironmentDto("dd", "prod");
+
+    mockMvc.perform(
+        put("/api/apps/dd/envs/test")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(envDto))
+          .accept(MediaType.APPLICATION_JSON))
+      .andDo(print())
+      .andExpect(status().isConflict())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
+      .andExpect(jsonPath("$.message").value("Environment could not be updated."))
+      .andExpect(jsonPath("$.details").value("Environment with key 'prod' for App 'dd' already exists."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
       .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test"));
   }

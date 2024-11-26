@@ -485,7 +485,7 @@ class ApiControllerIntegrationTests {
     envService.save(new Environment("test", app));
 
     mockMvc.perform(
-        get("/api/apps/dd/envs/test/versions/1-0"))
+        get("/api/apps/dd/envs/test/versions?dd=1-0"))
       .andDo(print())
       .andExpect(status().isOk());
 
@@ -839,7 +839,7 @@ class ApiControllerIntegrationTests {
     envService.save(new Environment("test", app));
 
     mockMvc.perform(
-        get("/api/apps/dd/envs/test/versions/1-0"))
+        get("/api/apps/dd/envs/test/versions?dd=1-0"))
       .andDo(print())
       .andExpect(status().isOk());
 
@@ -860,13 +860,13 @@ class ApiControllerIntegrationTests {
   @Test
   void deployNonexistentAppFails() throws Exception {
     mockMvc.perform(
-      get("/api/apps/dd/envs/test/versions/1-0"))
+      get("/api/apps/dd/envs/test/versions?dd=1-0"))
       .andExpect(status().isNotFound())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.NOT_FOUND.value()))
       .andExpect(jsonPath("$.message").value("Deployment could not be added."))
       .andExpect(jsonPath("$.details").value("App with key 'dd' is not managed."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test/versions/1-0"));
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test/versions"));
   }
 
   @Test
@@ -874,13 +874,13 @@ class ApiControllerIntegrationTests {
     appService.save(new App("dd", "deployment dashboard"));
 
     mockMvc.perform(
-        get("/api/apps/dd/envs/test/versions/1-0"))
+        get("/api/apps/dd/envs/test/versions?dd=1-0"))
       .andExpect(status().isNotFound())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.NOT_FOUND.value()))
       .andExpect(jsonPath("$.message").value("Deployment could not be added."))
       .andExpect(jsonPath("$.details").value("Environment with key 'dd-test' is not managed."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test/versions/1-0"));
+      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test/versions"));
   }
 
   @Test
@@ -889,7 +889,7 @@ class ApiControllerIntegrationTests {
     Environment env = envService.save(new Environment("test", app));
 
     mockMvc.perform(
-        get("/api/apps/dd/envs/test/versions/1-0"))
+        get("/api/apps/dd/envs/test/versions?dd=1-0"))
       .andExpect(status().isOk());
 
     Optional<Version> fetchedVersion = verService.get(app.getKey(), "1-0");
@@ -913,7 +913,7 @@ class ApiControllerIntegrationTests {
     Environment env = envService.save(new Environment("test", app));
 
     mockMvc.perform(
-        get("/api/apps/dd/envs/test/versions/1-0?component=dd-fe"))
+        get("/api/apps/dd/envs/test/versions?dd=1-0&dd-fe=1-0"))
       .andExpect(status().isOk());
 
     Optional<Version> fetchedVersion = verService.get(app.getKey(), "1-0");
@@ -949,7 +949,7 @@ class ApiControllerIntegrationTests {
     Environment env = envService.save(new Environment("test", app));
 
     mockMvc.perform(
-        get("/api/apps/dd/envs/test/versions/1-0?component=dd-fe&components_only=true"))
+        get("/api/apps/dd/envs/test/versions?dd-fe=1-0"))
       .andExpect(status().isOk());
 
     Optional<Version> fetchedVersion = verService.get(app.getKey(), "1-0");

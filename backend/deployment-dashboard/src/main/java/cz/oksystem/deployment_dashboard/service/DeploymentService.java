@@ -5,6 +5,9 @@ import cz.oksystem.deployment_dashboard.repository.DeploymentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.Optional;
+
 @Service
 public class DeploymentService {
   private final DeploymentRepository deploymentRepository;
@@ -13,9 +16,33 @@ public class DeploymentService {
 
   @Transactional
   public Deployment save(Deployment deployment) {
-    deployment.getEnvironment().addDeployment(deployment);
-    deployment.getVersion().addDeployment(deployment);
+    Optional<Deployment> fetchedDeployment = this.get(deployment);
+    Deployment ret;
 
-    return deploymentRepository.save(deployment);
+    if (fetchedDeployment.isPresent()) {
+      fetchedDeployment.get().setDate(LocalDateTime.now());
+
+      ret = fetchedDeployment.get();
+    } else {
+      deployment.getEnvironment().addDeployment(deployment);
+      deployment.getVersion().addDeployment(deployment);
+
+      ret = deploymentRepository.save(deployment);
+    }
+    return ret;
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<Deployment> get(Deployment deployment) {
+    String appKey = deployment.getEnvironment().getApp().getKey();
+    String envKey = deployment.getEnvironment().getName();
+    String versionName = deployment.getVersion().getName();
+
+    return this.get(appKey, envKey, versionName);
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<Deployment> get(String appKey, String envKey, String versionName) {
+    return deploymentRepository.findByAppAndEnvironmentAndVersion(appKey, envKey, versionName);
   }
 }

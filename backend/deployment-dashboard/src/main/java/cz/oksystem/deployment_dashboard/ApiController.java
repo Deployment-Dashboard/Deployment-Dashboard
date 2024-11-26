@@ -117,8 +117,7 @@ class ApiController {
 //  }
 
   @GetMapping("{key}/envs/{envKey}/versions")
-  @ResponseStatus(value = HttpStatus.OK)
-  void multipleNewVersions(@PathVariable("key") String appKey,
+  ResponseEntity<String> multipleNewVersions(@PathVariable("key") String appKey,
                            @PathVariable("envKey") String envKey,
                            @RequestParam Map<String, String> parameters) {
     try {
@@ -128,6 +127,7 @@ class ApiController {
       versionedApps.remove("ticket");
 
       serviceOrchestrator.release(appKey, envKey, versionedApps, ticket);
+      return ResponseEntity.ok("Nasazení úspěšně zaevidováno.");
     } catch (CustomExceptions.NotManagedException
              | CustomExceptions.NoSuchAppComponentException ex) {
       throw new CustomExceptions.EntityAdditionException(Deployment.class, ex);

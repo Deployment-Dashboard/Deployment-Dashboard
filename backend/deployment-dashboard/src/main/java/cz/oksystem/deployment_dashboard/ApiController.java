@@ -16,6 +16,7 @@ import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -119,10 +120,14 @@ class ApiController {
   @ResponseStatus(value = HttpStatus.OK)
   void multipleNewVersions(@PathVariable("key") String appKey,
                            @PathVariable("envKey") String envKey,
-                           @RequestParam Map<String, String> versionedApps,
-                           @RequestParam(value = "ticket", required = false) String jiraTicket) {
+                           @RequestParam Map<String, String> parameters) {
     try {
-      serviceOrchestrator.release(appKey, envKey, versionedApps, jiraTicket);
+      String ticket = parameters.get("ticket");
+
+      HashMap<String, String> versionedApps = new HashMap<>(parameters);
+      versionedApps.remove("ticket");
+
+      serviceOrchestrator.release(appKey, envKey, versionedApps, ticket);
     } catch (CustomExceptions.NotManagedException
              | CustomExceptions.NoSuchAppComponentException ex) {
       throw new CustomExceptions.EntityAdditionException(Deployment.class, ex);

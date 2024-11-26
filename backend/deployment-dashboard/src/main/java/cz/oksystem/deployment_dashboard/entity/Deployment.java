@@ -1,6 +1,8 @@
 package cz.oksystem.deployment_dashboard.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import cz.oksystem.deployment_dashboard.serializers.CustomProtocolsSerializer;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.lang.Nullable;
@@ -21,6 +23,7 @@ public class Deployment {
   @Column(name = "date")
   private LocalDateTime date;
 
+  @JsonSerialize(using = CustomProtocolsSerializer.class)
   @Nullable
   @Column(name = "jira_url")
   private String jiraUrl;

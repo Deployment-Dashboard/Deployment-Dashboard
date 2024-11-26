@@ -2,10 +2,6 @@ package cz.oksystem.deployment_dashboard.exceptions;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
@@ -84,12 +80,5 @@ public class ErrorBody {
 
   public void setPath(String newPath) {
     this.path = newPath;
-  }
-
-  public String toJson() throws JsonProcessingException {
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.registerModule(new JavaTimeModule());
-    mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-    return mapper.writeValueAsString(this);
   }
 }

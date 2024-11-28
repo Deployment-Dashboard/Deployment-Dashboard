@@ -1,6 +1,8 @@
 package cz.oksystem.deployment_dashboard.service;
 
 import cz.oksystem.deployment_dashboard.entity.Deployment;
+import cz.oksystem.deployment_dashboard.entity.Environment;
+import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.repository.DeploymentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,11 +26,19 @@ public class DeploymentService {
 
       ret = fetchedDeployment.get();
     } else {
-      deployment.getEnvironment().addDeployment(deployment);
-      deployment.getVersion().addDeployment(deployment);
-
       ret = deploymentRepository.save(deployment);
     }
+
+    Environment envToDeployTo = deployment.getEnvironment();
+    Version versionToDeploy = deployment.getVersion();
+
+    if (!envToDeployTo.getDeployments().contains(deployment)) {
+      envToDeployTo.addDeployment(deployment);
+    }
+    if (!versionToDeploy.getDeployments().contains(deployment)) {
+      versionToDeploy.addDeployment(deployment);
+    }
+
     return ret;
   }
 

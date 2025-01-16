@@ -9,9 +9,12 @@ import {IconPlus, IconCheck, IconX} from "@tabler/icons-react";
 import ContentContainer from "~/components/content-container";
 import {isNotEmpty, useForm} from '@mantine/form';
 import {useEffect, useState} from "react";
+import process from 'node:process';
+
+const BASE_URL = process.env.API_URL;
 
 export let loader: LoaderFunction = async () => {
-  const response = await fetch("http://localhost:8080/deploydash/api/apps");
+  const response = await fetch(`${BASE_URL}/api/apps`);
   const projects: ProjectOverviewDto[] = await response.json();
   return projects;
 };
@@ -119,7 +122,7 @@ export default function Projects() {
 
     try {
       // Step 1: Add project
-      let response = await fetch("http://localhost:8080/deploydash/api/apps", requestOptions);
+      let response = await fetch(`${BASE_URL}/api/apps`, requestOptions);
       if (!response.ok) {
         const error: ErrorBody = await response.json();
         alert(`${error.message}\n${error.details}`);
@@ -128,7 +131,7 @@ export default function Projects() {
 
       for (const environment of formValues.environments) {
         requestOptions.body = JSON.stringify({appKey: formValues.key, name: environment.valueOf()});
-        response = await fetch(`http://localhost:8080/deploydash/api/apps/${formValues.key}/envs`, requestOptions);
+        response = await fetch(`${BASE_URL}/api/apps/${formValues.key}/envs`, requestOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           alert(`${error.message}\n${error.details}`);
@@ -138,7 +141,7 @@ export default function Projects() {
 
       for (const component of formValues.components) {
         requestOptions.body = JSON.stringify({ key: component.key, name: component.name, parentKey: formValues.key });
-        response = await fetch("http://localhost:8080/deploydash/api/apps", requestOptions);
+        response = await fetch(`${BASE_URL}/api/apps`, requestOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           alert(`${error.message}\n${error.details}`);

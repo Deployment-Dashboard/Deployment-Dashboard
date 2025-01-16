@@ -2,6 +2,7 @@ package cz.oksystem.deployment_dashboard;
 
 import cz.oksystem.deployment_dashboard.dto.AppDto;
 import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
+import cz.oksystem.deployment_dashboard.dto.ProjectOverviewDto;
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Deployment;
 import cz.oksystem.deployment_dashboard.entity.Environment;
@@ -24,6 +25,7 @@ import java.util.Map;
 //API
 //Chceme jednoduché klikání při nasazení verze, žádné složité vyplňování. API proto nebude RESTful.
 @RestController
+@CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/api/apps")
 class ApiController {
   private final ServiceOrchestrator serviceOrchestrator;
@@ -37,6 +39,12 @@ class ApiController {
       .map(DefaultMessageSourceResolvable::getDefaultMessage)
       .toList());
   }
+
+  @GetMapping()
+  ResponseEntity<List<ProjectOverviewDto>> getAllProjectOverviews() {
+      return ResponseEntity.ok(serviceOrchestrator.getAllProjectOverviews());
+  }
+
 
   //  nová aplikace - POST /api/apps
   //  kontrolovat duplicity klice aplikace
@@ -208,6 +216,16 @@ class ApiController {
     } catch (CustomExceptions.NotManagedException
              | CustomExceptions.DeletionNotAllowedException ex) {
       throw new CustomExceptions.EntityDeletionOrArchivationException(Environment.class, ex);
+    }
+  }
+
+  @GetMapping(path = "deployments")
+  @ResponseStatus(value = HttpStatus.OK)
+  ResponseEntity<List<Deployment>> getAllDeployments() {
+    try {
+      return ResponseEntity.ok(serviceOrchestrator.getAllDeployments());
+    } catch (CustomExceptions.NotManagedException ex) {
+      throw new CustomExceptions.EntityFetchException(Deployment.class, ex);
     }
   }
 }

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+  <changeSet id="2" author="system">
+    <modifyDataType
+      columnName="app_key"
+      newDataType="VARCHAR_IGNORECASE(20)"
+      tableName="apps"/>
+    <modifyDataType
+      columnName="name"
+      newDataType="VARCHAR_IGNORECASE(20)"
+      tableName="versions"/>
+  </changeSet>
+</databaseChangeLog>

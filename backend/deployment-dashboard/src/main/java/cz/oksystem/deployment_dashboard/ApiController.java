@@ -25,7 +25,7 @@ import java.util.Map;
 //API
 //Chceme jednoduché klikání při nasazení verze, žádné složité vyplňování. API proto nebude RESTful.
 @RestController
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {"http://localhost:5173", "http://jpndi2.oksystem.vyvoj:8080"})
 @RequestMapping("/api/apps")
 class ApiController {
   private final ServiceOrchestrator serviceOrchestrator;

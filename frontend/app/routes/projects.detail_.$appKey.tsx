@@ -7,12 +7,15 @@ import {IconArrowBackUp, IconRocket, IconCheck, IconPlus, IconX} from "@tabler/i
 import ProjectCard from "~/components/project-card";
 import {Link} from "@remix-run/react";
 import {useLoaderData} from "react-router";
+import process from "node:process";
+
+const BASE_URL = process.env.API_URL;
 
 export async function loader({
                                params,
                              }: LoaderFunctionArgs) {
   console.log(`fetching data for: ${params.appKey}`);
-  const response = await fetch(`http://localhost:8080/deploydash/api/apps/${params.appKey}`);
+  const response = await fetch(`${BASE_URL}/api/apps/${params.appKey}`);
   const projects: App[] = await response.json();
   return projects;
 }

@@ -2,17 +2,21 @@ package cz.oksystem.deployment_dashboard.service;
 
 import cz.oksystem.deployment_dashboard.dto.AppDto;
 import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
+import cz.oksystem.deployment_dashboard.dto.ProjectOverviewDto;
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Deployment;
 import cz.oksystem.deployment_dashboard.entity.Environment;
 import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
+import cz.oksystem.deployment_dashboard.serializers.CustomProtocolsSerializer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 // TODO projít services a všechny cross-checky přesunout sem
 @Service
@@ -21,13 +25,15 @@ public class ServiceOrchestrator {
   private final EnvironmentService environmentService;
   private final VersionService versionService;
   private final DeploymentService deploymentService;
+  private final CustomProtocolsSerializer protocolsSerializer;
 
 
-  public ServiceOrchestrator(AppService appService, EnvironmentService environmentService, VersionService versionService, DeploymentService deploymentService) {
+  public ServiceOrchestrator(AppService appService, EnvironmentService environmentService, VersionService versionService, DeploymentService deploymentService, CustomProtocolsSerializer protocolsSerializer) {
     this.appService = appService;
     this.environmentService = environmentService;
     this.versionService = versionService;
     this.deploymentService = deploymentService;
+    this.protocolsSerializer = protocolsSerializer;
   }
 
 
@@ -70,50 +76,6 @@ public class ServiceOrchestrator {
   public void deleteEnvironment(String appKey, String envKey) {
     environmentService.delete(appKey, envKey);
   }
-
-//  @Transactional
-//  public void release(String appKey, List<String> components, String envKey, String versionName, String jiraTicket, boolean componentsOnly) {
-//    App mainApp = appService.get(appKey).orElseThrow(
-//      () -> new CustomExceptions.NotManagedException(App.class, appKey)
-//    );
-//
-//    Environment envToDeployTo = environmentService.get(appKey, envKey).orElseThrow(
-//      () -> new CustomExceptions.NotManagedException(Environment.class, appKey + "-" + envKey)
-//    );
-//
-//    List<App> mainAppComponents = mainApp.getComponents();
-//    List<App> versionedApps = new ArrayList<>();
-//
-//    if (!componentsOnly) {
-//      versionedApps.add(mainApp);
-//    }
-//
-//    if (components != null && !components.isEmpty()) {
-//      for (String componentKey : components) {
-//        App fetchedComponent = appService.get(componentKey).orElseThrow(
-//          () -> new CustomExceptions.NotManagedException(App.class, appKey)
-//        );
-//
-//        if (mainAppComponents.contains(fetchedComponent)) {
-//          versionedApps.add(fetchedComponent);
-//        } else {
-//          throw new CustomExceptions.NoSuchAppComponentException(componentKey, appKey);
-//        }
-//      }
-//    } else if (componentsOnly){
-//      versionedApps.addAll(mainAppComponents);
-//    }
-//
-//    for (App versionedApp : versionedApps) {
-//      Version appVersion = versionService.get(versionedApp.getKey(), versionName).orElseGet(
-//        () -> versionService.save(new Version(versionedApp, versionName, jiraTicket))
-//      );
-//
-//      deploymentService.save(
-//        new Deployment(envToDeployTo, appVersion, jiraTicket, LocalDateTime.now())
-//      );
-//    }
-//  }
 
   @Transactional
   public void release(String projectKey, String envKey, Map<String, String> versionedApps, String jiraTicket) {
@@ -171,5 +133,37 @@ public class ServiceOrchestrator {
     );
 
     return new Environment(envDto.getName(), fetchedApp);
+  }
+
+  public List<ProjectOverviewDto> getAllProjectOverviews() {
+    List<ProjectOverviewDto> projectOverviews = new ArrayList<>();
+
+    List<App> projects = appService.getAllProjects();
+
+    for (App project : projects) {
+      String projectKey = project.getKey();
+      String projectName = project.getName();
+      Optional<Deployment> fetchedLastDeployment = deploymentService.getLastDeploymentForApp(projectKey);
+
+      ProjectOverviewDto projectOverview = new ProjectOverviewDto(projectKey, projectName);
+
+      if (fetchedLastDeployment.isPresent()) {
+        Deployment lastDeployment = fetchedLastDeployment.get();
+
+        lastDeployment.getDate().ifPresent(projectOverview::setLastDeployedAt);
+        projectOverview.setLastDeployedVersionName(lastDeployment.getVersion().getName());
+        projectOverview.setLastDeployedToEnvName(lastDeployment.getEnvironment().getName());
+        lastDeployment.getJiraUrl().ifPresent(jiraUrl -> projectOverview.setLastDeploymentJiraUrl(jiraUrl.replace("ok-jira://", protocolsSerializer.getCustomProtocols().get("ok-jira"))));
+        projectOverview.setVersionedComponentsNames(deploymentService.getDeployedAppsByJiraUuid(lastDeployment.getJiraUrl())
+          .stream()
+          .map(deployment -> deployment.getVersion().getApp().getKey()).toList());
+      }
+      projectOverviews.add(projectOverview);
+    }
+    return projectOverviews;
+  }
+
+  public List<Deployment> getAllDeployments() {
+    return deploymentService.getAllDeployments();
   }
 }

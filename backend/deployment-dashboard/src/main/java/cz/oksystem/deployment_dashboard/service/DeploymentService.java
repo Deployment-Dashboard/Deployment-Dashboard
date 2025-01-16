@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -54,5 +55,17 @@ public class DeploymentService {
   @Transactional(readOnly = true)
   public Optional<Deployment> get(String appKey, String envKey, String versionName) {
     return deploymentRepository.findByAppAndEnvironmentAndVersion(appKey, envKey, versionName);
+  }
+
+  public Optional<Deployment> getLastDeploymentForApp(String appKey) {
+    return deploymentRepository.getLastDeploymentForApp(appKey);
+  }
+
+  public List<Deployment> getAllDeployments() {
+    return deploymentRepository.findAll();
+  }
+
+  public List<Deployment> getDeployedAppsByJiraUuid(Optional<String> jiraUrl) {
+    return deploymentRepository.findByJiraUrl(jiraUrl);
   }
 }

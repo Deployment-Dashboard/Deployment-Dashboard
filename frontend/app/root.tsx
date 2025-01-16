@@ -7,10 +7,14 @@ import {
 } from '@remix-run/react';
 import type { LinksFunction } from "@remix-run/node";
 
+import Header from "~/components/header";
+
 import "./tailwind.css";
 
 import '@mantine/core/styles.css';
+import '@mantine/notifications/styles.css';
 import { ColorSchemeScript, MantineProvider, SimpleGrid } from '@mantine/core';
+import {Notifications} from "@mantine/notifications";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -21,7 +25,7 @@ export const links: LinksFunction = () => [
   },
   {
     rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
+    href: "https://fonts.googleapis.com/css2?family=Inria+Sans:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap",
   },
 ];
 
@@ -38,10 +42,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <ColorSchemeScript />
       </head>
       <body>
-        <MantineProvider defaultColorScheme={"dark"}>
-          {children}</MantineProvider>
-        <ScrollRestoration />
-        <Scripts />
+      <MantineProvider>
+        <Notifications/>
+        <div className="flex justify-center px-4 sm:px-8 md:px-16 lg:px-24 xl:px-32">
+          <div className="flex flex-col w-full">
+            <Header/>
+            {children}
+          </div>
+        </div>
+      </MantineProvider>
+      <ScrollRestoration/>
+      <Scripts/>
       </body>
     </html>
   );

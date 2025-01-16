@@ -22,6 +22,11 @@ public class AppService {
     this.appRepository = appRepository;
   }
 
+  @Transactional(readOnly = true)
+  public List<App> getAllProjects() {
+    return appRepository.getAllWhereParentIsNull();
+  }
+
   @Transactional
   public App save(App newApp) {
     this.validate(newApp, true);

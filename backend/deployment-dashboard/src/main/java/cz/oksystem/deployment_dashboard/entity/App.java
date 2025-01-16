@@ -110,7 +110,7 @@ public class App {
         "Key is empty."
       );
     }
-    this.key = newKey.toLowerCase();
+    this.key = newKey;
   }
 
   public void setName(String newName) {
@@ -119,7 +119,7 @@ public class App {
         "Name is empty."
       );
     }
-    this.name = newName.toLowerCase();
+    this.name = newName;
   }
 
   public void setArchivedTimestamp(@Nullable LocalDateTime newArchivedTimestamp) {

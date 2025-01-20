@@ -10,7 +10,7 @@ x-restart-policy: &restart-policy
 
 services:
   deploydash:
-    image: nexus3.oksystem.local:8183/deploydash:v0.0.2
+    image: nexus3.oksystem.local:8183/deploydash:v0.0.4
     security_opt:
       - label=disable
     environment:
@@ -20,12 +20,41 @@ services:
       - "/home/developer/deploydash/db/data/:/usr/src/app/db/data/"
     labels:
       - traefik.enable=true
-      - traefik.http.routers.deploydash.rule=PathPrefix(`/deploydash`)
+      - traefik.http.routers.deploydash.rule=PathPrefix(`/deploydash/api`)
       - traefik.http.routers.deploydash.priority=999
       - traefik.http.routers.deploydash.entrypoints=web
       - traefik.http.routers.deploydash.service=deploydash-service
       - traefik.http.services.deploydash-service.loadbalancer.server.port=8080
+      - traefik.http.routers.deploydash-mgmt.rule=PathPrefix(`/deploydash/actuator`)
+      - traefik.http.routers.deploydash-mgmt.priority=999
+      - traefik.http.routers.deploydash-mgmt.entrypoints=web
+      - traefik.http.routers.deploydash-mgmt.service=deploydash-mgmt-service
+      - traefik.http.services.deploydash-mgmt-service.loadbalancer.server.port=8080
+      - traefik.http.routers.deploydash-h2.rule=PathPrefix(`/deploydash/h2-console`)
+      - traefik.http.routers.deploydash-h2.priority=999
+      - traefik.http.routers.deploydash-h2.entrypoints=web
+      - traefik.http.routers.deploydash-h2.service=deploydash-h2-service
+      - traefik.http.services.deploydash-h2-service.loadbalancer.server.port=8080
       - logspout.label=be.deploydash
+    networks:
+      # TODO vlastni network
+      - kl-default
+    <<: *logging-common
+    <<: *restart-policy
+
+  deploydash-ui:
+    image: nexus3.oksystem.local:8183/deploydash-ui:v0.0.1
+    security_opt:
+      - label=disable
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.deploydash-ui.rule=PathPrefix(`/deploydash`)
+      - traefik.http.routers.deploydash-ui.entrypoints=web
+      - traefik.http.routers.deploydash-ui.service=deploydash-ui-service
+      - traefik.http.services.deploydash-ui-service.loadbalancer.server.port=3000
+      - traefik.http.routers.deploydash-ui.middlewares=deploydash-ui-remove-server-header@docker
+      - traefik.http.middlewares.deploydash-ui-remove-server-header.headers.customresponseheaders.server=
+      - logspout.label=be.deploydash-ui
     networks:
       # TODO vlastni network
       - kl-default

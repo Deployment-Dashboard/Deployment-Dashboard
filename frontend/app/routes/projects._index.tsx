@@ -9,12 +9,10 @@ import {IconPlus, IconCheck, IconX} from "@tabler/icons-react";
 import ContentContainer from "~/components/content-container";
 import {isNotEmpty, useForm} from '@mantine/form';
 import {useEffect, useState} from "react";
-import process from 'node:process';
-
-const BASE_URL = process.env.API_URL;
+import {API_URL} from "../constants"
 
 export let loader: LoaderFunction = async () => {
-  const response = await fetch(`${BASE_URL}/api/apps`);
+  const response = await fetch(`${API_URL}/apps`);
   const projects: ProjectOverviewDto[] = await response.json();
   return projects;
 };

@@ -15,6 +15,7 @@ import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import { ColorSchemeScript, MantineProvider, SimpleGrid } from '@mantine/core';
 import {Notifications} from "@mantine/notifications";
+import ScrollToTopButton from "~/components/scroll-to-top-button";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -47,6 +48,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex justify-center px-4 sm:px-8 md:px-16 lg:px-24 xl:px-32">
           <div className="flex flex-col w-full">
             <Header/>
+            <ScrollToTopButton/>
             {children}
           </div>
         </div>

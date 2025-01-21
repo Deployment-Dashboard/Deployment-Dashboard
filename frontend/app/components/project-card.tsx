@@ -36,7 +36,7 @@ export default function ProjectCard({data : projectOverview} : ProjectCardProps)
                 {new Date(projectOverview.lastDeployedAt).toLocaleDateString("cs-CZ")}
               </Text>
               <Text mt="sm" size="lg" fw={500}>
-                {"Ovlivněné aplikace:"}
+                {"Ovlivněné komponenty:"}
               </Text>
               <Pill.Group>
                 {projectOverview.versionedComponentsNames.map((key) => (
@@ -51,7 +51,7 @@ export default function ProjectCard({data : projectOverview} : ProjectCardProps)
               <Text size="lg">
                 {projectOverview.lastDeployedToEnvName}
               </Text>
-              <Link to="/projects" style={{justifySelf:"flex-end", textDecoration: "underline", color: "green"}}>Odkaz na Jira ticket</Link>
+              <Link to={projectOverview.lastDeploymentJiraUrl} style={{justifySelf:"flex-end", textDecoration: "underline", color: "green"}}>Odkaz na Jira ticket</Link>
             </>
           ) : (
             <Text size="lg">

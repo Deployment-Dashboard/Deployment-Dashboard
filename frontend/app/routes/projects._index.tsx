@@ -9,7 +9,7 @@ import {IconPlus, IconCheck, IconX} from "@tabler/icons-react";
 import ContentContainer from "~/components/content-container";
 import {isNotEmpty, useForm} from '@mantine/form';
 import {useEffect, useState} from "react";
-import {API_URL} from "../constants"
+import {API_URL} from "~/constants"
 
 export let loader: LoaderFunction = async () => {
   const response = await fetch(`${API_URL}/apps`);
@@ -120,7 +120,7 @@ export default function Projects() {
 
     try {
       // Step 1: Add project
-      let response = await fetch(`${BASE_URL}/api/apps`, requestOptions);
+      let response = await fetch(`${API_URL}/apps`, requestOptions);
       if (!response.ok) {
         const error: ErrorBody = await response.json();
         alert(`${error.message}\n${error.details}`);
@@ -129,7 +129,7 @@ export default function Projects() {
 
       for (const environment of formValues.environments) {
         requestOptions.body = JSON.stringify({appKey: formValues.key, name: environment.valueOf()});
-        response = await fetch(`${BASE_URL}/api/apps/${formValues.key}/envs`, requestOptions);
+        response = await fetch(`${API_URL}/apps/${formValues.key}/envs`, requestOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           alert(`${error.message}\n${error.details}`);
@@ -139,7 +139,7 @@ export default function Projects() {
 
       for (const component of formValues.components) {
         requestOptions.body = JSON.stringify({ key: component.key, name: component.name, parentKey: formValues.key });
-        response = await fetch(`${BASE_URL}/api/apps`, requestOptions);
+        response = await fetch(`${API_URL}/apps`, requestOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           alert(`${error.message}\n${error.details}`);
@@ -154,7 +154,7 @@ export default function Projects() {
       form.reset();
       setEnvironments([]);
       setComponents([]);
-      revalidate();
+      useRevalidator();
       close();
     } catch (error) {
       alert("Došlo k neočekávané chybě během přidávání projektu.");
@@ -256,7 +256,7 @@ export default function Projects() {
             >
               <TextInput
                 id={`inputComponentName${index}`}
-                readonly='readonly'
+                readOnly={true}
                 placeholder={`Název komponenty ${index}`}
                 value={row.name}
                 style={{ minWidth: '300px', pointerEvents: 'none', outline: 'none', boxShadow: 'none', borderColor: 'transparent' }}
@@ -264,7 +264,7 @@ export default function Projects() {
               />
               <TextInput
                 id={`inputComponentKey${index}`}
-                readonly='readonly'
+                readOnly={true}
                 placeholder={`Klíč komponenty ${index}`}
                 value={row.key}
                 style={{ minWidth: '300px', pointerEvents: 'none', outline: 'none', boxShadow: 'none', borderColor: 'transparent' }}

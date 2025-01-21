@@ -103,7 +103,7 @@ public class ServiceOrchestrator {
 
         Deployment newDeployment = new Deployment(envToDeployTo, appVersion, jiraTicket, LocalDateTime.now());
 
-        Optional<Deployment> latestDeployment = deploymentService.getLastDeploymentForApp(projectKey);
+        Optional<Deployment> latestDeployment = deploymentService.getLastDeploymentForApp(appKey);
 
         // TODO přepsat pomocí nějakého comparatoru
         // kontrola, zda neni nasazena novejsi verze, nebo zda prave nasazovana verze neni prenasazovana

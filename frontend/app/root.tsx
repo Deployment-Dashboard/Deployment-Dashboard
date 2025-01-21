@@ -5,7 +5,7 @@ import {
   Scripts,
   ScrollRestoration,
 } from '@remix-run/react';
-import type { LinksFunction } from "@remix-run/node";
+import type {LinksFunction, MetaFunction} from "@remix-run/node";
 
 import Header from "~/components/header";
 
@@ -16,6 +16,12 @@ import '@mantine/notifications/styles.css';
 import { ColorSchemeScript, MantineProvider, SimpleGrid } from '@mantine/core';
 import {Notifications} from "@mantine/notifications";
 import ScrollToTopButton from "~/components/scroll-to-top-button";
+
+export const meta: MetaFunction = () => {
+  return [
+    { title: "Deployment Dashboard" }
+  ];
+};
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },

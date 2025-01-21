@@ -9,8 +9,10 @@ declare module "@remix-run/node" {
 }
 
 export default defineConfig({
+  base: "/deploydash/",
   plugins: [
     remix({
+      basename: "/deploydash",
       future: {
         v3_fetcherPersist: true,
         v3_relativeSplatPath: true,

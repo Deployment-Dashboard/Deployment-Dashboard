@@ -6,8 +6,7 @@ import {IconArrowBackUp, IconExternalLink, IconPencil, IconRocket} from "@tabler
 import {Link} from "@remix-run/react";
 import {useLoaderData} from "react-router";
 import {API_URL} from "~/constants"
-import {useDisclosure, useScrollIntoView} from "@mantine/hooks";
-import {useRef} from "react";
+import {useDisclosure} from "@mantine/hooks";
 
 // TODO datove typy a upravit parsovani, je to hnus
 export async function loader({
@@ -76,7 +75,7 @@ export default function ProjectDetail() {
 
     if (row) {
       row.scrollIntoView({block:"center", behavior: "smooth" });
-      row.style.backgroundColor = "limegreen";
+      row.style.backgroundColor = "#cdffcd";
       row.style.transition = "background-color 0.2s ease-in-out";
 
       setTimeout(() => {
@@ -95,12 +94,19 @@ export default function ProjectDetail() {
   return (
     <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
       <Group style={{alignSelf: "flex-end"}}>
-        {editable ? (
+        { editable ? (
           <>
-            <Button size="md" onClick={handleSubmit}>
+            <Button
+              size="md"
+              onClick={handleSubmit}
+            >
               Potvrdit změny
             </Button>
-            <Button variant="danger" size="md" onClick={handlers.close}>
+            <Button
+              variant="danger"
+              size="md"
+              onClick={handlers.close}
+            >
               Zrušit změny
             </Button>
           </>
@@ -109,7 +115,7 @@ export default function ProjectDetail() {
             <Button
               variant="outline"
               size="md"
-              leftSection={<IconArrowBackUp size={16} />}
+              leftSection={<IconArrowBackUp size={16}/>}
               component={Link}
               to="/projects"
             >
@@ -117,17 +123,22 @@ export default function ProjectDetail() {
             </Button>
             <Button
               size="md"
-              rightSection={<IconPencil size={16} />}
+              rightSection={<IconPencil size={16}/>}
               onClick={handlers.open}
               disabled
             >
               Upravit
             </Button>
-            <Button size="md" rightSection={<IconRocket size={16} />} disabled>
+            <Button
+              size="md"
+              rightSection={<IconRocket size={16}/>}
+              disabled
+            >
               Nasadit
             </Button>
           </>
         )}
+
       </Group>
       <ContentContainer>
         <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
@@ -168,17 +179,32 @@ export default function ProjectDetail() {
             </Group>
             <Title mb="md" order={2}>Aktuální verze</Title>
             <Paper withBorder style={{ borderColor: "green" }}>
-              <Table withColumnBorders style={{width: 'fit-content'}}>
+              <Table
+                withColumnBorders
+                style={{width: 'fit-content'}}
+              >
                 <Table.Thead style={{backgroundColor: "green", color: "white"}}>
                   <Table.Tr>
-                    <Table.Th rowSpan={2} style={{verticalAlign: 'middle', textAlign: 'center'}} />
-                    <Table.Th colSpan={appDetail.environmentNames.length} style={{textAlign: 'center'}}>
+                    <Table.Th
+                      rowSpan={2}
+                      style={{
+                        verticalAlign: 'middle',
+                        textAlign: 'center'
+                      }}
+                    />
+                    <Table.Th
+                      colSpan={appDetail.environmentNames.length}
+                      style={{textAlign: 'center'}}
+                    >
                       Prostředí
                     </Table.Th>
                   </Table.Tr>
                   <Table.Tr>
                     {appDetail.environmentNames.map((env) => (
-                      <Table.Th key={env} style={{textAlign: 'center'}}>
+                      <Table.Th
+                        key={env}
+                        style={{textAlign: 'center'}}
+                      >
                         {env.toUpperCase()}
                       </Table.Th>
                     ))}
@@ -189,10 +215,13 @@ export default function ProjectDetail() {
                     <Table.Tr key={appKey}>
                       <Table.Td style={{fontWeight: "bold"}}>{appKey}</Table.Td>
                       {appDetail.environmentNames.map((env) => (
-                        <Table.Td key={env} style={{textAlign: 'center'}}>
+                        <Table.Td
+                          key={env}
+                          style={{textAlign: 'center'}}
+                        >
                           {envs[env] !== "-" ? (
                             <span
-                              style={{cursor: "pointer", color: "green", textDecoration: "underline"}}
+                              style={{ cursor: "pointer", color: "green", textDecoration: "underline" }}
                               onClick={() => handleCellClick(appKey, envs[env])}
                             >
                             {envs[env]}
@@ -211,17 +240,32 @@ export default function ProjectDetail() {
           <Group className="rounded-md p-8 bg-white gap-1" style={{display: "flex", flexDirection:"column", alignItems:"flex-start"}}>
             <Title style={{color: "green"}} order={2}>Verze komponent</Title>
             {Object.keys(appDetail.appKeyToVersionDtosMap).map((key) => (
-              <div key={key}>
-                <Title order={3}>{appDetail.componentKeysAndNamesMap[key]} ({key.toUpperCase()})</Title>
+              <>
+                <Title key={`title-${key}`} order={3}>
+                  {appDetail.componentKeysAndNamesMap[key]} ({key.toUpperCase()})
+                </Title>
                 {transformedData[key] && transformedData[key].length > 0 ? (
-                  <Paper withBorder style={{ borderColor: "green" }}>
-                    <Table withColumnBorders style={{width: 'fit-content'}}>
+                  <Paper key={`paper-${key}`} withBorder style={{ borderColor: "green" }}>
+                    <Table
+                      key={`table-${key}`}
+                      withColumnBorders
+                      style={{width: 'fit-content'}}
+                    >
                       <Table.Thead style={{backgroundColor: "green", color: "white"}}>
                         <Table.Tr>
-                          <Table.Th rowSpan={3} style={{verticalAlign: 'middle', textAlign: 'center'}}>
+                          <Table.Th
+                            rowSpan={3}
+                            style={{
+                              verticalAlign: 'middle',
+                              textAlign: 'center'
+                            }}
+                          >
                             Verze
                           </Table.Th>
-                          <Table.Th colSpan={appDetail.environmentNames.length * 2} style={{textAlign: 'center'}}>
+                          <Table.Th
+                            colSpan={appDetail.environmentNames.length * 2}
+                            style={{textAlign: 'center'}}
+                          >
                             Prostředí
                           </Table.Th>
                           <Table.Th
@@ -237,44 +281,40 @@ export default function ProjectDetail() {
                         </Table.Tr>
                         <Table.Tr>
                           {appDetail.environmentNames.map((name) => (
-                            <Table.Th
-                              key={name}
-                              colSpan={2}
-                              style={{
-                                verticalAlign: 'middle',
-                                textAlign: 'center'
-                              }}
-                            >
-                              {name.toUpperCase()}
-                            </Table.Th>
+                            <>
+                              <Table.Th
+                                key={name}
+                                colSpan={2}
+                                style={{
+                                  verticalAlign: 'middle',
+                                  textAlign: 'center'
+                                }}
+                              >
+                                {name.toUpperCase()}
+                              </Table.Th>
+                            </>
                           ))}
                         </Table.Tr>
                         <Table.Tr>
                           {appDetail.environmentNames.map((name) => (
-                            <div key={name}>
-                              <Table.Th>Datum nasazení</Table.Th>
-                              <Table.Th>Jira ticket</Table.Th>
-                            </div>
+                            <>
+                              <Table.Th key={`date-header-cell-${name}`}>Datum nasazení</Table.Th>
+                              <Table.Th key={`ticket-header-cell${name}`}>Jira ticket</Table.Th>
+                            </>
                           ))}
                         </Table.Tr>
                       </Table.Thead>
                       <Table.Tbody>
                         {transformedData[key].map((rowData) => (
-                          <Table.Tr key={`row-${key}-${rowData.versionName}`}>
+                          <Table.Tr key={`row-${key}-${rowData.versionName}`} id={`row-${key}-${rowData.versionName}`}>
                             <Table.Td style={{fontWeight: "bold", textAlign: "right"}}>{rowData.versionName}</Table.Td>
                             {appDetail.environmentNames.map((name) => (
-                              <div key={name}>
-                                <Table.Td style={{textAlign: 'center'}}>
-                                  {rowData[name].date ? new Date(rowData[name].date).toLocaleDateString("cs-CZ") : "-"}
-                                </Table.Td>
-                                <Table.Td style={{textAlign: 'center'}}>
-                                  {rowData[name].jiraUrl ? (
-                                    <Link to={rowData[name].jiraUrl} style={{color: "green", display: "inline-flex"}}>
-                                      <IconExternalLink />
-                                    </Link>
-                                  ) : "-"}
-                                </Table.Td>
-                              </div>
+                              <>
+                                <Table.Td key={`date-value-cell-${name}`} style={{textAlign: 'center'}}>{rowData[name].date ? new Date(rowData[name].date).toLocaleDateString("cs-CZ") : "-"}</Table.Td>
+                                <Table.Td key={`ticket-value-cell-${name}`} style={{textAlign: 'center'}}>{rowData[name].jiraUrl
+                                  ? <Link to={rowData[name].jiraUrl} style={{color: "green", display: "inline-flex"}}><IconExternalLink/></Link>
+                                  : "-"}</Table.Td>
+                              </>
                             ))}
                             <Table.Td>{rowData.description}</Table.Td>
                           </Table.Tr>
@@ -285,7 +325,7 @@ export default function ProjectDetail() {
                 ) : (
                   <p>Žádná data k zobrazení</p>
                 )}
-              </div>
+              </>
             ))}
           </Group>
           <Group className="rounded-md p-8 bg-white gap-1" style={{display: "flex", flexDirection:"column", alignItems:"flex-start"}}>
@@ -295,5 +335,4 @@ export default function ProjectDetail() {
       </ContentContainer>
     </div>
   );
-
 }

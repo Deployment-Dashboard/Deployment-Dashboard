@@ -1,22 +1,19 @@
 package cz.oksystem.deployment_dashboard.service;
 
-import cz.oksystem.deployment_dashboard.dto.AppDto;
-import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
-import cz.oksystem.deployment_dashboard.dto.ProjectOverviewDto;
+import cz.oksystem.deployment_dashboard.dto.*;
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Deployment;
 import cz.oksystem.deployment_dashboard.entity.Environment;
 import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.serializers.CustomProtocolsSerializer;
+import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 // TODO projít services a všechny cross-checky přesunout sem
 @Service
@@ -78,7 +75,7 @@ public class ServiceOrchestrator {
   }
 
   @Transactional
-  public void release(String projectKey, String envKey, Map<String, String> versionedApps, String jiraTicket) {
+  public void release(String projectKey, String envKey, Map<String, String> versionedApps, String jiraTicket, boolean force) {
     App project = appService.get(projectKey).orElseThrow(
       () -> new CustomExceptions.NotManagedException(App.class, projectKey)
     );
@@ -104,9 +101,24 @@ public class ServiceOrchestrator {
           () -> versionService.save(new Version(fetchedApp, versionName))
         );
 
-        deploymentService.save(
-          new Deployment(envToDeployTo, appVersion, jiraTicket, LocalDateTime.now())
+        Deployment newDeployment = new Deployment(envToDeployTo, appVersion, jiraTicket, LocalDateTime.now());
+
+        Optional<Deployment> latestDeployment = deploymentService.getLastDeploymentForApp(projectKey);
+
+        // TODO přepsat pomocí nějakého comparatoru
+        // kontrola, zda neni nasazena novejsi verze, nebo zda prave nasazovana verze neni prenasazovana
+        if (!force
+          && latestDeployment.isPresent()
+          && latestDeployment.get().getVersion().getId() > appVersion.getId()) {
+          throw new CustomExceptions.VersionRollbackException(latestDeployment.get(), newDeployment);
+        }
+        deploymentService.get(newDeployment).ifPresent(
+          deployment -> { if (!force) {
+              throw new CustomExceptions.VersionRedeployException(deployment);
+            }
+          }
         );
+        deploymentService.save(newDeployment);
       });
     }
   }
@@ -165,5 +177,55 @@ public class ServiceOrchestrator {
 
   public List<Deployment> getAllDeployments() {
     return deploymentService.getAllDeployments();
+  }
+
+  public ProjectDetailDto getAppDetailDto(String key) {
+    App fetchedApp = appService.get(key).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(App.class, key)
+    );
+
+    ProjectDetailDto detailDto = new ProjectDetailDto(fetchedApp.getKey(), fetchedApp.getName());
+
+    List<App> apps = new ArrayList<>(fetchedApp.getComponents());
+    apps.addFirst(fetchedApp);
+
+    Map<String, List<VersionDto>> componentToVersionDtoMap = new HashMap<>();
+
+    // prochazime aplikace
+    for (App app : apps) {
+      // inicializujeme list VersionDtos
+      List<VersionDto> versionDtos = new ArrayList<>();
+
+      // prochazime verze
+      for (Version version : app.getVersions()) {
+        // inicializujeme nove DTO pro verzi
+        VersionDto versionDto = new VersionDto(version.getId(), version.getName(), version.getDescription().orElse(""));
+
+        // inicializujeme mapu envName -> <deployedDate, jiraUrl>
+        Map<String, Pair<LocalDateTime, String>> environmentToDateAndJiraUrlMap = new HashMap<>();
+
+        // pro envs projektu pridame <deployedDate, jiraUrl> do mapy ve VersionDto
+        for (Deployment deployment : version.getDeployments()) {
+          String jiraUrl = deployment.getJiraUrl().orElse("");
+          jiraUrl = jiraUrl.replace("ok-jira://", protocolsSerializer.getCustomProtocols().get("ok-jira"));
+
+          environmentToDateAndJiraUrlMap.put(deployment.getEnvironment().getName(), Pair.of(deployment.getDate().orElse(null), jiraUrl));
+        }
+        versionDto.setEnvironmentToDateAndJiraUrlMap(environmentToDateAndJiraUrlMap);
+        versionDtos.addFirst(versionDto);
+      }
+      componentToVersionDtoMap.put(app.getKey(), versionDtos);
+    }
+
+    detailDto.setEnvironmentNames(fetchedApp.getEnvironments().stream().map(Environment::getName).toList());
+    detailDto.setComponentKeysAndNamesMap(apps.stream().collect(
+      Collectors.toMap(
+        App::getKey,
+        App::getName
+      )
+    ));
+    detailDto.setAppKeyToVersionDtosMap(componentToVersionDtoMap);
+
+    return detailDto;
   }
 }

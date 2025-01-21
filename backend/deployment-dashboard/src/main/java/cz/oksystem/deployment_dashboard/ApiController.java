@@ -2,13 +2,14 @@ package cz.oksystem.deployment_dashboard;
 
 import cz.oksystem.deployment_dashboard.dto.AppDto;
 import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
+import cz.oksystem.deployment_dashboard.dto.ProjectDetailDto;
 import cz.oksystem.deployment_dashboard.dto.ProjectOverviewDto;
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Deployment;
 import cz.oksystem.deployment_dashboard.entity.Environment;
-import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.service.ServiceOrchestrator;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
@@ -99,58 +100,66 @@ class ApiController {
     }
   }
 
-  //  nová verze - GET /api/apps/:key/envs/:envkey/versions/:version?ticket=:urlencoded_ticket_link:&component=:component_1:&component=:component_2:&components_only=true
-  //  pokud neexistuje aplikace, vrací chybu
-  //  pokud neexistuje prostředí, vrací chybu
-  //  pokud neexistuje verze, vytvoří verzi (toto navíc ovliňuje flag components_only)
-  //  pokud neexistuje komponenta, vrací chybu
-  //  vytvoří záznam deploymentu k dané verzi a aplikaci / komponentám
-  //  components_only - pokud je true, nevytváříme záznam k aplikace, pouze ke komponentám
-  //    musí existovat alespoň jedna komponenta
-  //
-//  @GetMapping("{key}/envs/{envKey}/versions/{version}")
-//  @ResponseStatus(value = HttpStatus.OK)
-//  void newVersion(@PathVariable("key") String appKey,
-//                  @PathVariable("envKey") String envKey,
-//                  @PathVariable("version") String versionName,
-//                  @RequestParam(value = "ticket", required = false) String jiraTicket,
-//                  @RequestParam(value = "component", required = false) List<String> components,
-//                  @RequestParam(value = "components_only", required = false) boolean componentsOnly) {
-//    try {
-//      serviceOrchestrator.release(appKey, components, envKey, versionName, jiraTicket, componentsOnly);
-//    } catch (CustomExceptions.NotManagedException
-//             | CustomExceptions.NoSuchAppComponentException ex) {
-//      throw new CustomExceptions.EntityAdditionException(Deployment.class, ex);
-//    }
-//  }
-
   @GetMapping("{key}/envs/{envKey}/versions")
   ResponseEntity<String> multipleNewVersions(@PathVariable("key") String appKey,
-                           @PathVariable("envKey") String envKey,
-                           @RequestParam Map<String, String> parameters) {
+                                             @PathVariable("envKey") String envKey,
+                                             @RequestParam Map<String, String> parameters,
+                                             HttpServletRequest request) {
+    return doMultipleNewVersions(request, appKey, envKey, parameters, false);
+  }
+
+  @GetMapping("/force/{key}/envs/{envKey}/versions")
+  ResponseEntity<String> multipleNewVersionsForce(@PathVariable("key") String appKey,
+                                                  @PathVariable("envKey") String envKey,
+                                                  @RequestParam Map<String, String> parameters,
+                                                  HttpServletRequest request) {
+    return doMultipleNewVersions(request, appKey, envKey, parameters, true);
+  }
+
+  private ResponseEntity<String> doMultipleNewVersions(HttpServletRequest request, String appKey, String envKey, Map<String, String> parameters, boolean force) {
     try {
       String ticket = parameters.get("ticket");
 
       HashMap<String, String> versionedApps = new HashMap<>(parameters);
       versionedApps.remove("ticket");
 
-      serviceOrchestrator.release(appKey, envKey, versionedApps, ticket);
+      serviceOrchestrator.release(appKey, envKey, versionedApps, ticket, force);
       return ResponseEntity.ok("Nasazení úspěšně zaevidováno.");
     } catch (CustomExceptions.NotManagedException
              | CustomExceptions.NoSuchAppComponentException ex) {
       throw new CustomExceptions.EntityAdditionException(Deployment.class, ex);
+    } catch (CustomExceptions.VersionRedeployException
+             | CustomExceptions.VersionRollbackException ex) {
+
+      StringBuilder requestUrl = new StringBuilder(request.getRequestURL().toString());
+      requestUrl.replace(requestUrl.indexOf("/apps"), requestUrl.indexOf("/" + appKey), "/apps/force");
+
+      String queryString = request.getQueryString();
+      if (queryString != null) {
+        requestUrl.append("?").append(queryString);
+      }
+      return ResponseEntity.ok(new CustomExceptions.DeploymentEvidenceException(ex, requestUrl.toString()).getMessage());
     }
   }
 
   // TODO vyřešit serializaci cyklů (v deployment listu chceme jméno prostředí)
   // získání všech verzí projektu - GET /api/apps/:key
+//  @GetMapping("{key}")
+//  @ResponseStatus(value = HttpStatus.OK)
+//  ResponseEntity<List<Version>> getAllVersions(@PathVariable("key") String key) {
+//    try {
+//      return ResponseEntity.ok(serviceOrchestrator.getAppVersions(key));
+//    } catch (CustomExceptions.NotManagedException ex) {
+//      throw new CustomExceptions. EntityFetchException(App.class, ex);
+//    }
+//  }
   @GetMapping("{key}")
   @ResponseStatus(value = HttpStatus.OK)
-  ResponseEntity<List<Version>> getAllVersions(@PathVariable("key") String key) {
+  ResponseEntity<ProjectDetailDto> getAppDetail(@PathVariable("key") String key) {
     try {
-      return ResponseEntity.ok(serviceOrchestrator.getAppVersions(key));
+      return ResponseEntity.ok(serviceOrchestrator.getAppDetailDto(key));
     } catch (CustomExceptions.NotManagedException ex) {
-      throw new CustomExceptions. EntityFetchException(App.class, ex);
+      throw new CustomExceptions.EntityFetchException(App.class, ex);
     }
   }
 

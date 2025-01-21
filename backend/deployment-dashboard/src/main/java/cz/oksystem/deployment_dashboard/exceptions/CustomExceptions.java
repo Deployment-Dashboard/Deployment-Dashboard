@@ -1,6 +1,7 @@
 package cz.oksystem.deployment_dashboard.exceptions;
 
 import cz.oksystem.deployment_dashboard.entity.App;
+import cz.oksystem.deployment_dashboard.entity.Deployment;
 import org.springframework.dao.DataIntegrityViolationException;
 
 public class CustomExceptions {
@@ -42,6 +43,25 @@ public class CustomExceptions {
     }
   }
 
+  public static class VersionRedeployException extends RuntimeException {
+    public VersionRedeployException(Deployment deployment) {
+      super(String.format("Aplikace '%s' ve verzi '%s' již byla na prostředí '%s' nasazena. ",
+        deployment.getVersion().getApp().getKey(),
+        deployment.getVersion().getName(),
+        deployment.getEnvironment().getName()));
+    }
+  }
+
+  public static class VersionRollbackException extends RuntimeException {
+    public VersionRollbackException(Deployment oldDeployment, Deployment newDeployment) {
+      super(String.format("Aplikace '%s' je na prostředí '%s' nasazena ve verzi '%s', která je dle evidence novější, než Vámi nasazovaná verze '%s'.",
+        oldDeployment.getVersion().getApp().getKey(),
+        oldDeployment.getEnvironment().getName(),
+        oldDeployment.getVersion().getName(),
+        newDeployment.getVersion().getName()));
+    }
+  }
+
   public static class EntityAdditionException extends RuntimeException {
     public EntityAdditionException(Class<?> entityClass, Throwable cause) {
       super(entityClass.getSimpleName() + " could not be added.", cause);
@@ -63,6 +83,12 @@ public class CustomExceptions {
   public static class EntityFetchException extends RuntimeException {
     public EntityFetchException(Class<?> entityClass, Throwable cause) {
       super(entityClass.getSimpleName() + " could not be fetched.", cause);
+    }
+  }
+
+  public static class DeploymentEvidenceException extends RuntimeException {
+    public DeploymentEvidenceException(Throwable cause, String forceDeployLink) {
+      super(String.format("%s\nPokud chcete nasazení i přesto zaevidovat, použijte následující odkaz:\n%s", cause.getMessage(), forceDeployLink));
     }
   }
 }

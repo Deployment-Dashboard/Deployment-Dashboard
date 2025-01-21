@@ -102,4 +102,8 @@ public class Version extends AbstractDeploymentHolder {
       ", deployments=" + this.getDeployments() +
       '}';
   }
+
+  public Long getId() {
+    return this.id;
+  }
 }

@@ -11,8 +11,9 @@ import java.util.Optional;
 
 @Repository
 public interface DeploymentRepository extends JpaRepository<Deployment, Long> {
+  // prostředí patří pod projekt, musíme proto hledat appku přes verze
   @Query("SELECT d FROM Deployment d " +
-    "WHERE d.environment.app.key = :appKey " +
+    "WHERE d.version.app.key = :appKey " +
     "AND d.environment.name = :environment " +
     "AND d.version.name = :version")
   Optional<Deployment> findByAppAndEnvironmentAndVersion(@Param("appKey") String appKey,
@@ -20,7 +21,7 @@ public interface DeploymentRepository extends JpaRepository<Deployment, Long> {
                                                          @Param("version") String versionName);
 
   @Query("SELECT d FROM Deployment d " +
-    "WHERE d.environment.app.key = :appKey " +
+    "WHERE d.version.app.key = :appKey " +
     "ORDER BY d.id DESC LIMIT 1")
   Optional<Deployment> getLastDeploymentForApp(@Param("appKey") String appKey);
 

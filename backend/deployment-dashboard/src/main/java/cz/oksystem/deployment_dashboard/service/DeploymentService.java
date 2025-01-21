@@ -45,7 +45,8 @@ public class DeploymentService {
 
   @Transactional(readOnly = true)
   public Optional<Deployment> get(Deployment deployment) {
-    String appKey = deployment.getEnvironment().getApp().getKey();
+    // prostředí patří pod projekt, musíme proto hledat appku přes verze
+    String appKey = deployment.getVersion().getApp().getKey();
     String envKey = deployment.getEnvironment().getName();
     String versionName = deployment.getVersion().getName();
 

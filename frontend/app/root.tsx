@@ -1,11 +1,5 @@
-import {
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-} from '@remix-run/react';
-import type {LinksFunction, MetaFunction} from "@remix-run/node";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import type { LinksFunction, MetaFunction } from "react-router";
 
 import Header from "~/components/header";
 
@@ -13,7 +7,7 @@ import "./tailwind.css";
 
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
-import { ColorSchemeScript, MantineProvider, SimpleGrid } from '@mantine/core';
+import {AppShell, Button, ColorSchemeScript, MantineProvider, SimpleGrid} from '@mantine/core';
 import {Notifications} from "@mantine/notifications";
 import ScrollToTopButton from "~/components/scroll-to-top-button";
 
@@ -50,22 +44,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body>
       <MantineProvider>
+        <Scripts/>
         <Notifications/>
-        <div className="flex justify-center px-4 sm:px-8 md:px-16 lg:px-24 xl:px-32">
+        <AppShell>
+          <AppShell.Main>
+        <div id="root" className="flex justify-center px-4 sm:px-8 md:px-16 lg:px-24 xl:px-32">
           <div className="flex flex-col w-full">
             <Header/>
             <ScrollToTopButton/>
             {children}
           </div>
         </div>
+          </AppShell.Main>
+        </AppShell>
       </MantineProvider>
       <ScrollRestoration/>
-      <Scripts/>
       </body>
     </html>
   );
 }
 
 export default function App() {
-  return <Outlet />;
+  return <Outlet/>;
 }

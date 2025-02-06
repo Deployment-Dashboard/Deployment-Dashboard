@@ -1,11 +1,11 @@
-import {Link, NavLink} from "@remix-run/react";
+import { Link, NavLink } from "react-router";
 
 export default function Header() {
   return (
     <header
       className="flex items-center justify-between rounded-b-md p-6 bg-gray-100 mb-16">
       <Link to="/projects">
-        <img src="./logo.png" alt="Logo" className="h-14"/>
+        <img src="/logo.png" alt="Logo" className="h-14"/>
       </Link>
 
 

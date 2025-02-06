@@ -1,6 +1,6 @@
-import type { MetaFunction } from "@remix-run/node";
+import type { MetaFunction } from "react-router";
 import { useEffect } from "react";
-import { useNavigate } from "@remix-run/react";
+import { useNavigate } from "react-router";
 
 
 export default function Index() {

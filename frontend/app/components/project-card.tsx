@@ -2,7 +2,7 @@ import {Card, Text, Button, Group, Modal, Title, TextInput, PillsInput, Pill, Ac
 import {ProjectOverviewDto} from "~/types";
 
 import {IconArrowsMaximize, IconCheck, IconPlus, IconRocket, IconX} from "@tabler/icons-react";
-import {Link, NavLink} from "@remix-run/react";
+import { Link, NavLink } from "react-router";
 import {useDisclosure} from "@mantine/hooks";
 
 
@@ -35,23 +35,27 @@ export default function ProjectCard({data : projectOverview} : ProjectCardProps)
               <Text size="lg">
                 {new Date(projectOverview.lastDeployedAt).toLocaleDateString("cs-CZ")}
               </Text>
-              <Text mt="sm" size="lg" fw={500}>
-                {"Ovlivněné komponenty:"}
+              <Text mt="sm" mb="sm" fw={500}>
+                <Link  to={projectOverview.lastDeploymentJiraUrl} style={{justifySelf:"flex-end", textDecoration: "underline", color: "green"}}>
+                  Odkaz na Jira ticket
+                </Link>
               </Text>
-              <Pill.Group>
-                {projectOverview.versionedComponentsNames.map((key) => (
-                  <Pill key={key} size="lg">
-                    {key}
-                  </Pill>
-                ))}
-              </Pill.Group>
               <Text mt="sm" size="lg" fw={500}>
                 {"Prostředí:"}
               </Text>
               <Text size="lg">
                 {projectOverview.lastDeployedToEnvName}
               </Text>
-              <Link to={projectOverview.lastDeploymentJiraUrl} style={{justifySelf:"flex-end", textDecoration: "underline", color: "green"}}>Odkaz na Jira ticket</Link>
+              <Text mt="sm" size="lg" fw={500}>
+                {"Ovlivněné komponenty:"}
+              </Text>
+              <Pill.Group style={{height: "100px", display: "flex"}}>
+                {projectOverview.versionedComponentsNames.map((key) => (
+                  <Pill key={key} style={{alignSelf: "flex-start"}} size="lg">
+                    {key}
+                  </Pill>
+                ))}
+              </Pill.Group>
             </>
           ) : (
             <Text size="lg">

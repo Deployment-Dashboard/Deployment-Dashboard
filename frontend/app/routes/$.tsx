@@ -1,6 +1,6 @@
 import ContentContainer from "~/components/content-container";
 import {Button, Text, Title} from "@mantine/core";
-import {Link} from "@remix-run/react";
+import { Link } from "react-router";
 
 export default function NotFoundPage() {
   return (

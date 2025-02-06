@@ -1,8 +1,8 @@
-import {LoaderFunction} from "@remix-run/node";
+import { LoaderFunction } from "react-router";
 import ProjectCard from "~/components/project-card"
 import {ProjectOverviewDto, AppDto, ErrorBody} from "~/types";
 import {useLoaderData, useRevalidator} from "react-router";
-import {Button, Grid, Group, TextInput, Modal, Title, ActionIcon, TagsInput, Tooltip} from "@mantine/core";
+import {Button, Grid, Group, TextInput, Modal, Title, ActionIcon, TagsInput, Tooltip, Loader} from "@mantine/core";
 import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
 import {IconPlus, IconCheck, IconX} from "@tabler/icons-react";
@@ -61,13 +61,13 @@ export default function Projects() {
   const [inputComponentKey, setInputComponentKey] = useState('');
 
   // state pro button pridavajici komponenty
-  const [enabled, handlers] = useDisclosure(false);
+  const [enabled, {enable, disable}] = useDisclosure(false);
 
   useEffect(() => {
     if (inputComponentKey.trim() && inputComponentName.trim()) {
-      handlers.open();
+      enable();
     } else {
-      handlers.close();
+      disable();
     }
   }, [inputComponentKey, inputComponentName]);
 
@@ -290,8 +290,7 @@ export default function Projects() {
           <Button
             size="md"
             leftSection={<IconPlus size={16}/>}
-            component="a"
-            onClick={open}
+            onClick={() => console.log("AAAAAAAAAAA")}
           >
             Nový projekt
           </Button>
@@ -300,8 +299,8 @@ export default function Projects() {
         <ContentContainer>
           <Grid align="stretch" gutter="xs">
             {overviews.map((overview) => (
-              <Grid.Col key={overview.key} span="content">
-                <ProjectCard data={overview}/>
+              <Grid.Col style={{display: "flex"}} key={overview.key} span="content">
+                <ProjectCard style={{ flexGrow: 1 }} data={overview}/>
               </Grid.Col>
             ))}
           </Grid>

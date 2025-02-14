@@ -1,8 +1,8 @@
-import {LoaderFunction} from "@remix-run/node";
+import { LoaderFunction } from "react-router";
 import ProjectCard from "~/components/project-card"
 import {ProjectOverviewDto, AppDto, ErrorBody} from "~/types";
 import {useLoaderData, useRevalidator} from "react-router";
-import {Button, Grid, Group, TextInput, Modal, Title, ActionIcon, TagsInput, Tooltip} from "@mantine/core";
+import {Button, Grid, Group, TextInput, Modal, Title, ActionIcon, TagsInput, Tooltip, Loader} from "@mantine/core";
 import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
 import {IconPlus, IconCheck, IconX} from "@tabler/icons-react";

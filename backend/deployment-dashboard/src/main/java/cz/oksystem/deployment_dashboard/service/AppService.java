@@ -117,7 +117,7 @@ public class AppService {
       );
     }
 
-    for (App component : appToDelete.getComponents()) {
+    for (App component : appToDelete.getDirectComponents()) {
       this.delete(component.getKey(), true);
     }
 

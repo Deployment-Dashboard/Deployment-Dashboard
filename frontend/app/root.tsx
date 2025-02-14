@@ -1,19 +1,15 @@
-import {
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-} from '@remix-run/react';
-import type {LinksFunction, MetaFunction} from "@remix-run/node";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import type { LinksFunction, MetaFunction } from "react-router";
 
 import Header from "~/components/header";
 
 import "./tailwind.css";
 
 import '@mantine/core/styles.css';
+import '@mantine/dates/styles.css';
+
 import '@mantine/notifications/styles.css';
-import { ColorSchemeScript, MantineProvider, SimpleGrid } from '@mantine/core';
+import { ColorSchemeScript, MantineProvider } from '@mantine/core';
 import {Notifications} from "@mantine/notifications";
 import ScrollToTopButton from "~/components/scroll-to-top-button";
 
@@ -67,5 +63,5 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  return <Outlet/>;
 }

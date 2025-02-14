@@ -9,7 +9,7 @@ spring:
     custom-protocols:
       ok-jira: https://jira.oksystem.local/issues/?jql=text~
   datasource:
-    url: jdbc:h2:file:./backend/deployment-dashboard/src/main/resources/db/data/h2testdb
+    url: jdbc:h2:file:./src/main/resources/db/data/h2testdb
     driver-class-name: org.h2.Driver
     username: test
     password: test

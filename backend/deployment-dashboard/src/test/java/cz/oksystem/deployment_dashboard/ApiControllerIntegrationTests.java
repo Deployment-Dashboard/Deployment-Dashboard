@@ -174,7 +174,7 @@ class ApiControllerIntegrationTests {
     Optional<App> component = appService.get("dd-fe");
 
     Assertions.assertTrue(component.isPresent());
-    Assertions.assertEquals(component.get(), app.getComponents().getFirst());
+    Assertions.assertEquals(component.get(), app.getDirectComponents().getFirst());
   }
 
   @Test
@@ -218,9 +218,9 @@ class ApiControllerIntegrationTests {
 
     Assertions.assertTrue(fe.isPresent());
     Assertions.assertTrue(db.isPresent());
-    Assertions.assertFalse(app.getComponents().isEmpty());
-    Assertions.assertTrue(app.getComponents().contains(fe.get()));
-    Assertions.assertTrue(app.getComponents().contains(db.get()));
+    Assertions.assertFalse(app.getDirectComponents().isEmpty());
+    Assertions.assertTrue(app.getDirectComponents().contains(fe.get()));
+    Assertions.assertTrue(app.getDirectComponents().contains(db.get()));
   }
 
   // verify that a duplicate app is rejected

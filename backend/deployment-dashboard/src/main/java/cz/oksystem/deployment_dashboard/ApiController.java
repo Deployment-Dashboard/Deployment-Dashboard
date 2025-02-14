@@ -1,9 +1,6 @@
 package cz.oksystem.deployment_dashboard;
 
-import cz.oksystem.deployment_dashboard.dto.AppDto;
-import cz.oksystem.deployment_dashboard.dto.EnvironmentDto;
-import cz.oksystem.deployment_dashboard.dto.ProjectDetailDto;
-import cz.oksystem.deployment_dashboard.dto.ProjectOverviewDto;
+import cz.oksystem.deployment_dashboard.dto.*;
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Deployment;
 import cz.oksystem.deployment_dashboard.entity.Environment;
@@ -163,6 +160,12 @@ class ApiController {
     }
   }
 
+  @GetMapping(path = "all")
+  @ResponseStatus(value = HttpStatus.OK)
+  ResponseEntity<List<ProjectDetailDto>> getAllAppDetails() {
+    return ResponseEntity.ok(serviceOrchestrator.getAllAppDetailDtos());
+  }
+
   // TODO vyřešit serializaci cyklů (v deployment listu chceme jméno verze)
   // získání všech prostředí - GET /api/apps/:key/envs
   @GetMapping("{key}/envs")
@@ -230,11 +233,7 @@ class ApiController {
 
   @GetMapping(path = "deployments")
   @ResponseStatus(value = HttpStatus.OK)
-  ResponseEntity<List<Deployment>> getAllDeployments() {
-    try {
-      return ResponseEntity.ok(serviceOrchestrator.getAllDeployments());
-    } catch (CustomExceptions.NotManagedException ex) {
-      throw new CustomExceptions.EntityFetchException(Deployment.class, ex);
-    }
+  ResponseEntity<List<DeploymentDto>> getAllDeployments() {
+    return ResponseEntity.ok(serviceOrchestrator.getAllDeployments());
   }
 }

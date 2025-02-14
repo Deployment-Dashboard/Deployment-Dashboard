@@ -1,9 +1,8 @@
-import {LoaderFunctionArgs} from "@remix-run/node";
-import {fetch} from "@remix-run/web-fetch";
+import { LoaderFunctionArgs } from "react-router";
 import ContentContainer from "~/components/content-container";
 import {Button, Group, Paper, Table, TagsInput, TextInput, Title} from "@mantine/core";
 import {IconArrowBackUp, IconExternalLink, IconPencil, IconRocket} from "@tabler/icons-react";
-import {Link} from "@remix-run/react";
+import { Link } from "react-router";
 import {useLoaderData} from "react-router";
 import {API_URL} from "~/constants"
 import {useDisclosure} from "@mantine/hooks";

@@ -155,12 +155,22 @@ public class ServiceOrchestrator {
     for (App project : projects) {
       String projectKey = project.getKey();
       String projectName = project.getName();
-      Optional<Deployment> fetchedLastDeployment = deploymentService.getLastDeploymentForApp(projectKey);
+      List<Deployment> lastDeployments = new ArrayList<>();
+
+      deploymentService.getLastDeploymentForApp(projectKey).ifPresent(lastDeployments::add);
+
+      project.getComponents().forEach(component -> deploymentService.getLastDeploymentForApp(component.getKey()).ifPresent(lastDeployments::add));
 
       ProjectOverviewDto projectOverview = new ProjectOverviewDto(projectKey, projectName);
 
-      if (fetchedLastDeployment.isPresent()) {
-        Deployment lastDeployment = fetchedLastDeployment.get();
+      lastDeployments.sort(Comparator.comparing(
+        deployment -> deployment.getDate().orElse(null),
+        Comparator.nullsLast(Comparator.naturalOrder())
+      ));
+
+
+      if (!lastDeployments.isEmpty()) {
+        Deployment lastDeployment = lastDeployments.getFirst();
 
         lastDeployment.getDate().ifPresent(projectOverview::setLastDeployedAt);
         projectOverview.setLastDeployedVersionName(lastDeployment.getVersion().getName());
@@ -175,8 +185,17 @@ public class ServiceOrchestrator {
     return projectOverviews;
   }
 
-  public List<Deployment> getAllDeployments() {
-    return deploymentService.getAllDeployments();
+  public List<DeploymentDto> getAllDeployments() {
+    List<Deployment> deployments = deploymentService.getAllDeployments();
+
+    return deployments.stream().map(deployment -> new DeploymentDto(
+        deployment.getDate().get(),
+        deployment.getVersion().getApp().getKey(),
+        deployment.getVersion().getApp().getName(),
+        deployment.getEnvironment().getName(),
+        deployment.getVersion().getName(),
+        deployment.getJiraUrl().map(jiraUrl -> jiraUrl.replace("ok-jira://", protocolsSerializer.getCustomProtocols().get("ok-jira"))).orElse("")))
+      .collect(Collectors.toList()).reversed();
   }
 
   public ProjectDetailDto getAppDetailDto(String key) {
@@ -227,5 +246,14 @@ public class ServiceOrchestrator {
     detailDto.setAppKeyToVersionDtosMap(componentToVersionDtoMap);
 
     return detailDto;
+  }
+
+  public List<ProjectDetailDto> getAllAppDetailDtos() {
+    List<ProjectDetailDto> detailDtos = new ArrayList<>();
+
+    for (App app : this.appService.getAllProjects()) {
+      detailDtos.add(this.getAppDetailDto(app.getKey()));
+    }
+    return detailDtos;
   }
 }

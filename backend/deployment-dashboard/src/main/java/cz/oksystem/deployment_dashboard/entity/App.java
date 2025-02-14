@@ -99,8 +99,28 @@ public class App {
     return Collections.unmodifiableList(this.versions);
   }
 
-  public List<App> getComponents() {
+  public List<App> getDirectComponents() {
     return Collections.unmodifiableList(this.components);
+  }
+
+  public List<App> getComponents() {
+    List<App> components = new ArrayList<>();
+
+    Queue<App> appQueue = new LinkedList<>();
+
+    appQueue.add(this);
+
+    while (appQueue.peek() != null)
+    {
+      App app = appQueue.poll();
+      if (!components.contains(app)) {
+        components.add(app);
+        appQueue.addAll(app.getDirectComponents());
+      }
+    }
+    components.remove(this);
+
+    return components;
   }
 
   // Setters

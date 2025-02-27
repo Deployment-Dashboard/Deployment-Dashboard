@@ -56,6 +56,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" type="image/x-icon" href="./favicon.ico"/>
         <Meta />
         <Links />
         <ColorSchemeScript defaultColorScheme="auto"/>
@@ -65,7 +66,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         defaultColorScheme="auto"
         theme={theme}
       >
-        <link rel="icon" type="image/x-icon" href="./favicon.ico"/>
         <Notifications/>
         <div className="flex justify-center px-4 sm:px-8 md:px-16 lg:px-24 xl:px-32">
           <div className="flex flex-col w-full">

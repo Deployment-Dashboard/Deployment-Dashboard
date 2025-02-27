@@ -1,5 +1,5 @@
 # Stage 1: Build app
-FROM node:18-alpine as builder
+FROM node:20-alpine as builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ RUN npm install
 RUN npm run build
 
 # Stage 2: Production image with only build folder and necessary files
-FROM node:18-alpine as production
+FROM node:20-alpine as production
 
 WORKDIR /app
 

@@ -10,7 +10,7 @@ x-restart-policy: &restart-policy
 
 services:
   deploydash:
-    image: nexus3.oksystem.local:8183/deploydash:v0.0.7
+    image: nexus3.oksystem.local:8183/deploydash:v0.0.8
     security_opt:
       - label=disable
     environment:
@@ -43,7 +43,7 @@ services:
     <<: *restart-policy
 
   deploydash-ui:
-    image: nexus3.oksystem.local:8183/deploydash-ui:v0.0.3
+    image: nexus3.oksystem.local:8183/deploydash-ui:v0.0.6
     security_opt:
       - label=disable
     labels:

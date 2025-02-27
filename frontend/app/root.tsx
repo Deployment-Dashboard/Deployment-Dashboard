@@ -5,11 +5,14 @@ import Header from "~/components/header";
 
 import "./tailwind.css";
 
+import "mantine-datatable/styles.css"
+
 import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
+import './styles.css'
 
 import '@mantine/notifications/styles.css';
-import { ColorSchemeScript, MantineProvider } from '@mantine/core';
+import {ColorSchemeScript, colorsTuple, createTheme, MantineProvider, virtualColor} from '@mantine/core';
 import {Notifications} from "@mantine/notifications";
 import ScrollToTopButton from "~/components/scroll-to-top-button";
 
@@ -32,6 +35,19 @@ export const links: LinksFunction = () => [
   },
 ];
 
+const theme = createTheme({
+    primaryColor: 'green',
+    primaryShade: 9,
+    colors: {
+      'custom-light': colorsTuple('#f1f3f5'), // Single shade for light mode
+      'custom-dark': colorsTuple('#141414'),
+      dynamicBackground: virtualColor({
+        name: 'dynamicBackground',
+        dark: 'custom-dark',
+        light: 'custom-light',
+      }),
+    }
+});
 
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -42,10 +58,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
-        <ColorSchemeScript />
+        <ColorSchemeScript defaultColorScheme="auto"/>
       </head>
       <body>
-      <MantineProvider>
+      <MantineProvider
+        defaultColorScheme="auto"
+        theme={theme}
+      >
+        <link rel="icon" type="image/x-icon" href="./favicon.ico"/>
         <Notifications/>
         <div className="flex justify-center px-4 sm:px-8 md:px-16 lg:px-24 xl:px-32">
           <div className="flex flex-col w-full">

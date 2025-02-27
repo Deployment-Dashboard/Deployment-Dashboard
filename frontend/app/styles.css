@@ -1,0 +1,20 @@
+/* pro podporu light-dark() */
+:root {
+  color-scheme: light dark;
+}
+
+/* hack pro borders sticky headerů v tabulkách */
+/* https://stackoverflow.com/questions/50361698/border-style-do-not-work-with-sticky-position-element */
+.table-header-border-fix {
+  position: relative;
+}
+
+.table-header-border-fix::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  /* Adjust thickness and color */
+  border-width: 1px 0 1px 1px;
+  border-color: light-dark(var(--mantine-color-gray-4), var(--mantine-color-gray-7));
+  pointer-events: none;
+}

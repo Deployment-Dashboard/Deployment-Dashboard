@@ -1,12 +1,23 @@
 import {Link, LoaderFunction, useLoaderData} from "react-router";
 import ContentContainer from "~/components/content-container";
-import {Button, Group, Checkbox, Paper, Stack, Text, Accordion, Collapse, ActionIcon, Badge} from "@mantine/core";
+import {
+  Button,
+  Group,
+  Checkbox,
+  Paper,
+  Stack,
+  Text,
+  Loader,
+  Collapse,
+  ActionIcon,
+  Badge,
+  ScrollArea, Box, Menu, PillGroup, Transition, Pill, HoverCard
+} from "@mantine/core";
 import {
   IconChevronDown,
   IconChevronUp,
   IconExternalLink,
-  IconMoodSad,
-  IconSelector
+  IconSelector, IconWind, IconX
 } from "@tabler/icons-react";
 import {DataTable, DataTableSortStatus} from 'mantine-datatable';
 import {API_URL} from "~/constants"
@@ -16,6 +27,7 @@ import {DatePicker, DatesRangeValue} from "@mantine/dates";
 import dayjs from "dayjs";
 import 'dayjs/locale/cs';
 import {randomId, useListState} from "@mantine/hooks";
+import classes = Menu.classes;
 
 export let loader: LoaderFunction = async () => {
   const [response1, response2] = await Promise.all([
@@ -47,23 +59,26 @@ export default function DeploymentHistory() {
     return [...environments];
   }, []);
 
-  const [selectedEnvironments, setSelectedEnvironments] = useState<string[]>(environments);
+  environments.sort()
+
+  const [selectedEnvironments, setSelectedEnvironments] = useState<string[]>([]);
   const [deployedAtSearchRange, setDeployedAtSearchRange] = useState<DatesRangeValue>();
 
   const componentGroups = details.flatMap((detail) =>
     ({
       key: detail.key,
-      components: Object.keys(detail.componentKeysAndNamesMap).map((key) => key)
+      components: Object.keys(detail.componentKeysAndNamesMap).sort((a, b) => a.localeCompare(b)).map((key) => key)
     })
-  );
+  ).sort((a, b) => a.key.localeCompare(b.key));
 
   const initialAppValues = details.flatMap((detail) =>
-    Object.keys(detail.componentKeysAndNamesMap).map((key) => ({
-      label: `${key}`,
-      checked: true,
-      key: randomId()
-    }))
-  );
+    Object.keys(detail.componentKeysAndNamesMap)
+      .map((key) => ({
+        label: `${key}`,
+        checked: false,
+        key: randomId()
+      }))
+  ).sort((a, b) => a.label.localeCompare(b.label));
 
   const [apps, appHandlers] = useListState(initialAppValues);
 
@@ -84,7 +99,7 @@ export default function DeploymentHistory() {
   const versionGroups = details.flatMap((detail) => {
     let groups = [];
 
-    const group = Object.keys(detail.appKeyToVersionDtosMap).flatMap(key => {
+    const group = Object.keys(detail.appKeyToVersionDtosMap).sort((a, b) => a.localeCompare(b)).flatMap(key => {
       const versions = detail.appKeyToVersionDtosMap[key]
         .filter(versionDto =>
           Object.keys(versionDto.environmentToDateAndJiraUrlMap).length > 0
@@ -98,7 +113,7 @@ export default function DeploymentHistory() {
       groups = [...groups, {groupKey: detail.key, group: group}]
     }
     return groups;
-  });
+  }).sort((a, b) => a.groupKey.localeCompare(b.groupKey));
 
   const initialVersionValues = details.map(
     (detail) => detail.appKeyToVersionDtosMap).flatMap(
@@ -106,15 +121,14 @@ export default function DeploymentHistory() {
       (appKey) => versionMap[appKey].filter(
         (versionDto) => (
           Object.keys(versionDto.environmentToDateAndJiraUrlMap).length > 0)).map(version => ({
-          label: `${appKey}-${version.name}`,
-          checked: true,
-          key: randomId()
-        })))
+        label: `${appKey}-${version.name}`,
+        checked: false,
+        key: randomId()
+      })))
   );
 
   const [versions, versionHandlers] = useListState(initialVersionValues);
 
-  // problem: projekt je verzovana komponenta sama sebe, tzn. musí se podchytit tenhle edge case
   const allCheckedVersion = (appKey) => {
     const group = versionGroups.find(components =>
       components.group.some(component => component.key === appKey)
@@ -142,7 +156,7 @@ export default function DeploymentHistory() {
   };
 
   useEffect(() => {
-      const data = sortBy(deployments.filter(({ appKey, environmentName, deployedAt, versionName }) => {
+    const data = sortBy(deployments.filter(({appKey, environmentName, deployedAt, versionName}) => {
         if (
           deployedAtSearchRange &&
           deployedAtSearchRange[0] &&
@@ -151,11 +165,11 @@ export default function DeploymentHistory() {
             dayjs(deployedAtSearchRange[1]).isBefore(deployedAt, 'day'))
         ) return false;
 
-        if (!selectedEnvironments.some((e) => e === environmentName)) return false;
+        if (selectedEnvironments.length > 0 && !selectedEnvironments.some(e => e === environmentName)) return false;
 
-        if (!apps.find((v) => v.label === appKey).checked) return false;
+        if (apps.some(a => a.checked) && !apps.find(a => a.label === appKey).checked) return false;
 
-        if (!versions.find((v) => v.label === `${appKey}-${versionName}`).checked) return false;
+        if (versions.some(v => v.checked) && !versions.find((v) => v.label === `${appKey}-${versionName}`).checked) return false;
 
         return true;
       }
@@ -168,368 +182,694 @@ export default function DeploymentHistory() {
     setRecords(sortStatus.direction === 'desc' ? data.reverse() : data);
   }, [sortStatus]);
 
+  const [isFiltered, setIsFiltered] = useState(false);
+
+  const [filters, setFilters] = useState({});
+
+  useEffect(() => {
+    const newFilters = {};
+
+    if (deployedAtSearchRange && deployedAtSearchRange[0] instanceof Date && deployedAtSearchRange[1] instanceof Date) {
+      newFilters["dateFilter"] = { start: deployedAtSearchRange[0], end: deployedAtSearchRange[1] }
+    }
+    if (apps.some(a => a.checked)) {
+      newFilters["appsFilter"] = { apps: apps.filter(app => app.checked) }
+    }
+    if (selectedEnvironments.length > 0) {
+      newFilters["envsFilter"] = { envs: selectedEnvironments }
+    }
+    if (versions.some(v => v.checked)) {
+      newFilters["versionsFilter"] = { versions: versions.filter(version => version.checked) }
+    }
+
+    setFilters(newFilters);
+    setIsFiltered(Object.keys(newFilters).length > 0);
+  }, [deployedAtSearchRange, selectedEnvironments, apps, versions]);
+
+  const resetFilters = () => {
+    setDeployedAtSearchRange(undefined);
+    appHandlers.setState((current) =>
+      current.map((value) => ({...value, checked: false}))
+    );
+    setSelectedEnvironments([]);
+    versionHandlers.setState((current) =>
+      current.map((value) => ({...value, checked: false}))
+    );
+  }
+
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  if (!isHydrated) {
+    return (
+      <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
+        <Button size="md" style={{visibility: "hidden"}}/>
+        <ContentContainer>
+          <Loader size="xl" m="auto" mt="300px" type="bars"/>
+        </ContentContainer>
+      </div>
+    )
+  }
+
   return (
     <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
-      <Button
-        size="md"
-        style={{visibility: "hidden"}}
-      />
-      <ContentContainer>
-        <Paper withBorder style={{ borderColor: "green" }}>
-        <DataTable
-          style={{ tableLayout: 'fixed' }}
-          styles={{header: {backgroundColor: "green", color: "white"}}}
-          withColumnBorders
-          // provide data
-          records={records}
-          // define columns
-          columns={[
-            {
-              accessor: 'deployedAt',
-              title: <span style={{userSelect: 'none'}}>Datum</span>,
-              sortable: true,
-              render: (row) => (
-                row.deployedAt ? (
-                  new Date(row.deployedAt).toLocaleDateString("cs-CZ", {
-                    year: "numeric",
-                    month: "numeric",
-                    day: "2-digit",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })
-                ) : "-"
-              ),
-              filter: ({ close }) => (
-                <Stack>
-                  <DatePicker
-                    locale="cs"
-                    maxDate={new Date()}
-                    type="range"
-                    allowSingleDateInRange
-                    value={deployedAtSearchRange}
-                    onChange={setDeployedAtSearchRange}
-                  />
-                  <Button
-                    disabled={!deployedAtSearchRange}
-                    variant="light"
-                    onClick={() => {
-                      setDeployedAtSearchRange(undefined);
-                      close();
-                    }}
-                  >
-                    Zrušit výběr
-                  </Button>
-                </Stack>
-              ),
-              filtering: Boolean(deployedAtSearchRange),
-            },
-            {
-              accessor: 'appKey',
-              title: <span style={{userSelect: 'none'}}>Klíč </span>,
-              sortable: true,
-              filter: ({ close }) => (
-                <Stack>
-                  <Text fw={500} size="sm">
-                    Vyberte aplikace, které chcete zobrazit:
-                  </Text>
-
-                  {componentGroups.map((group) => {
-                    const [opened, setOpened] = useState(false);
-
-                    return (
-                      <div key={group.key}>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <Checkbox
-                            checked={allCheckedApp(group.key)}
-                            indeterminate={indeterminateApp(group.key)}
-                            label={
-                              <Text>{details.find((detail) => detail.key === group.key)
-                                ?.componentKeysAndNamesMap[group.key]}
-                              </Text>
-                            }
-
-                            onChange={() => {
-                              const newCheckedState = !allCheckedApp(group.key);
-                              appHandlers.setState((current) =>
-                                current.map((value) =>
-                                  group.components.includes(value.label)
-                                    ? { ...value, checked: newCheckedState }
-                                    : value
-                                )
-                              );
-                            }}
-                          />
-                          <ActionIcon
-                            variant="subtle"
-                            size="xs"
-                            ml="auto"
-                            onClick={() => setOpened((o) => !o)}
-                          >
-                            {opened ? <IconChevronUp/> : <IconChevronDown/>}
-                          </ActionIcon>
-                        </div>
-                        <Collapse in={opened}>
-                          {group.components.map((component) => {
-                            const value = apps.find((item) => item.label === component);
-                            return (
-                              <Checkbox
-                                key={value.key}
-                                mt="xs"
-                                ml={33}
-                                label={
-                                  <Group>
-                                    <Text>{details.find((detail) => detail.key === group.key)
-                                      ?.componentKeysAndNamesMap[value.label]}
-                                    </Text>
-                                    <Badge variant="default">
-                                      {value.label}
-                                    </Badge>
-                                  </Group>
-                              }
-                                checked={value.checked}
-                                onChange={(event) =>
-                                  appHandlers.setItemProp(
-                                    apps.indexOf(value),
-                                    'checked',
-                                    event.currentTarget.checked
-                                  )
+      <div style={{position: "relative", height: "42px"}}>
+        <Transition
+          mounted={isFiltered}
+          transition="slide-up"
+          duration={400}
+          timingFunction="ease"
+        >
+          {(styles) => (
+            <Paper
+              shadow="xs"
+              radius="md"
+              h="42px"
+              size="md"
+              bg="dynamicBackground"
+              style={{
+                ...styles,
+                position: "absolute",
+                width: "100%",
+                zIndex: 1,
+              }}>
+              {isFiltered ?
+                <Stack h="100%" justify="center">
+                  <Group pr="md" pl="sm" w="100%" align="center">
+                    <Text fw={500}>Aktivní filtry: </Text>
+                    {filters["dateFilter"] &&
+                      <Pill
+                        styles={{
+                          remove: {marginLeft: "2px", marginRight: "2px"}
+                        }}
+                        c="white"
+                        style={{backgroundColor: "green"}}
+                        size="md"
+                        withRemoveButton
+                        onRemove={() => setDeployedAtSearchRange(undefined)}
+                      >
+                        <Text>
+                          {filters["dateFilter"].start.toLocaleDateString("cs-CZ")} – {filters["dateFilter"].end.toLocaleDateString("cs-CZ")}
+                        </Text>
+                      </Pill>}
+                    {filters["appsFilter"] &&
+                      <Pill
+                        styles={{
+                          remove: {marginLeft: "2px", marginRight: "2px"}
+                        }}
+                        c="white"
+                        style={{backgroundColor: "green"}}
+                        size="md"
+                        withRemoveButton
+                        onRemove={() => appHandlers.setState((current) =>
+                          current.map((value) => ({...value, checked: false}))
+                        )}
+                      >
+                        <HoverCard withArrow position="bottom" width={430} shadow="sm">
+                          <HoverCard.Target>
+                            <Text>
+                              {filters["appsFilter"].apps.length}
+                              {(() => {
+                                const selectedAppsCount = filters["appsFilter"].apps.length;
+                                if (selectedAppsCount === 1) {
+                                  return (" vybraná aplikace")
+                                } else if (selectedAppsCount < 5) {
+                                  return (" vybrané aplikace")
                                 }
-                              />
-                            );
-                          })}
-                        </Collapse>
-                      </div>
-                    );
-                  })}
-                  <Button
-                    disabled={apps.every((value) => value.checked)}
-                    variant="light"
-                    onClick={() => {
-                      close();
-                      appHandlers.setState((current) =>
-                        current.map((value) => ({ ...value, checked: true }))
-                      );
-                    }}
-                  >
-                    Zrušit výběr
-                  </Button>
-                </Stack>
-              ),
-              filtering: apps.some((value) => !value.checked)
-            },
-            {
-              accessor: 'appName',
-              title: <span style={{userSelect: 'none'}}>Aplikace</span>
-            },
-            {
-              accessor: 'environmentName',
-              title: <span style={{userSelect: 'none'}}>Prostředí</span>,
-              sortable: true,
-              filter: ({ close }) => (
-                <Stack>
-                  <Text fw={500} size="sm">
-                    Vyberte prostředí, která chcete zobrazit:
-                  </Text>
-                  <Checkbox.Group
-                    defaultValue={selectedEnvironments}
-                    onChange={setSelectedEnvironments}
-                  >
-                    <Group mt="xs">
-                      <Stack>
-                        {environments.map(e =>
-                          <Checkbox value={e} label={e.toUpperCase()}/>)}
-                      </Stack>
-                    </Group>
-                  </Checkbox.Group>
-                  <Button
-                    disabled={!(selectedEnvironments.length !== environments.length ||
-                      new Set(selectedEnvironments).size !== new Set(selectedEnvironments.concat(environments)).size)}
-                    variant="light"
-                    onClick={() => {
-                      close();
-                      setSelectedEnvironments(environments);
-                    }}
-                  >
-                    Zrušit výběr
-                  </Button>
-                </Stack>
-              ),
-              filtering: selectedEnvironments.length !== environments.length ||
-                new Set(selectedEnvironments).size !== new Set(selectedEnvironments.concat(environments)).size,
-            },
-            {
-              accessor: 'versionName',
-              title: <span style={{userSelect: 'none'}}>Verze</span>,
-              sortable: true,
-              filter: ({ close }) => (
-                <Stack>
-                  <Text fw={500} size="sm">
-                    Vyberte verze, které chcete zobrazit:
-                  </Text>
-
-                  {versionGroups.map((versionGroup) => {
-                    const [openedTopLevel, setOpenedTopLevel] = useState(false);
-
-                    return (
-                      <div key={versionGroup.key}>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <Checkbox
-                            checked={versionGroup.group.every(component => allCheckedVersion(component.key))}
-                            indeterminate={versionGroup.group.some(component => !allCheckedVersion(component.key))
-                              && versionGroup.group.some(component =>
-                                indeterminateVersion(component.key)
-                                || allCheckedVersion(component.key))}
-                            label={
-                              <Text>{details.find((detail) => detail.key === versionGroup.groupKey)
-                                ?.componentKeysAndNamesMap[versionGroup.groupKey]}
-                              </Text>
-                            }
-
-                            onChange={() => {
-                              const newCheckedState = !versionGroup.group.every(component => allCheckedVersion(component.key))
-
-                              const labels = versionGroup.group.flatMap(component => component.versions.map(version => `${component.key}-${version}`));
-
-                              versionHandlers.setState((current) =>
-                                current.map((value) =>
-                                  labels.includes(value.label)
-                                    ? { ...value, checked: newCheckedState }
-                                    : value
-                                )
-                              );
-                            }}
-                          />
-                          <ActionIcon
-                            variant="subtle"
-                            size="xs"
-                            ml="auto"
-                            onClick={() => setOpenedTopLevel((o) => !o)}
-                          >
-                            {openedTopLevel ? <IconChevronUp/> : <IconChevronDown/>}
-                          </ActionIcon>
-                        </div>
-                        <Collapse in={openedTopLevel}>
-                          {versionGroup.group.map((component) => {
-                            const [openedSecondLevel, setOpenedSecondLevel] = useState(true);
-
-                            return (
-                              <div>
-                                <div style={{display: 'flex', alignItems: 'center'}}>
-                                  <Checkbox
-                                    key={component.key}
-                                    mt="xs"
-                                    ml={33}
-                                    label={
-                                      <Group>
-                                        <Text>{details.find((appDetail) => appDetail.key === versionGroup.groupKey)
-                                          ?.componentKeysAndNamesMap[component.key]}
-                                        </Text>
-                                        <Badge variant="default">
-                                          {component.key}
-                                        </Badge>
-                                      </Group>
-                                    }
-                                    checked={allCheckedVersion(component.key)}
-                                    indeterminate={indeterminateVersion(component.key)}
-                                    onChange={() => {
-                                      const newCheckedState = !allCheckedVersion(component.key);
-                                      versionHandlers.setState((current) =>
-                                        current.map((value) =>
-                                          component.versions.includes(value.label.substring(component.key.length + 1, value.label.length)) && value.label.startsWith(component.key)
-                                            ? { ...value, checked: newCheckedState }
-                                            : value
-                                        )
-                                      );
-                                    }}
-                                  />
-                                  <ActionIcon
-                                    variant="subtle"
-                                    size="xs"
-                                    ml="auto"
-                                    onClick={() => setOpenedSecondLevel((o) => !o)}
-                                  >
-                                    {openedSecondLevel ? <IconChevronUp/> : <IconChevronDown/>}
-                                  </ActionIcon>
-                                </div>
-                                <Collapse in={openedSecondLevel}>
-                                  {component.versions.map(version => {
-                                    const versionListState = versions.find(versionListState => versionListState.label === `${component.key}-${version}`);
-
-                                    return (
-                                    <Checkbox
-                                      key={versionListState.key}
-                                      mt="xs"
-                                      ml={66}
-                                      label={
-                                        <Text>
-                                          ver. {version.substring(component.length + 1, version.length)}
-                                        </Text>
-                                      }
-                                      checked={versionListState.checked}
-                                      onChange={(event) =>
-                                        versionHandlers.setItemProp(
-                                          versions.indexOf(versionListState),
+                                return (" vybraných aplikací")
+                              })()}
+                            </Text>
+                          </HoverCard.Target>
+                          <HoverCard.Dropdown w="fit-content">
+                            <Stack w="100%">
+                              <ScrollArea.Autosize
+                                bg="dynamicBackground"
+                                w="100%" mah={500}
+                                offsetScrollbars
+                                style={{
+                                  overscrollBehavior: "contain",
+                                  borderRadius: 'var(--mantine-radius-sm)'
+                                }}
+                              >
+                                <Stack ml="md" mt="md">
+                                  {apps.sort().filter(app => app.checked).map(app =>
+                                    <Group>
+                                      <Text>
+                                        {details.find(detail => detail.componentKeysAndNamesMap[app.label]).componentKeysAndNamesMap[app.label]}
+                                      </Text>
+                                      <Badge color="green">
+                                        {app.label}
+                                      </Badge>
+                                      <ActionIcon ml="auto" color="red" variant="subtle" onClick={() =>
+                                        appHandlers.setItemProp(
+                                          apps.indexOf(app),
                                           'checked',
-                                          event.currentTarget.checked
-                                        )
+                                          false)}
+                                      >
+                                        <IconX/>
+                                      </ActionIcon>
+                                    </Group>)
+                                  }
+                                </Stack>
+                              </ScrollArea.Autosize>
+                            </Stack>
+                          </HoverCard.Dropdown>
+                        </HoverCard>
+                      </Pill>}
+                    {filters["envsFilter"]
+                      && <Pill
+                        styles={{
+                          remove: {marginLeft: "2px", marginRight: "2px"}
+                        }}
+                        c="white"
+                        style={{backgroundColor: "green"}}
+                        size="md"
+                        withRemoveButton
+                        onRemove={() => setSelectedEnvironments([])}
+                      >
+                        <HoverCard withArrow position="bottom" width={430} shadow="sm">
+                          <HoverCard.Target>
+                            <Text>
+                              {filters["envsFilter"].envs.length}
+                              {(() => {
+                                const selectedAppsCount = filters["envsFilter"].envs.length;
+                                if (selectedAppsCount === 1) {
+                                  return (" vybrané prostředí")
+                                } else if (selectedAppsCount < 5) {
+                                  return (" vybraná prostředí")
+                                }
+                                return (" vybraných prostředí")
+                              })()}
+                            </Text>
+                          </HoverCard.Target>
+                          <HoverCard.Dropdown w="fit-content">
+                            <Stack w="100%">
+                              <ScrollArea.Autosize
+                                bg="dynamicBackground"
+                                w="100%" mah={500}
+                                offsetScrollbars
+                                style={{
+                                  overscrollBehavior: "contain",
+                                  borderRadius: 'var(--mantine-radius-sm)'
+                                }}
+                              >
+                                <Stack ml="md" mt="md">
+                                  {selectedEnvironments.sort().map(env =>
+                                    <Group>
+                                      <Text>
+                                        {env.toUpperCase()}
+                                      </Text>
+                                      <ActionIcon ml="auto" color="red" variant="subtle" onClick={() =>
+                                        setSelectedEnvironments(selectedEnvironments.filter(selectedEnv => selectedEnv != env))
                                       }
-                                    />)}
-                                  )}
-                                </Collapse>
-                              </div>
-                            )
-                          })}
-                        </Collapse>
-                      </div>
-                    );
-                  })}
-                  <Button
-                    disabled={versions.every((value) => value.checked)}
-                    variant="light"
-                    onClick={() => {
-                      close();
-                      versionHandlers.setState((current) =>
-                        current.map((value) => ({ ...value, checked: true }))
-                      );
-                    }}
-                  >
-                    Zrušit výběr
-                  </Button>
-                </Stack>
-              ),
-              filtering: versions.some((value) => !value.checked)
-            },
-            {
-              accessor: 'jiraUrl',
-              title: <span style={{userSelect: 'none'}}>Jira ticket</span>,
-              textAlign: 'right',
-              render: (row) => (
-                row.jiraUrl ? (
-                    <Link
-                      to={row.jiraUrl}
-                      style={{ color: "green", display: "inline-flex", alignSelf: 'center' }}
-                    >
-                      <IconExternalLink />
-                    </Link>
-                  ) : "-"
-              ),
-            },
-          ]}
-          sortStatus={sortStatus}
-          onSortStatusChange={setSortStatus}
-          sortIcons={{
-            sorted:
-              sortStatus.direction === 'asc' ? (
-                <IconChevronUp size={14} />
-              ) : (
-                <IconChevronDown size={14} />
-              ),
-            unsorted: <IconSelector size={14} />,
-          }}
+                                      >
+                                        <IconX/>
+                                      </ActionIcon>
+                                    </Group>)
+                                  }
+                                </Stack>
+                              </ScrollArea.Autosize>
+                            </Stack>
+                          </HoverCard.Dropdown>
+                        </HoverCard>
+                      </Pill>}
+                    {filters["versionsFilter"]
+                      && <Pill
+                        styles={{
+                          remove: {marginLeft: "2px", marginRight: "2px"}
+                        }}
+                        c="white"
+                        style={{backgroundColor: "green"}}
+                        size="md"
+                        withRemoveButton
+                        onRemove={() => versionHandlers.setState((current) =>
+                          current.map((value) => ({...value, checked: false}))
+                        )}
+                      >
+                        <HoverCard withArrow position="bottom" width={430} shadow="sm">
+                          <HoverCard.Target>
+                            <Text>
+                              {filters["versionsFilter"].versions.length}
+                              {(() => {
+                                const selectedAppsCount = filters["versionsFilter"].versions.length;
+                                if (selectedAppsCount === 1) {
+                                  return (" vybraná verze")
+                                } else if (selectedAppsCount < 5) {
+                                  return (" vybrané verze")
+                                }
+                                return (" vybraných verzí")
+                              })()}
+                            </Text>
+                          </HoverCard.Target>
+                          <HoverCard.Dropdown w="fit-content">
+                            <Stack w="100%">
+                              <ScrollArea.Autosize
+                                bg="dynamicBackground"
+                                w="100%" mah={500}
+                                offsetScrollbars
+                                style={{
+                                  overscrollBehavior: "contain",
+                                  borderRadius: 'var(--mantine-radius-sm)'
+                                }}
+                              >
+                                <Stack ml="md" mt="md">
+                                  {versionGroups.flatMap(versionGroup => versionGroup.group).map(component =>
+                                    component.versions.map(versionName => {
+                                      const version = versions.find((v) => v.label === `${component.key}-${versionName}`);
 
-        />
-        </Paper>
-      </ContentContainer>
+                                      return version && version.checked ?
+                                      <Group>
+                                        <Text>
+                                          {details.find(detail => detail.componentKeysAndNamesMap[component.key]).componentKeysAndNamesMap[component.key]}
+                                        </Text>
+                                        <Badge color="green">
+                                          {versionName}
+                                        </Badge>
+                                        <ActionIcon ml="auto" color="red" variant="subtle" onClick={() =>
+                                          versionHandlers.setItemProp(
+                                            versions.indexOf(version),
+                                            'checked',
+                                            false)}
+                                        >
+                                          <IconX/>
+                                        </ActionIcon>
+                                      </Group> : null}))}
+                                </Stack>
+                              </ScrollArea.Autosize>
+                            </Stack>
+                          </HoverCard.Dropdown>
+                        </HoverCard>
+                      </Pill>}
+                    <ActionIcon ml="auto" style={{visibility: isFiltered ? "visible" : "hidden"}} color="red" variant="subtle" onClick={resetFilters}>
+                      <IconX/>
+                    </ActionIcon>
+                  </Group>
+                </Stack> : null}
+              </Paper>
+          )}
+        </Transition>
+      </div>
+
+      <DataTable
+        height="calc(100vh - 220px)"
+        backgroundColor="dynamicBackground"
+        shadow="xs"
+        style={{
+          borderTopLeftRadius: 'var(--mantine-radius-md)',
+          borderTopRightRadius: 'var(--mantine-radius-md)',
+          borderBottomLeftRadius: 0,
+          borderBottomRightRadius: 0,
+          zIndex: 2,
+        }}
+        withColumnBorders
+        records={records}
+        columns={[
+          {
+            accessor: 'deployedAt',
+            title: <span style={{userSelect: 'none'}}>Datum</span>,
+            titleStyle: {
+              fontSize: "16px",
+              backgroundColor: "green",
+              color: "white"
+            },
+            sortable: true,
+            render: (row) => (
+              row.deployedAt ? (
+                new Date(row.deployedAt).toLocaleDateString("cs-CZ", {
+                  year: "numeric",
+                  month: "numeric",
+                  day: "2-digit",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })
+              ) : "-"
+            ),
+            filter: ({close}) => (
+              <Stack>
+                <DatePicker
+                  locale="cs"
+                  maxDate={new Date()}
+                  type="range"
+                  allowSingleDateInRange
+                  value={deployedAtSearchRange}
+                  onChange={setDeployedAtSearchRange}
+                />
+                <Button
+                  disabled={!deployedAtSearchRange}
+                  variant="light"
+                  onClick={() => {
+                    setDeployedAtSearchRange(undefined);
+                    close();
+                  }}
+                >
+                  Zrušit výběr
+                </Button>
+              </Stack>
+            ),
+            filtering: deployedAtSearchRange && deployedAtSearchRange[0] instanceof Date && deployedAtSearchRange[1] instanceof Date,
+          },
+          {
+            accessor: 'appKey',
+            title: <span style={{userSelect: 'none'}}>Klíč</span>,
+            titleStyle: {
+
+              fontSize: "16px",
+              backgroundColor: "green",
+              color: "white"
+            },
+            sortable: true,
+            filter: ({close}) => (
+              <Stack>
+                <Text fw={500}>
+                  Vyberte aplikace, které chcete zobrazit:
+                </Text>
+
+                <ScrollArea.Autosize mah={415} offsetScrollbars overscrollBehavior="contain">
+                  <Stack>
+                    {componentGroups.map((group) => {
+                      const [opened, setOpened] = useState(false);
+
+                      return (
+                        <div key={group.key}>
+                          <div style={{display: 'flex', alignItems: 'center'}}>
+                            <Checkbox
+                              checked={allCheckedApp(group.key)}
+                              indeterminate={indeterminateApp(group.key)}
+                              label={
+                                <Text>{details.find((detail) => detail.key === group.key)
+                                  ?.componentKeysAndNamesMap[group.key]}
+                                </Text>
+                              }
+
+                              onChange={() => {
+                                const newCheckedState = !allCheckedApp(group.key);
+                                appHandlers.setState((current) =>
+                                  current.map((value) =>
+                                    group.components.includes(value.label)
+                                      ? {...value, checked: newCheckedState}
+                                      : value
+                                  )
+                                );
+                              }}
+                            />
+                            <ActionIcon
+                              variant="subtle"
+                              size="xs"
+                              ml="auto"
+                              onClick={() => setOpened((o) => !o)}
+                            >
+                              {opened ? <IconChevronUp/> : <IconChevronDown/>}
+                            </ActionIcon>
+                          </div>
+                          <Collapse in={opened}>
+                            {group.components.map((component) => {
+                              const value = apps.find((item) => item.label === component);
+                              return (
+                                <Checkbox
+                                  key={value.key}
+                                  mt="xs"
+                                  ml={33}
+                                  label={
+                                    <Group>
+                                      <Text>{details.find((detail) => detail.key === group.key)
+                                        ?.componentKeysAndNamesMap[value.label]}
+                                      </Text>
+                                      <Badge color="green">
+                                        {value.label}
+                                      </Badge>
+                                    </Group>
+                                  }
+                                  checked={value.checked}
+                                  onChange={(event) =>
+                                    appHandlers.setItemProp(
+                                      apps.indexOf(value),
+                                      'checked',
+                                      event.currentTarget.checked
+                                    )
+                                  }
+                                />
+                              );
+                            })}
+                          </Collapse>
+                        </div>
+                      );
+                    })}
+                  </Stack>
+                </ScrollArea.Autosize>
+                <Button
+                  disabled={apps.every((value) => !value.checked)}
+                  variant="light"
+                  onClick={() => {
+                    close();
+                    appHandlers.setState((current) =>
+                      current.map((value) => ({...value, checked: false}))
+                    );
+                  }}
+                >
+                  Zrušit výběr
+                </Button>
+              </Stack>
+            ),
+            filtering: apps.some((value) => value.checked)
+          },
+          {
+            accessor: 'appName',
+            title: <span style={{userSelect: 'none'}}>Aplikace</span>,
+            titleStyle: {
+
+              fontSize: "16px",
+              backgroundColor: "green",
+              color: "white"
+            },
+          },
+          {
+            accessor: 'environmentName',
+            title: <span style={{userSelect: 'none'}}>Prostředí</span>,
+            titleStyle: {
+
+              fontSize: "16px",
+              backgroundColor: "green",
+              color: "white"
+            },
+            sortable: true,
+            filter: ({close}) => (
+              <Stack>
+                <Text fw={500}>
+                  Vyberte prostředí, která chcete zobrazit:
+                </Text>
+                <Checkbox.Group
+                  value={selectedEnvironments}
+                  onChange={setSelectedEnvironments}
+                >
+                  <Group mt="xs">
+                    <Stack>
+                      {environments.map(e =>
+                        <Checkbox value={e} label={e.toUpperCase()}/>)}
+                    </Stack>
+                  </Group>
+                </Checkbox.Group>
+                <Button
+                  disabled={selectedEnvironments.length === 0}
+                  variant="light"
+                  onClick={() => {
+                    close();
+                    setSelectedEnvironments([]);
+                  }}
+                >
+                  Zrušit výběr
+                </Button>
+              </Stack>
+            ),
+            filtering: selectedEnvironments.length !== 0
+          },
+          {
+            accessor: 'versionName',
+            title: <span style={{userSelect: 'none'}}>Verze</span>,
+            titleStyle: {
+
+              fontSize: "16px",
+              backgroundColor: "green",
+              color: "white"
+            },
+            sortable: true,
+            filter: ({close}) => (
+              <Stack>
+                <Text fw={500}>
+                  Vyberte verze, které chcete zobrazit:
+                </Text>
+
+                <ScrollArea.Autosize mah={415} offsetScrollbars overscrollBehavior="contain">
+                  <Stack>
+                    {versionGroups.map((versionGroup) => {
+                      const [openedTopLevel, setOpenedTopLevel] = useState(false);
+
+                      return (
+                        <div key={versionGroup.key}>
+                          <div style={{display: 'flex', alignItems: 'center'}}>
+                            <Checkbox
+                              checked={versionGroup.group.every(component => allCheckedVersion(component.key))}
+                              indeterminate={versionGroup.group.some(component => !allCheckedVersion(component.key))
+                                && versionGroup.group.some(component =>
+                                  indeterminateVersion(component.key)
+                                  || allCheckedVersion(component.key))}
+                              label={
+                                <Text>{details.find((detail) => detail.key === versionGroup.groupKey)
+                                  ?.componentKeysAndNamesMap[versionGroup.groupKey]}
+                                </Text>
+                              }
+
+                              onChange={() => {
+                                const newCheckedState = !versionGroup.group.every(component => allCheckedVersion(component.key))
+
+                                const labels = versionGroup.group.flatMap(component => component.versions.map(version => `${component.key}-${version}`));
+
+                                versionHandlers.setState((current) =>
+                                  current.map((value) =>
+                                    labels.includes(value.label)
+                                      ? {...value, checked: newCheckedState}
+                                      : value
+                                  )
+                                );
+                              }}
+                            />
+                            <ActionIcon
+                              variant="subtle"
+                              size="xs"
+                              ml="auto"
+                              onClick={() => setOpenedTopLevel((o) => !o)}
+                            >
+                              {openedTopLevel ? <IconChevronUp/> : <IconChevronDown/>}
+                            </ActionIcon>
+                          </div>
+                          <Collapse in={openedTopLevel}>
+                            {versionGroup.group.map((component) => {
+                              const [openedSecondLevel, setOpenedSecondLevel] = useState(false);
+
+                              return (
+                                <div>
+                                  <div style={{display: 'flex', alignItems: 'center'}}>
+                                    <Checkbox
+                                      key={component.key}
+                                      mt="xs"
+                                      ml={33}
+                                      label={
+                                        <Group>
+                                          <Text>{details.find((appDetail) => appDetail.key === versionGroup.groupKey)
+                                            ?.componentKeysAndNamesMap[component.key]}
+                                          </Text>
+                                          <Badge color="green">
+                                            {component.key}
+                                          </Badge>
+                                        </Group>
+                                      }
+                                      checked={allCheckedVersion(component.key)}
+                                      indeterminate={indeterminateVersion(component.key)}
+                                      onChange={() => {
+                                        const newCheckedState = !allCheckedVersion(component.key);
+                                        versionHandlers.setState((current) =>
+                                          current.map((value) =>
+                                            component.versions.includes(value.label.substring(component.key.length + 1, value.label.length)) && value.label.startsWith(component.key)
+                                              ? {...value, checked: newCheckedState}
+                                              : value
+                                          )
+                                        );
+                                      }}
+                                    />
+                                    <ActionIcon
+                                      variant="subtle"
+                                      size="xs"
+                                      ml="auto"
+                                      onClick={() => setOpenedSecondLevel((o) => !o)}
+                                    >
+                                      {openedSecondLevel ? <IconChevronUp/> : <IconChevronDown/>}
+                                    </ActionIcon>
+                                  </div>
+                                  <Collapse in={openedSecondLevel}>
+                                    {component.versions.map(version => {
+                                        const versionListState = versions.find(versionListState => versionListState.label === `${component.key}-${version}`);
+
+                                        return (
+                                          <Checkbox
+                                            key={versionListState.key}
+                                            mt="xs"
+                                            ml={66}
+                                            label={
+                                              <Text>
+                                                {version.substring(component.length + 1, version.length)}
+                                              </Text>
+                                            }
+                                            checked={versionListState.checked}
+                                            onChange={(event) =>
+                                              versionHandlers.setItemProp(
+                                                versions.indexOf(versionListState),
+                                                'checked',
+                                                event.currentTarget.checked
+                                              )
+                                            }
+                                          />)
+                                      }
+                                    )}
+                                  </Collapse>
+                                </div>
+                              )
+                            })}
+                          </Collapse>
+                        </div>
+                      );
+                    })}
+                  </Stack>
+                </ScrollArea.Autosize>
+                <Button
+                  disabled={versions.every((value) => !value.checked)}
+                  variant="light"
+                  onClick={() => {
+                    close();
+                    versionHandlers.setState((current) =>
+                      current.map((value) => ({...value, checked: false}))
+                    );
+                  }}
+                >
+                  Zrušit výběr
+                </Button>
+              </Stack>
+            ),
+            filtering: versions.some((value) => value.checked)
+          },
+          {
+            accessor: 'jiraUrl',
+            title: <span style={{userSelect: 'none'}}>Jira ticket</span>,
+            titleStyle: {
+
+              fontSize: "16px",
+              backgroundColor: "green",
+              color: "white"
+            },
+            textAlign: 'center',
+            render: (row) => (
+              row.jiraUrl ? (
+                <ActionIcon variant="subtle" component="a" href={row.jiraUrl}>
+                  <IconExternalLink/>
+                </ActionIcon>
+              ) : "-"
+            ),
+          },
+        ]}
+        sortStatus={sortStatus}
+        onSortStatusChange={setSortStatus}
+        sortIcons={{
+          sorted: <IconChevronDown size={14} color="white"/>,
+          unsorted: <IconSelector size={14} color="white"/>,
+        }}
+        noRecordsText="Žádné záznamy k zobrazení."
+        noRecordsIcon={
+          <Box p={4} mb={4} className={classes.noRecordsBox}>
+            <IconWind size={36} strokeWidth={1.5}/>
+          </Box>
+        }
+      />
     </div>
   );
 }

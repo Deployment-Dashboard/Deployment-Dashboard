@@ -288,6 +288,7 @@ export default function Projects() {
       <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
         <Group style={{alignSelf: "flex-end"}}>
           <Button
+            mr="2px"
             size="md"
             leftSection={<IconPlus size={16}/>}
             component="a"
@@ -298,7 +299,7 @@ export default function Projects() {
         </Group>
 
         <ContentContainer>
-          <Grid align="stretch" gutter="xs">
+          <Grid align="stretch" gutter="lg">
             {overviews.map((overview) => (
               <Grid.Col key={overview.key} span="content">
                 <ProjectCard data={overview}/>

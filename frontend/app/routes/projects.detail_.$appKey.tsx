@@ -1,11 +1,33 @@
-import { LoaderFunctionArgs } from "react-router";
+import {Link, LoaderFunctionArgs, useLoaderData} from "react-router";
 import ContentContainer from "~/components/content-container";
-import {Button, Group, Paper, Table, TagsInput, TextInput, Title} from "@mantine/core";
-import {IconArrowBackUp, IconExternalLink, IconPencil, IconRocket} from "@tabler/icons-react";
-import { Link } from "react-router";
-import {useLoaderData} from "react-router";
+import {
+  ActionIcon,
+  Badge,
+  Button,
+  Card,
+  Collapse,
+  Group,
+  Paper,
+  Stack,
+  Table,
+  TagsInput,
+  TextInput,
+  Text,
+  Title, Loader
+} from "@mantine/core";
+import {
+  IconArrowBackUp,
+  IconCheck,
+  IconChevronDown,
+  IconChevronUp,
+  IconExternalLink,
+  IconPencil,
+  IconRocket,
+  IconX
+} from "@tabler/icons-react";
 import {API_URL} from "~/constants"
 import {useDisclosure} from "@mantine/hooks";
+import {useEffect, useRef, useState} from "react";
 
 // TODO datove typy a upravit parsovani, je to hnus
 export async function loader({
@@ -20,6 +42,7 @@ export async function loader({
 
 export default function ProjectDetail() {
   const appDetail = useLoaderData();
+  appDetail.environmentNames.sort();
 
   const getLatestVersionForComponentsAndEnvs = (data) => {
     const latestVersions = {};
@@ -40,7 +63,9 @@ export default function ProjectDetail() {
       });
     });
 
-    return latestVersions;
+    return Object.fromEntries(
+      Object.entries(latestVersions).sort(([keyA]: [string, any], [keyB]: [string, any]) => keyA.localeCompare(keyB))
+    );
   };
 
   const transformData = (data) => {
@@ -73,38 +98,82 @@ export default function ProjectDetail() {
     const row = document.getElementById(`row-${appKey}-${versionName}`);
 
     if (row) {
-      row.scrollIntoView({block:"center", behavior: "smooth" });
-      row.style.backgroundColor = "#cdffcd";
-      row.style.transition = "background-color 0.2s ease-in-out";
+      if (!openStates[appKey]) {
+        toggleCollapse(appKey);
+      }
+
+      setTimeout(() => row.scrollIntoView({ block: "center", behavior: "smooth" }), 300)
 
       setTimeout(() => {
-        row.style.backgroundColor = "white";
-      }, 2000);
+        row.style.boxShadow = "inset 0 0 3px 3px green";
+        row.style.transition = "box-shadow 0.2s ease-in-out";
+      }, 1300);
+
+      setTimeout(() => {
+        row.style.transition = "box-shadow 0.2s ease-in-out";
+        row.style.boxShadow = "";
+      }, 2800);
     }
   };
 
+  const [overflowMap, setOverflowMap] = useState<Record<string, boolean>>({});
+
+  const paperRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    const checkOverflow = () => {
+      const newOverflowMap: Record<string, boolean> = {};
+      Object.entries(paperRefs.current).forEach(([key, ref]) => {
+        if (ref) {
+          newOverflowMap[key] = ref.scrollHeight > ref.clientHeight;
+        }
+      });
+      setOverflowMap(newOverflowMap);
+    };
+
+    checkOverflow();
+    window.addEventListener("resize", checkOverflow);
+    return () => window.removeEventListener("resize", checkOverflow);
+  }, []);
 
   const latestVersions = getLatestVersionForComponentsAndEnvs(appDetail);
   const transformedData = transformData(appDetail);
-  const [editable, handlers] = useDisclosure(false);
+  const [editMode, handlers] = useDisclosure(false);
+
+  const initialStates = Object.keys(appDetail.appKeyToVersionDtosMap)
+    .filter(key => transformedData[key] && transformedData[key].length > 0)
+    .reduce((acc, key) => {
+      acc[key] = false; // Set initial state to false for each key
+      return acc;
+    }, {});
+
+  const [openStates, setOpenStates] = useState<Record<string, boolean>>(initialStates);
+
+  const toggleCollapse = (key: string) => {
+    setOpenStates((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const handleSubmit = async (formValues) => {};
 
+  const [isHydrated, setIsHydrated] = useState(false);
+
   return (
     <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
-      <Group style={{alignSelf: "flex-end"}}>
-        { editable ? (
+      <Group mr="2px" style={{alignSelf: "flex-end"}}>
+        { editMode ? (
           <>
             <Button
               size="md"
               onClick={handleSubmit}
+              rightSection={<IconCheck size={16}/>}
             >
-              Potvrdit změny
+              Potvrdit
             </Button>
             <Button
-              variant="danger"
+              color="red"
               size="md"
               onClick={handlers.close}
+              rightSection={<IconX size={16}/>}
             >
               Zrušit změny
             </Button>
@@ -140,197 +209,304 @@ export default function ProjectDetail() {
 
       </Group>
       <ContentContainer>
-        <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
-          <Group className="rounded-md p-8 bg-white" style={{display: "flex", flexDirection: "column", alignItems:"flex-start"}}>
-            <Title style={{color: "green"}}>Detail projektu</Title>
-            <Group>
-              <TextInput
-                label="Klíč"
-                id={"projectKey"}
-                variant="unstyled"
-                readOnly={true}
-                value={appDetail.key}
-                style={{
-                  minWidth: '300px',
-                  pointerEvents: 'none',
-                  outline: 'none',
-                  boxShadow: 'none',
-                  borderColor: 'transparent',
-                }}
-                tabIndex={-1}
-              />
-              <TextInput
-                label="Název"
-                id={"projectName"}
-                variant="unstyled"
-                readOnly={true}
-                value={appDetail.name}
-                style={{
-                  minWidth: '300px',
-                  pointerEvents: 'none',
-                  outline: 'none',
-                  boxShadow: 'none',
-                  borderColor: 'transparent',
-                }}
-                tabIndex={-1}
-              />
-              <TagsInput variant="unstyled" label="Prostředí" readOnly defaultValue={appDetail.environmentNames}/>
-            </Group>
-            <Title mb="md" order={2}>Aktuální verze</Title>
-            <Paper withBorder style={{ borderColor: "green" }}>
-              <Table
-                withColumnBorders
-                style={{width: 'fit-content'}}
-              >
-                <Table.Thead style={{backgroundColor: "green", color: "white"}}>
-                  <Table.Tr>
-                    <Table.Th
-                      rowSpan={2}
-                      style={{
-                        verticalAlign: 'middle',
-                        textAlign: 'center'
-                      }}
-                    />
-                    <Table.Th
-                      colSpan={appDetail.environmentNames.length}
-                      style={{textAlign: 'center'}}
-                    >
-                      Prostředí
-                    </Table.Th>
-                  </Table.Tr>
-                  <Table.Tr>
-                    {appDetail.environmentNames.map((env) => (
-                      <Table.Th
-                        key={env}
-                        style={{textAlign: 'center'}}
-                      >
-                        {env.toUpperCase()}
-                      </Table.Th>
-                    ))}
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {Object.entries(latestVersions).map(([appKey, envs]) => (
-                    <Table.Tr key={appKey}>
-                      <Table.Td style={{fontWeight: "bold"}}>{appKey}</Table.Td>
-                      {appDetail.environmentNames.map((env) => (
-                        <Table.Td
-                          key={env}
-                          style={{textAlign: 'center'}}
+        <Stack>
+          <Card
+            withBorder
+            shadow="sm"
+            radius="md"
+            pb="48px"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems:"flex-start"
+            }}
+          >
+            <Title
+              style={{color: "green"}}
+            >
+              Detail projektu {appDetail.name}
+            </Title>
+            <Group justify="space-between" ml="xl" pr="xl" mt="xl" w="100%" h="100%">
+              <Stack h="100%" justify="center" gap="xl">
+                <TextInput
+                  size="xl"
+                  label={<Title order={2}>Klíč</Title>}
+                  id={"projectKey"}
+                  variant="unstyled"
+                  value={appDetail.key.toUpperCase()}
+                  style={{
+                    pointerEvents: 'none',
+                  }}
+                  tabIndex={-1}
+                />
+                <TextInput
+                  size="xl"
+                  label={<Title order={2}>Název</Title>}
+                  id={"projectName"}
+                  variant="unstyled"
+                  value={appDetail.name}
+                  style={{
+                    pointerEvents: 'none',
+                  }}
+                  tabIndex={-1}
+                />
+                <Stack>
+                  <Title order={2}>Prostředí</Title>
+                  <Group>
+                    {appDetail.environmentNames.map((name) => <Badge size="lg">{name}</Badge>)}
+                  </Group>
+                </Stack>
+              </Stack>
+              <Stack gap="0" mr="xl" w="50%">
+                <Title mb="md" order={2}>Aktuální verze</Title>
+                <Paper
+                  ref={(el) => {paperRefs.current["latestVersionPaper"] = el as HTMLDivElement;}}
+                  radius="md"
+                  style={{
+                    border: "2px solid green",
+                    borderRadius: overflowMap["latestVersionPaper"]
+                      ? "var(--mantine-radius-md) 0 0 var(--mantine-radius-md)"
+                      : "var(--mantine-radius-md)",
+                    maxHeight: "408px",
+                    overflowY: "auto",
+                    backgroundColor: "light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-9))"
+                  }}
+                >
+                  <Table
+                    stickyHeader
+                    withColumnBorders
+                    style={{borderRight: overflowMap["latestVersionPaper"] ? "2px solid green" : "" }}
+                  >
+                    <Table.Thead style={{backgroundColor: "green", color: "white"}}>
+                      <Table.Tr>
+                        <Table.Th
+                          className="table-header-border-fix"
+                          rowSpan={2}
+                          style={{
+                            verticalAlign: 'middle',
+                            textAlign: 'center',
+                          }}
+                        />
+                        <Table.Th
+                          className="table-header-border-fix"
+                          colSpan={appDetail.environmentNames.length}
+                          style={{textAlign: 'center', borderRight: "1px solid green"}}
                         >
-                          {envs[env] !== "-" ? (
-                            <span
-                              style={{ cursor: "pointer", color: "green", textDecoration: "underline" }}
-                              onClick={() => handleCellClick(appKey, envs[env])}
+                          Prostředí
+                        </Table.Th>
+                      </Table.Tr>
+                      <Table.Tr>
+                        {appDetail.environmentNames.map((env) => (
+                          <Table.Th
+                            className="table-header-border-fix"
+                            key={env}
+                            style={{textAlign: 'center', borderRight: "1px solid green"}}
+                          >
+                            {env.toUpperCase()}
+                          </Table.Th>
+                        ))}
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {Object.entries(latestVersions).map(([appKey, envs]) => (
+                        <Table.Tr key={appKey}>
+                          <Table.Td style={{fontWeight: "bold", width: "fit-content"}}>{appDetail.componentKeysAndNamesMap[appKey]}</Table.Td>
+                          {appDetail.environmentNames.map((env) => (
+                            <Table.Td
+                              key={env}
+                              style={{textAlign: 'center'}}
                             >
+                              {envs[env] !== "-" ? (
+                                <span
+                                  style={{ cursor: "pointer", color: "green", textDecoration: "underline" }}
+                                  onClick={() => handleCellClick(appKey, envs[env])}
+                                >
                             {envs[env]}
                           </span>
-                          ) : (
-                            "-"
-                          )}
-                        </Table.Td>
-                      ))}
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Paper>
-          </Group>
-          <Group className="rounded-md p-8 bg-white gap-1" style={{display: "flex", flexDirection:"column", alignItems:"flex-start"}}>
-            <Title style={{color: "green"}} order={2}>Verze komponent</Title>
-            {Object.keys(appDetail.appKeyToVersionDtosMap).map((key) => (
-              <>
-                <Title key={`title-${key}`} order={3}>
-                  {appDetail.componentKeysAndNamesMap[key]} ({key.toUpperCase()})
-                </Title>
-                {transformedData[key] && transformedData[key].length > 0 ? (
-                  <Paper key={`paper-${key}`} withBorder style={{ borderColor: "green" }}>
-                    <Table
-                      key={`table-${key}`}
-                      withColumnBorders
-                      style={{width: 'fit-content'}}
-                    >
-                      <Table.Thead style={{backgroundColor: "green", color: "white"}}>
-                        <Table.Tr>
-                          <Table.Th
-                            rowSpan={3}
-                            style={{
-                              verticalAlign: 'middle',
-                              textAlign: 'center'
-                            }}
-                          >
-                            Verze
-                          </Table.Th>
-                          <Table.Th
-                            colSpan={appDetail.environmentNames.length * 2}
-                            style={{textAlign: 'center'}}
-                          >
-                            Prostředí
-                          </Table.Th>
-                          <Table.Th
-                            rowSpan={3}
-                            style={{
-                              verticalAlign: 'middle',
-                              textAlign: 'center',
-                              borderLeft: '1px solid #ddd',
-                            }}
-                          >
-                            Poznámka
-                          </Table.Th>
+                              ) : (
+                                "-"
+                              )}
+                            </Table.Td>
+                          ))}
                         </Table.Tr>
-                        <Table.Tr>
-                          {appDetail.environmentNames.map((name) => (
-                            <>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </Paper>
+              </Stack>
+            </Group>
+          </Card>
+          <Card withBorder shadow="sm" radius="md" pb="48px"
+                style={{display: "flex", flexDirection: "column", alignItems: "flex-start"}}>
+            <Group w="100%" justify="space-between">
+              <Title
+                style={{color: "green"}}
+                order={2}
+              >
+                Verze komponent
+              </Title>
+              <Text
+                mr="xl"
+                style={{justifySelf: "center", textDecoration: "underline", color: "green", cursor: "pointer"}}
+                onClick={() => {
+                  setOpenStates(prevStates => {
+                    return Object.keys(prevStates).reduce((acc, key) => {
+                      acc[key] = !Object.values(prevStates).includes(true);  // Toggle based on whether any value is true
+                      return acc;
+                    }, {});
+                  });
+                }}
+              >
+                {Object.values(openStates).includes(true)
+                  ? "sbalit vše"
+                  : "rozbalit vše"
+                }
+              </Text>
+            </Group>
+            <Stack justify="space-between" w="100%">
+              {Object.keys(appDetail.appKeyToVersionDtosMap)
+                .sort((keyA, keyB) => keyA.localeCompare(keyB))
+                .filter(key => transformedData[key] && transformedData[key].length > 0)
+                .map((key) => (
+                    <Stack mt="xl" ml="xl" mr="xl">
+                      <Group>
+                        <Title key={`title-${key}`} order={3}>
+                          {appDetail.componentKeysAndNamesMap[key]}
+                        </Title>
+                        <Badge size="lg" variant="outline">{key}</Badge>
+                        <ActionIcon
+                          variant="subtle"
+                          ml="auto"
+                          onClick={() => toggleCollapse(key)}
+                        >
+                          {openStates[key] ? <IconChevronUp/> : <IconChevronDown/>}
+                        </ActionIcon>
+                      </Group>
+                      <Collapse in={openStates[key]}>
+                      <Paper
+                        ref={(el) => {
+                          paperRefs.current[key] = el as HTMLDivElement;
+                        }}
+                        key={`paper-${key}`}
+                        withBorder
+                        style={{
+                          borderColor: "green", overflowX: "hidden", maxHeight: "490px",
+                          border: "2px solid green",
+                          borderRadius: overflowMap[key]
+                            ? "var(--mantine-radius-md) 0 0 var(--mantine-radius-md)"
+                            : "var(--mantine-radius-md)",
+                          backgroundColor: "light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-9))"
+                        }}
+                        ml="xl"
+                      >
+                        <Table
+                          key={`table-${key}`}
+                          withColumnBorders
+                        >
+                          <Table.Thead style={{backgroundColor: "green", color: "white"}}>
+                            <Table.Tr>
                               <Table.Th
-                                key={name}
-                                colSpan={2}
+                                className="table-header-border-fix"
+                                rowSpan={3}
                                 style={{
                                   verticalAlign: 'middle',
                                   textAlign: 'center'
                                 }}
                               >
-                                {name.toUpperCase()}
+                                Verze
                               </Table.Th>
-                            </>
-                          ))}
-                        </Table.Tr>
-                        <Table.Tr>
-                          {appDetail.environmentNames.map((name) => (
-                            <>
-                              <Table.Th key={`date-header-cell-${name}`}>Datum nasazení</Table.Th>
-                              <Table.Th key={`ticket-header-cell${name}`}>Jira ticket</Table.Th>
-                            </>
-                          ))}
-                        </Table.Tr>
-                      </Table.Thead>
-                      <Table.Tbody>
-                        {transformedData[key].map((rowData) => (
-                          <Table.Tr key={`row-${key}-${rowData.versionName}`} id={`row-${key}-${rowData.versionName}`}>
-                            <Table.Td style={{fontWeight: "bold", textAlign: "right"}}>{rowData.versionName}</Table.Td>
-                            {appDetail.environmentNames.map((name) => (
-                              <>
-                                <Table.Td key={`date-value-cell-${name}`} style={{textAlign: 'center'}}>{rowData[name].date ? new Date(rowData[name].date).toLocaleDateString("cs-CZ") : "-"}</Table.Td>
-                                <Table.Td key={`ticket-value-cell-${name}`} style={{textAlign: 'center'}}>{rowData[name].jiraUrl
-                                  ? <Link to={rowData[name].jiraUrl} style={{color: "green", display: "inline-flex"}}><IconExternalLink/></Link>
-                                  : "-"}</Table.Td>
-                              </>
+                              <Table.Th
+                                className="table-header-border-fix"
+                                colSpan={appDetail.environmentNames.length * 2}
+                                style={{textAlign: 'center'}}
+                              >
+                                Prostředí
+                              </Table.Th>
+                              <Table.Th
+                                className="table-header-border-fix"
+                                rowSpan={3}
+                                style={{
+                                  verticalAlign: 'middle',
+                                  textAlign: 'center',
+                                }}
+                              >
+                                Poznámka
+                              </Table.Th>
+                            </Table.Tr>
+                            <Table.Tr>
+                              {appDetail.environmentNames.map((name) => (
+                                <>
+                                  <Table.Th
+                                    className="table-header-border-fix"
+                                    key={name}
+                                    colSpan={2}
+                                    style={{
+                                      verticalAlign: 'middle',
+                                      textAlign: 'center',
+                                    }}
+                                  >
+                                    {name.toUpperCase()}
+                                  </Table.Th>
+                                </>
+                              ))}
+                            </Table.Tr>
+                            <Table.Tr>
+                              {appDetail.environmentNames.map((name) => (
+                                <>
+                                  <Table.Th
+                                    className="table-header-border-fix"
+                                    key={`date-header-cell-${name}`}
+                                    style={{
+                                      verticalAlign: 'middle',
+                                      textAlign: 'center',
+                                    }}
+                                  >
+                                    Datum nasazení
+                                  </Table.Th>
+                                  <Table.Th
+                                    className="table-header-border-fix"
+                                    key={`ticket-header-cell${name}`}
+                                    style={{
+                                      verticalAlign: 'middle',
+                                      textAlign: 'center',
+                                    }}
+                                  >
+                                    Jira ticket
+                                  </Table.Th>
+                                </>
+                              ))}
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {transformedData[key].map((rowData) => (
+                              <Table.Tr key={`row-${key}-${rowData.versionName}`}
+                                        id={`row-${key}-${rowData.versionName}`}>
+                                <Table.Td
+                                  id={`name-value-cell-${rowData.versionName}`}
+                                  style= {{fontWeight: "bold", textAlign: "right"}}>{rowData.versionName}</Table.Td>
+                                {appDetail.environmentNames.map((name) => (
+                                  <>
+                                    <Table.Td key={`date-value-cell-${name}`}
+                                              style={{textAlign: 'center'}}>{rowData[name].date ? new Date(rowData[name].date).toLocaleDateString("cs-CZ") : "-"}</Table.Td>
+                                    <Table.Td key={`ticket-value-cell-${name}`}
+                                              style={{textAlign: 'center'}}>{rowData[name].jiraUrl
+                                      ? <ActionIcon component="a" href={rowData[name].jiraUrl}
+                                                    variant="subtle"><IconExternalLink/></ActionIcon>
+                                      : "-"}</Table.Td>
+                                  </>
+                                ))}
+                                <Table.Td>{rowData.description}</Table.Td>
+                              </Table.Tr>
                             ))}
-                            <Table.Td>{rowData.description}</Table.Td>
-                          </Table.Tr>
-                        ))}
-                      </Table.Tbody>
-                    </Table>
-                  </Paper>
-                ) : (
-                  <p>Žádná data k zobrazení</p>
-                )}
-              </>
-            ))}
-          </Group>
-          <Group className="rounded-md p-8 bg-white gap-1" style={{display: "flex", flexDirection:"column", alignItems:"flex-start"}}>
-            <Title style={{color: "green"}} order={2}>Historie nasazení</Title>
-          </Group>
-        </div>
+                          </Table.Tbody>
+                        </Table>
+                      </Paper>
+                      </Collapse>
+                    </Stack>
+                ))}
+            </Stack>
+          </Card>
+        </Stack>
       </ContentContainer>
     </div>
   );

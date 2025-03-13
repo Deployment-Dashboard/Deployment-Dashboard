@@ -29,6 +29,10 @@ public class CustomExceptions {
     public NotManagedException(Class<?> ownerClass, Class<?> ownedClass, String ownerKey, String ownedKey) {
       super(String.format("%s with key '%s' for %s '%s' is not managed.", ownedClass.getSimpleName(), ownerClass.getSimpleName(), ownedKey, ownerKey));
     }
+
+    public NotManagedException(String versionName, String appKey, String envName) {
+      super(String.format("Deployment for version '%s' of app with key '%s' to environment '%s' is not managed.", versionName, appKey, envName));
+    }
   }
 
   public static class DeletionNotAllowedException extends DataIntegrityViolationException {

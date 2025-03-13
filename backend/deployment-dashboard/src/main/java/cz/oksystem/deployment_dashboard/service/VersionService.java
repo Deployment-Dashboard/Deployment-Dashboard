@@ -1,5 +1,6 @@
 package cz.oksystem.deployment_dashboard.service;
 
+import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.repository.VersionRepository;
@@ -36,5 +37,23 @@ public class VersionService {
   @Transactional(readOnly = true)
   public boolean exists(String appKey, String versionName) {
     return versionRepository.existsByAppAndName(appKey, versionName);
+  }
+
+  @Transactional
+  public void delete(String appKey, String versionName) {
+    Version verToDelete = this.get(appKey, versionName).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(
+        Version.class, App.class, versionName, appKey
+      )
+    );
+
+    if (verToDelete.hasDeployment()) {
+      throw new CustomExceptions.DeletionNotAllowedException(
+        Version.class, versionName
+      );
+    }
+
+    verToDelete.getApp().removeVersion(verToDelete);
+    versionRepository.delete(verToDelete);
   }
 }

@@ -11,7 +11,7 @@ import {
   Collapse,
   ActionIcon,
   Badge,
-  ScrollArea, Box, Menu, PillGroup, Transition, Pill, HoverCard
+  ScrollArea, Box, Menu, PillGroup, Transition, Pill, HoverCard, Popover, Title
 } from "@mantine/core";
 import {
   IconChevronDown,
@@ -21,8 +21,9 @@ import {
 } from "@tabler/icons-react";
 import {DataTable, DataTableSortStatus} from 'mantine-datatable';
 import {API_URL} from "~/constants"
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import sortBy from 'lodash/sortBy';
+import orderBy from 'lodash/orderBy'
 import {DatePicker, DatesRangeValue} from "@mantine/dates";
 import dayjs from "dayjs";
 import 'dayjs/locale/cs';
@@ -179,6 +180,7 @@ export default function DeploymentHistory() {
 
   useEffect(() => {
     const data = sortBy(records, sortStatus.columnAccessor);
+
     setRecords(sortStatus.direction === 'desc' ? data.reverse() : data);
   }, [sortStatus]);
 
@@ -217,11 +219,36 @@ export default function DeploymentHistory() {
     );
   }
 
+  const [openedApps, setOpenedApps] = useState<boolean[]>(() =>
+    componentGroups.map(() => false)
+  );
+
+  const [openedVersionsTopLevel, setOpenedVersionsTopLevel] = useState<boolean[]>(() =>
+    componentGroups.map(() => false)
+  );
+  const [openedVersionsSecondLevel, setOpenedVersionsSecondLevel] = useState<Record<string, boolean>>(() =>
+    versionGroups.flatMap(({ group }) => group.map(({ key }) => ({ key, value: false })))
+  );
+
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  const [measuredWidth, setMeasuredWidth] = useState<number>();
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [measured, setMeasured] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => {
+      if (measureRef.current) {
+        setMeasured(true);
+        setMeasuredWidth(measureRef.current.offsetWidth);
+      }
+    }, 20);
+  }, []);
+
 
   if (!isHydrated) {
     return (
@@ -237,6 +264,81 @@ export default function DeploymentHistory() {
   return (
     <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
       <div style={{position: "relative", height: "42px"}}>
+        {!measured && (
+          <div
+            style={{
+              position: "absolute",
+              top: "-9999px",
+              left: "-9999px",
+              pointerEvents: "none"
+            }}
+          >
+          <Popover defaultOpened >
+            <Popover.Target>
+              <Text>
+              </Text>
+            </Popover.Target>
+            <Popover.Dropdown ref={measureRef}>
+              <div style={{width: "100%"}} >
+              <Stack w="100%">
+                <ScrollArea.Autosize
+                  w="100%" mah={500}
+                  offsetScrollbars
+                >
+                  <Stack ml="md" mt="md">
+                    {componentGroups.map(group => {
+                      const detail = details.find(detail => detail.key === group.key);
+
+                      return (
+                        <>
+                          <Group gap={5}>
+                            <Button
+                              flex={1}
+                              w="100%"
+                              size="sm"
+                              justify="space-between"
+                              variant="subtle"
+                              leftSection={
+                                <Group>
+                                  <IconChevronUp/>
+                                  <Text>
+                                    {detail.name}
+                                  </Text>
+                                </Group>
+                              }
+                            />
+                            <ActionIcon ml="auto" mr={2} color="red" variant="light" size={20}>
+                              <IconX/>
+                            </ActionIcon>
+                          </Group>
+                          <Collapse in={true}>
+                            {group.components.map(component => (
+                                <Group
+                                  mt="xs"
+                                  ml={33}
+                                >
+                                  <Text>
+                                    {detail.componentKeysAndNamesMap[component]}
+                                  </Text>
+                                  <Badge color="green">
+                                    {component}
+                                  </Badge>
+                                  <ActionIcon mr={2} ml="auto" color="red" variant="light" size={20}>
+                                    <IconX/>
+                                  </ActionIcon>
+                                </Group>
+                            ))}
+                          </Collapse>
+                        </>
+                      )})}
+                  </Stack>
+                </ScrollArea.Autosize>
+              </Stack>
+              </div>
+            </Popover.Dropdown>
+          </Popover>
+        </div>)}
+
         <Transition
           mounted={isFiltered}
           transition="slide-up"
@@ -272,7 +374,13 @@ export default function DeploymentHistory() {
                         onRemove={() => setDeployedAtSearchRange(undefined)}
                       >
                         <Text>
-                          {filters["dateFilter"].start.toLocaleDateString("cs-CZ")} – {filters["dateFilter"].end.toLocaleDateString("cs-CZ")}
+                          {(() => {
+                            const startDate = filters["dateFilter"].start.toLocaleDateString("cs-CZ");
+                            const endDate = filters["dateFilter"].end.toLocaleDateString("cs-CZ");
+                            return startDate === endDate
+                              ? startDate
+                              : `${startDate} – ${endDate}`
+                          })()}
                         </Text>
                       </Pill>}
                     {filters["appsFilter"] &&
@@ -288,7 +396,7 @@ export default function DeploymentHistory() {
                           current.map((value) => ({...value, checked: false}))
                         )}
                       >
-                        <HoverCard withArrow position="bottom" width={430} shadow="sm">
+                        <HoverCard withArrow position="bottom" shadow="sm">
                           <HoverCard.Target>
                             <Text>
                               {filters["appsFilter"].apps.length}
@@ -303,39 +411,86 @@ export default function DeploymentHistory() {
                               })()}
                             </Text>
                           </HoverCard.Target>
-                          <HoverCard.Dropdown w="fit-content">
-                            <Stack w="100%">
+                          <HoverCard.Dropdown w={measuredWidth} pl={0} py={0}>
                               <ScrollArea.Autosize
-                                bg="dynamicBackground"
-                                w="100%" mah={500}
+                                ml="sm"
+                                w="100%" mah={485}
                                 offsetScrollbars
                                 style={{
                                   overscrollBehavior: "contain",
                                   borderRadius: 'var(--mantine-radius-sm)'
                                 }}
                               >
-                                <Stack ml="md" mt="md">
-                                  {apps.sort().filter(app => app.checked).map(app =>
-                                    <Group>
-                                      <Text>
-                                        {details.find(detail => detail.componentKeysAndNamesMap[app.label]).componentKeysAndNamesMap[app.label]}
-                                      </Text>
-                                      <Badge color="green">
-                                        {app.label}
-                                      </Badge>
-                                      <ActionIcon ml="auto" color="red" variant="subtle" onClick={() =>
-                                        appHandlers.setItemProp(
-                                          apps.indexOf(app),
-                                          'checked',
-                                          false)}
+                                <Stack w="100%" mt="xs" gap={0}>
+                                {componentGroups.filter(group =>
+                                  group.components.some(component =>
+                                    apps.find(app => app.label === component && app.checked))).map(((group, index) => {
+                                  const detail = details.find(detail => detail.key === group.key);
+
+                                  return (
+                                  <>
+                                    <Group gap={5}>
+                                      <Button
+                                        flex={1}
+                                        w="100%"
+                                        size="sm"
+                                        justify="space-between"
+                                        variant="subtle"
+                                        onClick={() => setOpenedApps((prev) => prev.map((o, i) => (i === index ? !o : o)))}
+                                        leftSection={
+                                          <Group>
+                                            {openedApps[index] ? <IconChevronUp/> : <IconChevronDown/>}
+                                            <Text c="var(--mantine-color-text)">
+                                              {detail.name}
+                                            </Text>
+                                          </Group>
+                                        }
+                                      />
+                                      <ActionIcon ml="auto" mr={2} color="red" variant="light" size={20} onClick={() =>
+                                        group.components.forEach(component =>
+                                          appHandlers.setItemProp(
+                                            apps.findIndex(app => app.label === component),
+                                            'checked',
+                                            false)
+                                        )}
                                       >
                                         <IconX/>
                                       </ActionIcon>
-                                    </Group>)
-                                  }
-                                </Stack>
-                              </ScrollArea.Autosize>
-                            </Stack>
+                                    </Group>
+                                    <Collapse in={openedApps[index]}>
+                                      {group.components.map(component => {
+                                        const appState = apps.find(app => app.label === component && app.checked)
+
+                                        return appState
+                                          ? <Group
+                                            w="100%"
+                                            h={36} // Match the button height
+                                            pl={33} // Match button padding
+                                          >
+                                            <Text c="var(--mantine-color-text)" style={{ userSelect: "text" }}>
+                                              {detail.componentKeysAndNamesMap[component]}
+                                            </Text>
+                                            <Badge color="green">{component}</Badge>
+                                            <ActionIcon
+                                              mr={2}
+                                              ml="auto"
+                                              color="red"
+                                              variant="light"
+                                              size={20}
+                                              onClick={() =>
+                                                appHandlers.setItemProp(apps.indexOf(appState), "checked", false)
+                                              }
+                                            >
+                                              <IconX />
+                                            </ActionIcon>
+                                          </Group>
+                                          : null
+                                      })}
+                                    </Collapse>
+                                  </>
+                                )}))}
+                              </Stack>
+                            </ScrollArea.Autosize>
                           </HoverCard.Dropdown>
                         </HoverCard>
                       </Pill>}
@@ -365,10 +520,9 @@ export default function DeploymentHistory() {
                               })()}
                             </Text>
                           </HoverCard.Target>
-                          <HoverCard.Dropdown w="fit-content">
+                          <HoverCard.Dropdown w="fit-content" py={0} px="sm">
                             <Stack w="100%">
                               <ScrollArea.Autosize
-                                bg="dynamicBackground"
                                 w="100%" mah={500}
                                 offsetScrollbars
                                 style={{
@@ -376,13 +530,13 @@ export default function DeploymentHistory() {
                                   borderRadius: 'var(--mantine-radius-sm)'
                                 }}
                               >
-                                <Stack ml="md" mt="md">
+                                <Stack ml="md" mt="md" gap="xs">
                                   {selectedEnvironments.sort().map(env =>
                                     <Group>
                                       <Text>
                                         {env.toUpperCase()}
                                       </Text>
-                                      <ActionIcon ml="auto" color="red" variant="subtle" onClick={() =>
+                                      <ActionIcon ml="auto" color="red" variant="light" size={20} onClick={() =>
                                         setSelectedEnvironments(selectedEnvironments.filter(selectedEnv => selectedEnv != env))
                                       }
                                       >
@@ -424,46 +578,134 @@ export default function DeploymentHistory() {
                               })()}
                             </Text>
                           </HoverCard.Target>
-                          <HoverCard.Dropdown w="fit-content">
-                            <Stack w="100%">
-                              <ScrollArea.Autosize
-                                bg="dynamicBackground"
-                                w="100%" mah={500}
-                                offsetScrollbars
-                                style={{
-                                  overscrollBehavior: "contain",
-                                  borderRadius: 'var(--mantine-radius-sm)'
-                                }}
-                              >
-                                <Stack ml="md" mt="md">
-                                  {versionGroups.flatMap(versionGroup => versionGroup.group).map(component =>
-                                    component.versions.map(versionName => {
-                                      const version = versions.find((v) => v.label === `${component.key}-${versionName}`);
+                          <HoverCard.Dropdown w={measuredWidth} pl={0} py={0}>
+                            <ScrollArea.Autosize
+                              mx="sm"
+                              w="100%" mah={485}
+                              offsetScrollbars
+                              style={{
+                                overscrollBehavior: "contain",
+                                borderRadius: 'var(--mantine-radius-sm)'
+                              }}
+                            >
+                              <Stack w="100%" mt="xs" gap={0}>
+                                {versionGroups.filter(group =>
+                                  group.group.some(component =>
+                                    component.versions.some(version1 =>
+                                      versions.find(version2 =>
+                                        version2.label === `${component.key}-${version1}` && version2.checked)))).map((group, index) => {
+                                  const detail = details.find(detail => detail.key === group.groupKey);
 
-                                      return version && version.checked ?
-                                      <Group>
-                                        <Text>
-                                          {details.find(detail => detail.componentKeysAndNamesMap[component.key]).componentKeysAndNamesMap[component.key]}
-                                        </Text>
-                                        <Badge color="green">
-                                          {versionName}
-                                        </Badge>
-                                        <ActionIcon ml="auto" color="red" variant="subtle" onClick={() =>
-                                          versionHandlers.setItemProp(
-                                            versions.indexOf(version),
-                                            'checked',
-                                            false)}
+                                  return (
+                                    <>
+                                      <Group gap={5}>
+                                        <Button
+                                          flex={1}
+                                          w="100%"
+                                          size="sm"
+                                          justify="space-between"
+                                          variant="subtle"
+                                          onClick={() => setOpenedVersionsTopLevel((prev) => prev.map((o, i) => (i === index ? !o : o)))}
+                                          leftSection={
+                                            <Group>
+                                              {openedVersionsTopLevel[index] ? <IconChevronUp/> : <IconChevronDown/>}
+                                              <Text c="var(--mantine-color-text)">
+                                                {detail.name}
+                                              </Text>
+                                            </Group>
+                                          }
+                                        />
+                                        <ActionIcon ml="auto" mr={2} color="red" variant="light" size={20} onClick={() =>
+                                          group.group.forEach(component =>
+                                            component.versions.forEach(version1 =>
+                                              versionHandlers.setItemProp(
+                                                versions.findIndex(version2 => version2.label === `${component.key}-${version1}`),
+                                                'checked',
+                                                false)
+                                          ))}
                                         >
                                           <IconX/>
                                         </ActionIcon>
-                                      </Group> : null}))}
-                                </Stack>
-                              </ScrollArea.Autosize>
-                            </Stack>
+                                      </Group>
+                                      <Collapse in={openedVersionsTopLevel[index]}>
+                                        {group.group.filter(group => group.versions.some(version => versions.find(foundVersion => foundVersion.label === `${group.key}-${version}` && foundVersion.checked))).map(component => {
+                                          const componentName = detail.componentKeysAndNamesMap[component.key];
+
+                                          return (
+                                            <>
+                                              <Group ml={33} gap={5}>
+                                                <Button
+                                                  flex={1}
+                                                  w="100%"
+                                                  size="sm"
+                                                  justify="space-between"
+                                                  variant="subtle"
+                                                  onClick={() => setOpenedVersionsSecondLevel((prev) => ({
+                                                    ...prev,
+                                                    [component.key]: !prev[component.key]
+                                                  }))}
+                                                  leftSection={
+                                                    <Group>
+                                                      {openedVersionsSecondLevel[component.key] ? <IconChevronUp/> :
+                                                        <IconChevronDown/>}
+                                                      <Text c="var(--mantine-color-text)">
+                                                        {componentName}
+                                                      </Text>
+                                                    </Group>
+                                                  }
+                                                />
+                                                <ActionIcon ml="auto" mr={2} color="red" variant="light" size={20}
+                                                            onClick={() =>
+                                                                component.versions.forEach(version1 =>
+                                                                  versionHandlers.setItemProp(
+                                                                    versions.findIndex(version2 => version2.label === `${component.key}-${version1}`),
+                                                                    'checked',
+                                                                    false)
+                                                                )}
+                                                >
+                                                  <IconX/>
+                                                </ActionIcon>
+                                              </Group>
+                                              <Collapse in={openedVersionsSecondLevel[component.key]}>
+
+                                                {component.versions.map(version1 => {
+                                                  const versionState = versions.find(version2 => version2.label === `${component.key}-${version1}` && version2.checked)
+
+                                                  return versionState
+                                                    ? <Group
+                                                      h={36}
+                                                      pl="sm"
+                                                      ml={66}
+                                                    >
+                                                      <Group>
+                                                        {openedVersionsTopLevel[index] ? <IconChevronUp hidden/> : <IconChevronDown hidden/>}
+                                                        <Text c="var(--mantine-color-text)">
+                                                          {version1}
+                                                        </Text>
+                                                      </Group>
+                                                      <ActionIcon mr={2} ml="auto" color="red" variant="light" size={20} onClick={() =>
+                                                        versionHandlers.setItemProp(
+                                                          versions.indexOf(versionState),
+                                                          'checked',
+                                                          false)}
+                                                      >
+                                                        <IconX/>
+                                                      </ActionIcon>
+                                                    </Group>
+                                                    : null
+                                                })}
+                                              </Collapse>
+                                            </>
+                                          )
+                                        })}
+                                      </Collapse>
+                                    </>)})}
+                              </Stack>
+                            </ScrollArea.Autosize>
                           </HoverCard.Dropdown>
                         </HoverCard>
                       </Pill>}
-                    <ActionIcon ml="auto" style={{visibility: isFiltered ? "visible" : "hidden"}} color="red" variant="subtle" onClick={resetFilters}>
+                    <ActionIcon ml="auto" style={{visibility: isFiltered ? "visible" : "hidden"}} color="red" onClick={resetFilters}>
                       <IconX/>
                     </ActionIcon>
                   </Group>
@@ -490,6 +732,7 @@ export default function DeploymentHistory() {
           {
             accessor: 'deployedAt',
             title: <span style={{userSelect: 'none'}}>Datum</span>,
+            width: 180,
             titleStyle: {
               fontSize: "16px",
               backgroundColor: "green",
@@ -534,36 +777,32 @@ export default function DeploymentHistory() {
           {
             accessor: 'appKey',
             title: <span style={{userSelect: 'none'}}>Klíč</span>,
+            width: 300,
             titleStyle: {
 
               fontSize: "16px",
               backgroundColor: "green",
               color: "white"
             },
+            render: (row) => row.appKey.toUpperCase(),
             sortable: true,
             filter: ({close}) => (
-              <Stack>
+              <Stack w={measuredWidth - 50} gap="xs">
                 <Text fw={500}>
                   Vyberte aplikace, které chcete zobrazit:
                 </Text>
 
-                <ScrollArea.Autosize mah={415} offsetScrollbars overscrollBehavior="contain">
-                  <Stack>
+                <ScrollArea.Autosize w={measuredWidth - 50} mah={415} offsetScrollbars overscrollBehavior="contain">
+                  <Stack gap={0}>
                     {componentGroups.map((group) => {
                       const [opened, setOpened] = useState(false);
 
                       return (
-                        <div key={group.key}>
+                        <>
                           <div style={{display: 'flex', alignItems: 'center'}}>
                             <Checkbox
                               checked={allCheckedApp(group.key)}
                               indeterminate={indeterminateApp(group.key)}
-                              label={
-                                <Text>{details.find((detail) => detail.key === group.key)
-                                  ?.componentKeysAndNamesMap[group.key]}
-                                </Text>
-                              }
-
                               onChange={() => {
                                 const newCheckedState = !allCheckedApp(group.key);
                                 appHandlers.setState((current) =>
@@ -575,14 +814,23 @@ export default function DeploymentHistory() {
                                 );
                               }}
                             />
-                            <ActionIcon
+                            <Button
+                              size="sm"
+                              w="100%"
+                              ml={5}
+                              justify="space-between"
                               variant="subtle"
-                              size="xs"
-                              ml="auto"
                               onClick={() => setOpened((o) => !o)}
-                            >
-                              {opened ? <IconChevronUp/> : <IconChevronDown/>}
-                            </ActionIcon>
+                              leftSection={
+                                <Text c="var(--mantine-color-text)">{details.find((detail) => detail.key === group.key)
+                                  ?.componentKeysAndNamesMap[group.key]}
+                                </Text>
+                              }
+
+                              rightSection={
+                                opened ? <IconChevronUp style={{marginLeft: "auto"}}/> : <IconChevronDown style={{marginLeft: "auto"}}/>
+                              }
+                            />
                           </div>
                           <Collapse in={opened}>
                             {group.components.map((component) => {
@@ -614,12 +862,13 @@ export default function DeploymentHistory() {
                               );
                             })}
                           </Collapse>
-                        </div>
+                        </>
                       );
                     })}
                   </Stack>
                 </ScrollArea.Autosize>
                 <Button
+                  mt={5}
                   disabled={apps.every((value) => !value.checked)}
                   variant="light"
                   onClick={() => {
@@ -638,6 +887,7 @@ export default function DeploymentHistory() {
           {
             accessor: 'appName',
             title: <span style={{userSelect: 'none'}}>Aplikace</span>,
+            width: 400,
             titleStyle: {
 
               fontSize: "16px",
@@ -648,6 +898,7 @@ export default function DeploymentHistory() {
           {
             accessor: 'environmentName',
             title: <span style={{userSelect: 'none'}}>Prostředí</span>,
+            width: 300,
             titleStyle: {
 
               fontSize: "16px",
@@ -655,8 +906,9 @@ export default function DeploymentHistory() {
               color: "white"
             },
             sortable: true,
+            render: (row) => row.environmentName.toUpperCase(),
             filter: ({close}) => (
-              <Stack>
+              <Stack >
                 <Text fw={500}>
                   Vyberte prostředí, která chcete zobrazit:
                 </Text>
@@ -664,7 +916,7 @@ export default function DeploymentHistory() {
                   value={selectedEnvironments}
                   onChange={setSelectedEnvironments}
                 >
-                  <Group mt="xs">
+                  <Group>
                     <Stack>
                       {environments.map(e =>
                         <Checkbox value={e} label={e.toUpperCase()}/>)}
@@ -672,6 +924,7 @@ export default function DeploymentHistory() {
                   </Group>
                 </Checkbox.Group>
                 <Button
+                  mt={5}
                   disabled={selectedEnvironments.length === 0}
                   variant="light"
                   onClick={() => {
@@ -688,6 +941,7 @@ export default function DeploymentHistory() {
           {
             accessor: 'versionName',
             title: <span style={{userSelect: 'none'}}>Verze</span>,
+            width: 250,
             titleStyle: {
 
               fontSize: "16px",
@@ -696,18 +950,18 @@ export default function DeploymentHistory() {
             },
             sortable: true,
             filter: ({close}) => (
-              <Stack>
+              <Stack w={measuredWidth - 50} gap="xs">
                 <Text fw={500}>
                   Vyberte verze, které chcete zobrazit:
                 </Text>
 
-                <ScrollArea.Autosize mah={415} offsetScrollbars overscrollBehavior="contain">
-                  <Stack>
+                <ScrollArea.Autosize mah={425} offsetScrollbars overscrollBehavior="contain">
+                  <Stack gap={0}>
                     {versionGroups.map((versionGroup) => {
                       const [openedTopLevel, setOpenedTopLevel] = useState(false);
 
                       return (
-                        <div key={versionGroup.key}>
+                        <>
                           <div style={{display: 'flex', alignItems: 'center'}}>
                             <Checkbox
                               checked={versionGroup.group.every(component => allCheckedVersion(component.key))}
@@ -715,11 +969,6 @@ export default function DeploymentHistory() {
                                 && versionGroup.group.some(component =>
                                   indeterminateVersion(component.key)
                                   || allCheckedVersion(component.key))}
-                              label={
-                                <Text>{details.find((detail) => detail.key === versionGroup.groupKey)
-                                  ?.componentKeysAndNamesMap[versionGroup.groupKey]}
-                                </Text>
-                              }
 
                               onChange={() => {
                                 const newCheckedState = !versionGroup.group.every(component => allCheckedVersion(component.key))
@@ -735,14 +984,23 @@ export default function DeploymentHistory() {
                                 );
                               }}
                             />
-                            <ActionIcon
+                            <Button
+                              size="sm"
+                              w="100%"
+                              ml={5}
+                              justify="space-between"
                               variant="subtle"
-                              size="xs"
-                              ml="auto"
                               onClick={() => setOpenedTopLevel((o) => !o)}
-                            >
-                              {openedTopLevel ? <IconChevronUp/> : <IconChevronDown/>}
-                            </ActionIcon>
+                              leftSection={
+                                <Text c="var(--mantine-color-text)">{details.find((detail) => detail.key === versionGroup.groupKey)
+                                  ?.componentKeysAndNamesMap[versionGroup.groupKey]}
+                                </Text>
+                              }
+
+                              rightSection={
+                                openedTopLevel ? <IconChevronUp style={{marginLeft: "auto"}}/> : <IconChevronDown style={{marginLeft: "auto"}}/>
+                              }
+                            />
                           </div>
                           <Collapse in={openedTopLevel}>
                             {versionGroup.group.map((component) => {
@@ -753,18 +1011,7 @@ export default function DeploymentHistory() {
                                   <div style={{display: 'flex', alignItems: 'center'}}>
                                     <Checkbox
                                       key={component.key}
-                                      mt="xs"
                                       ml={33}
-                                      label={
-                                        <Group>
-                                          <Text>{details.find((appDetail) => appDetail.key === versionGroup.groupKey)
-                                            ?.componentKeysAndNamesMap[component.key]}
-                                          </Text>
-                                          <Badge color="green">
-                                            {component.key}
-                                          </Badge>
-                                        </Group>
-                                      }
                                       checked={allCheckedVersion(component.key)}
                                       indeterminate={indeterminateVersion(component.key)}
                                       onChange={() => {
@@ -778,14 +1025,23 @@ export default function DeploymentHistory() {
                                         );
                                       }}
                                     />
-                                    <ActionIcon
+                                    <Button
+                                      size="sm"
+                                      w="100%"
+                                      ml={5}
+                                      justify="space-between"
                                       variant="subtle"
-                                      size="xs"
-                                      ml="auto"
                                       onClick={() => setOpenedSecondLevel((o) => !o)}
-                                    >
-                                      {openedSecondLevel ? <IconChevronUp/> : <IconChevronDown/>}
-                                    </ActionIcon>
+                                      leftSection={
+                                        <Text c="var(--mantine-color-text)">{details.find((appDetail) => appDetail.key === versionGroup.groupKey)
+                                          ?.componentKeysAndNamesMap[component.key]}
+                                        </Text>
+                                      }
+
+                                      rightSection={
+                                        openedSecondLevel ? <IconChevronUp style={{marginLeft: "auto"}}/> : <IconChevronDown style={{marginLeft: "auto"}}/>
+                                      }
+                                    />
                                   </div>
                                   <Collapse in={openedSecondLevel}>
                                     {component.versions.map(version => {
@@ -817,12 +1073,13 @@ export default function DeploymentHistory() {
                               )
                             })}
                           </Collapse>
-                        </div>
+                        </>
                       );
                     })}
                   </Stack>
                 </ScrollArea.Autosize>
                 <Button
+                  mt={5}
                   disabled={versions.every((value) => !value.checked)}
                   variant="light"
                   onClick={() => {
@@ -841,8 +1098,8 @@ export default function DeploymentHistory() {
           {
             accessor: 'jiraUrl',
             title: <span style={{userSelect: 'none'}}>Jira ticket</span>,
+            width: 110,
             titleStyle: {
-
               fontSize: "16px",
               backgroundColor: "green",
               color: "white"

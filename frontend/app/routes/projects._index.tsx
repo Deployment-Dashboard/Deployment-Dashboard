@@ -5,7 +5,7 @@ import {useLoaderData, useRevalidator} from "react-router";
 import {Button, Grid, Group, TextInput, Modal, Title, ActionIcon, TagsInput, Tooltip, Loader} from "@mantine/core";
 import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
-import {IconPlus, IconCheck, IconX} from "@tabler/icons-react";
+import {IconPlus, IconCheck, IconX, IconTrash} from "@tabler/icons-react";
 import ContentContainer from "~/components/content-container";
 import {isNotEmpty, useForm} from '@mantine/form';
 import {useEffect, useState} from "react";
@@ -64,7 +64,9 @@ export default function Projects() {
   const [enabled, handlers] = useDisclosure(false);
 
   useEffect(() => {
-    if (inputComponentKey.trim() && inputComponentName.trim()) {
+    if (inputComponentKey.trim()
+      && inputComponentName.trim()
+      && !components.some(component => component.key === inputComponentKey.trim())) {
       handlers.open();
     } else {
       handlers.close();
@@ -85,11 +87,6 @@ export default function Projects() {
   // odebrani komponenty
   const handleRemoveComponent = (index) => {
     setComponents(components.filter((_, i) => i !== index));
-
-    // pokud uz v componentKey neni input, focusneme componentName
-    if (!inputComponentKey.trim()) {
-      document.getElementById('inputComponentName').focus();
-    }
   }
 
   // chovani pro enter a backspace
@@ -123,7 +120,15 @@ export default function Projects() {
       let response = await fetch(`${API_URL}/apps`, requestOptions);
       if (!response.ok) {
         const error: ErrorBody = await response.json();
-        alert(`${error.message}\n${error.details}`);
+        notifications.show({
+          color: "red",
+          title: "Při přidávání došlo k chybě!",
+          message: error.details,
+          position: "top-center",
+        });
+        if (response.status === 409) {
+          form.setErrors({ key: 'Klíč již je v evidenci' });
+        }
         return;
       }
 
@@ -132,7 +137,12 @@ export default function Projects() {
         response = await fetch(`${API_URL}/apps/${formValues.key}/envs`, requestOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
-          alert(`${error.message}\n${error.details}`);
+          notifications.show({
+            color: "red",
+            title: "Při přidávání došlo k chybě!",
+            message: error.details,
+            position: "top-center",
+          });
           return;
         }
       }
@@ -142,7 +152,12 @@ export default function Projects() {
         response = await fetch(`${API_URL}/apps`, requestOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
-          alert(`${error.message}\n${error.details}`);
+          notifications.show({
+            color: "red",
+            title: "Při přidávání došlo k chybě!",
+            message: error.details,
+            position: "top-center",
+          });
           return;
         }
       }
@@ -154,28 +169,39 @@ export default function Projects() {
       form.reset();
       setEnvironments([]);
       setComponents([]);
-      useRevalidator();
+      await revalidate();
       close();
     } catch (error) {
-      alert("Došlo k neočekávané chybě během přidávání projektu.");
-      console.error(error);
+      console.error("Caught error: ", error);
+      notifications.show({
+        color: "red",
+        title: "Při přidávání došlo k chybě!",
+        message: "Nastala neočekávaná chyba",
+        position: "top-center",
+      });
     }
   };
 
 
   return (
     <>
-      <Modal size="auto" opened={opened} onClose={() => {
-        close();
-        form.reset();
-        setEnvironments([]);
-        setComponents([]);
-        setInputComponentKey('');
-        setInputComponentName('');
-      }}
-             closeButtonProps={{icon: <IconX color="red"/>, variant: "subtle", color: "gray"}}
+      <Modal
+        size="auto"
+        opened={opened}
+        onClose={() => {
+          close();
+          form.reset();
+          setEnvironments([]);
+          setComponents([]);
+          setInputComponentKey('');
+          setInputComponentName('');
+        }}
+        closeButtonProps={{icon: <IconX color="red"/>, variant: "subtle", color: "gray"}}
+        title={<Title mb="md" order={2}>Přidání nového projektu do evidence</Title>}
+        styles={{
+          header: {paddingBottom: 0}
+        }}
       >
-        <Title mb="md" order={2}>Přidání nového projektu do evidence</Title>
         <form onSubmit={form.onSubmit((values) => handleSubmit(values))}>
           <TextInput
             data-autofocus
@@ -188,8 +214,8 @@ export default function Projects() {
 
           <TextInput
             withAsterisk
-            label="Zkratka"
-            placeholder="Zadejte zkratku projektu..."
+            label="Klíč"
+            placeholder="Zadejte klíč projektu..."
             key={form.key('key')}
             {...form.getInputProps('key')}
           />
@@ -197,6 +223,7 @@ export default function Projects() {
             label="Prostředí"
             placeholder="Zadejte název prostředí..."
             splitChars={[' ']}
+            data={[ {group: 'Nejčastější názvy prostředí', items: ['MPSVPROD', 'MPSVTEST', 'OKTEST']}]}
             acceptValueOnBlur
             clearable
             value={environments}
@@ -208,46 +235,6 @@ export default function Projects() {
             Projektové komponenty
           </Title>
 
-          <Group style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: "flex-start" }}>
-            <TextInput
-              id='inputComponentName'
-              label="Název"
-              placeholder="Zadejte název komponenty..."
-              value={inputComponentName}
-              style={{ minWidth: '300px'}}
-              onInput={(e) => {setInputComponentName(e.target.value);}}
-              onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentName')} // Add row on Enter key
-            />
-            <TextInput
-              id='inputComponentKey'
-              label="Zkratka"
-              placeholder="Zadejte zkratku komponenty..."
-              value={inputComponentKey}
-              style={{ minWidth: '300px' }}
-              onInput={(e) => {setInputComponentKey(e.target.value);}}
-              onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentKey')}
-            />
-            {enabled ? (
-              <ActionIcon
-                variant="outline"
-                style={{ position: "relative", top: "28px" }}
-                onClick={handleAddComponent}
-              >
-                <IconPlus color="green" size="20" />
-              </ActionIcon>
-            ) : (
-              <Tooltip label="Pro přidání komponenty vyplňte název i zkratku.">
-                <ActionIcon
-                  disabled
-                  style={{ position: "relative", top: "28px" }}
-                  onClick={handleAddComponent}
-                >
-                  <IconPlus color="gray" size="20" />
-                </ActionIcon>
-              </Tooltip>
-            )}
-          </Group>
-
           {components.map((row, index) => (
             <Group
               mt="md"
@@ -256,6 +243,7 @@ export default function Projects() {
             >
               <TextInput
                 id={`inputComponentName${index}`}
+                label={ components.length > 0 && index === 0 ? "Název" : "" }
                 readOnly={true}
                 placeholder={`Název komponenty ${index}`}
                 value={row.name}
@@ -264,6 +252,7 @@ export default function Projects() {
               />
               <TextInput
                 id={`inputComponentKey${index}`}
+                label={ components.length > 0 && index === 0 ? "Klíč" : "" }
                 readOnly={true}
                 placeholder={`Klíč komponenty ${index}`}
                 value={row.key}
@@ -271,14 +260,46 @@ export default function Projects() {
                 tabIndex={-1}
               />
               <ActionIcon
-                variant="outline"
+                color="red"
+                variant="light"
                 onClick={() => handleRemoveComponent(index)}
                 style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
               >
-                <IconX color="red" size="20" />
+                <IconTrash size="20"/>
               </ActionIcon>
             </Group>
           ))}
+          <Group style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: "flex-start" }} mt="sm">
+            <TextInput
+              id='inputComponentName'
+              label={ components.length === 0 ? "Název" : "" }
+              placeholder="Zadejte název komponenty..."
+              value={inputComponentName}
+              style={{ minWidth: '300px'}}
+              onInput={(e) => {setInputComponentName(e.target.value);}}
+              onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentName')} // Add row on Enter key
+            />
+            <TextInput
+              id='inputComponentKey'
+              label={ components.length === 0 ? "Klíč" : "" }
+              placeholder="Zadejte klíč komponenty..."
+              value={inputComponentKey}
+              style={{ minWidth: '300px' }}
+              onInput={(e) => {setInputComponentKey(e.target.value);}}
+              onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentKey')}
+            />
+            <Tooltip label={components.some(component => component.key === inputComponentKey.trim()) ? "Klíč komponenty musí být unikátní!" : "Pro přidání komponenty vyplňte název i klíč!"} disabled={enabled}>
+              <ActionIcon
+                style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
+                disabled={!enabled}
+                variant="light"
+                color="green"
+                onClick={handleAddComponent}
+              >
+                <IconPlus size="20" />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
           <Group justify="flex-end" mt="md">
             <Button type="submit" rightSection={<IconCheck size={16}/>}>Přidat</Button>
           </Group>

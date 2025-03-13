@@ -97,7 +97,7 @@ export default function ProjectCard({data : projectOverview} : ProjectCardProps)
                 {"Prostředí:"}
               </Text>
               <Text size="lg">
-                {projectOverview.lastDeployedToEnvName}
+                {projectOverview.lastDeployedToEnvName.toUpperCase()}
               </Text>
               <Text mt="sm" size="lg" fw={500}>
                 {"Ovlivněné komponenty:"}

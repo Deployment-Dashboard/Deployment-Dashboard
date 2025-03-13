@@ -43,6 +43,16 @@ public class ServiceOrchestrator {
   }
 
   public void deleteApp(String appKey, boolean hardDelete) {
+    if (hardDelete) {
+      Optional<App> fetchedApp = appService.get(appKey);
+
+      if (fetchedApp.isPresent()) {
+        App app = fetchedApp.get();
+
+        app.getParent().ifPresentOrElse(null, () -> app.getEnvironments().forEach(environment -> this.deleteEnvironment(appKey, environment.getName(), true)));
+        app.getVersions().forEach(version -> versionService.delete(appKey, version.getName()));
+      }
+    }
     appService.delete(appKey, hardDelete);
   }
 
@@ -70,7 +80,12 @@ public class ServiceOrchestrator {
     environmentService.update(appKey, envKey, this.environmentFromDto(envDto));
   }
 
-  public void deleteEnvironment(String appKey, String envKey) {
+  public void deleteEnvironment(String appKey, String envKey, boolean hardDelete) {
+    if (hardDelete) {
+      Optional<Environment> fetchedEnv = environmentService.get(appKey, envKey);
+
+      fetchedEnv.ifPresent(environment -> environment.getDeployments().forEach(deploymentService::delete));
+    }
     environmentService.delete(appKey, envKey);
   }
 
@@ -165,7 +180,7 @@ public class ServiceOrchestrator {
 
       lastDeployments.sort(Comparator.comparing(
         deployment -> deployment.getDate().orElse(null),
-        Comparator.nullsLast(Comparator.naturalOrder())
+        Comparator.nullsLast(Comparator.reverseOrder())
       ));
 
 

@@ -129,7 +129,7 @@ class ApiController {
              | CustomExceptions.VersionRollbackException ex) {
 
       StringBuilder requestUrl = new StringBuilder(request.getRequestURL().toString());
-      requestUrl.replace(requestUrl.indexOf("/apps"), requestUrl.indexOf("/" + appKey), "/apps/force");
+      requestUrl.replace(requestUrl.indexOf("/apps"), requestUrl.indexOf("/" + appKey + "/envs"), "/apps/force");
 
       String queryString = request.getQueryString();
       if (queryString != null) {
@@ -222,9 +222,10 @@ class ApiController {
   @DeleteMapping(path = "{key}/envs/{envKey}")
   @ResponseStatus(value = HttpStatus.OK)
   void deleteAppEnv(@PathVariable("key") String appKey,
-                    @PathVariable("envKey") String envKey) {
+                    @PathVariable("envKey") String envKey,
+                    @RequestParam(value = "hard_delete", required = false) boolean hardDelete) {
     try {
-      serviceOrchestrator.deleteEnvironment(appKey, envKey);
+      serviceOrchestrator.deleteEnvironment(appKey, envKey, hardDelete);
     } catch (CustomExceptions.NotManagedException
              | CustomExceptions.DeletionNotAllowedException ex) {
       throw new CustomExceptions.EntityDeletionOrArchivationException(Environment.class, ex);

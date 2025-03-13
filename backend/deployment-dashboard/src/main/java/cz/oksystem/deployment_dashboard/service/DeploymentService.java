@@ -3,6 +3,7 @@ package cz.oksystem.deployment_dashboard.service;
 import cz.oksystem.deployment_dashboard.entity.Deployment;
 import cz.oksystem.deployment_dashboard.entity.Environment;
 import cz.oksystem.deployment_dashboard.entity.Version;
+import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.repository.DeploymentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,5 +69,24 @@ public class DeploymentService {
 
   public List<Deployment> getDeployedAppsByJiraUuid(Optional<String> jiraUrl) {
     return deploymentRepository.findByJiraUrl(jiraUrl);
+  }
+
+  @Transactional
+  public void delete(String appKey, String envKey, String versionName) {
+    Deployment depToDelete = this.get(appKey, envKey, versionName).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(
+        versionName, appKey, envKey
+      )
+    );
+
+    this.delete(depToDelete);
+  }
+
+  @Transactional
+  public void delete(Deployment deployment) {
+    deployment.getVersion().removeDeployment(deployment);
+    deployment.getEnvironment().removeDeployment(deployment);
+
+    deploymentRepository.delete(deployment);
   }
 }

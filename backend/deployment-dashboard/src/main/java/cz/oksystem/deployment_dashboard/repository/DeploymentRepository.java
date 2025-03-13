@@ -22,7 +22,7 @@ public interface DeploymentRepository extends JpaRepository<Deployment, Long> {
 
   @Query("SELECT d FROM Deployment d " +
     "WHERE d.version.app.key = :appKey " +
-    "ORDER BY d.id DESC LIMIT 1")
+    "ORDER BY d.date DESC LIMIT 1")
   Optional<Deployment> getLastDeploymentForApp(@Param("appKey") String appKey);
 
   @Query("SELECT d FROM Deployment d " +

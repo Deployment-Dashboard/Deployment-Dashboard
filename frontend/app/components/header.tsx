@@ -20,15 +20,14 @@ export default function Header() {
         <Flex justify="space-between" align="center">
           <Box darkHidden>
             <Link to="/projects">
-              <img src="./logo.png" alt="Logo" className="h-14"/>
+              <img src="/deploydash/logo.png" alt="Logo" className="h-14"/>
             </Link>
           </Box>
           <Box lightHidden>
             <Link to="/projects">
-              <img src="./logo-dark.png" alt="Logo" className="h-14"/>
+              <img src="/deploydash/logo-dark.png" alt="Logo" className="h-14"/>
             </Link>
           </Box>
-
 
           <Box darkHidden>
             <nav className="flex gap-4 items-center whitespace-nowrap text-xl font-semibold">

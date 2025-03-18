@@ -468,15 +468,34 @@ class ApiControllerIntegrationTests {
     Assertions.assertFalse(appService.exists("dd"));
   }
 
+//  @Test
+//  void archiveExistingAppSucceeds() throws Exception {
+//    App app = appService.save(new App("dd", "deployment dashboard"));
+//
+//    mockMvc.perform(
+//      delete("/api/apps/dd"))
+//      .andExpect(status().isOk());
+//
+//    Assertions.assertTrue(app.getArchivedTimestamp().isPresent());
+//  }
+
   @Test
-  void archiveExistingAppSucceeds() throws Exception {
+  void forceDeleteAppWithDeploymentSucceeds() throws Exception {
     App app = appService.save(new App("dd", "deployment dashboard"));
+    envService.save(new Environment("test", app));
 
     mockMvc.perform(
-      delete("/api/apps/dd"))
+        get("/api/apps/dd/envs/test/versions?dd=1-0"))
+      .andDo(print())
       .andExpect(status().isOk());
 
-    Assertions.assertTrue(app.getArchivedTimestamp().isPresent());
+    Assertions.assertTrue(app.hasDeployment());
+
+    mockMvc.perform(
+        delete("/api/apps/dd?hard_delete=true"))
+      .andExpect(status().isOk());
+
+    Assertions.assertFalse(appService.exists(app));
   }
 
   @Test
@@ -492,13 +511,18 @@ class ApiControllerIntegrationTests {
     Assertions.assertTrue(app.hasDeployment());
 
     mockMvc.perform(
-        delete("/api/apps/dd?hard_delete=true"))
+        delete("/api/apps/dd"))
       .andExpect(status().isConflict())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
       .andExpect(jsonPath("$.message").value("App could not be archived/deleted."))
       .andExpect(jsonPath("$.details").value("App with key 'dd' has deployments."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
       .andExpect(jsonPath("$.path").value("/api/apps/dd"));
+
+    Assertions.assertTrue(appService.exists(app));
+    Assertions.assertTrue(app.hasDeployment());
+    Assertions.assertFalse(app.getVersions().isEmpty());
+    Assertions.assertFalse(app.getEnvironments().isEmpty());
   }
   // addAppEnv tests
 

@@ -49,8 +49,8 @@ public class ServiceOrchestrator {
       if (fetchedApp.isPresent()) {
         App app = fetchedApp.get();
 
-        app.getParent().ifPresentOrElse(null, () -> app.getEnvironments().forEach(environment -> this.deleteEnvironment(appKey, environment.getName(), true)));
-        app.getVersions().forEach(version -> versionService.delete(appKey, version.getName()));
+        app.getParent().ifPresentOrElse(null, () -> new ArrayList<>(app.getEnvironments()).forEach(environment -> this.deleteEnvironment(appKey, environment.getName(), hardDelete)));
+        new ArrayList<>(app.getVersions()).forEach(version -> versionService.delete(appKey, version.getName()));
       }
     }
     appService.delete(appKey, hardDelete);
@@ -84,7 +84,7 @@ public class ServiceOrchestrator {
     if (hardDelete) {
       Optional<Environment> fetchedEnv = environmentService.get(appKey, envKey);
 
-      fetchedEnv.ifPresent(environment -> environment.getDeployments().forEach(deploymentService::delete));
+      fetchedEnv.ifPresent(environment -> new ArrayList<>(environment.getDeployments()).forEach(deploymentService::delete));
     }
     environmentService.delete(appKey, envKey);
   }

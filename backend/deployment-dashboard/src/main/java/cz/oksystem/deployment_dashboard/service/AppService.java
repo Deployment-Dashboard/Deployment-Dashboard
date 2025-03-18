@@ -6,7 +6,6 @@ import cz.oksystem.deployment_dashboard.repository.AppRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -100,18 +99,19 @@ public class AppService {
     return appToUpdate;
   }
 
+  // TODO dořešit delete/archiv
   @Transactional
   public void delete(String appKeyToDelete, boolean hardDelete) {
     App appToDelete = this.get(appKeyToDelete).orElseThrow(
       () -> new CustomExceptions.NotManagedException(App.class, appKeyToDelete)
     );
 
-    if (!hardDelete) {
-      appToDelete.setArchivedTimestamp(LocalDateTime.now());
-      return;
-    }
+//    if (!hardDelete) {
+//      appToDelete.setArchivedTimestamp(LocalDateTime.now());
+//      return;
+//    }
 
-    if (appToDelete.hasDeployment()) {
+    if (!hardDelete && appToDelete.hasDeployment()) {
       throw new CustomExceptions.DeletionNotAllowedException(
         App.class, appToDelete.getKey()
       );

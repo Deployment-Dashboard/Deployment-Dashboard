@@ -7,6 +7,7 @@ import cz.oksystem.deployment_dashboard.entity.Environment;
 import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.serializers.CustomProtocolsSerializer;
+import org.hibernate.Hibernate;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,18 +43,27 @@ public class ServiceOrchestrator {
     appService.update(appKey, this.appFromDto(appDto));
   }
 
+  @Transactional
   public void deleteApp(String appKey, boolean hardDelete) {
-    if (hardDelete) {
-      Optional<App> fetchedApp = appService.get(appKey);
+    Optional<App> fetchedApp = appService.get(appKey);
 
-      if (fetchedApp.isPresent()) {
-        App app = fetchedApp.get();
+    System.out.println("Mažu aplikaci: " + appKey);
+    if (fetchedApp.isPresent()) {
+      App app = fetchedApp.get();
 
-        app.getParent().ifPresentOrElse(null, () -> new ArrayList<>(app.getEnvironments()).forEach(environment -> this.deleteEnvironment(appKey, environment.getName(), hardDelete)));
-        new ArrayList<>(app.getVersions()).forEach(version -> versionService.delete(appKey, version.getName()));
+      new ArrayList<>(app.getDirectComponents()).forEach(component -> this.deleteApp(component.getKey(), hardDelete));
+
+      if (hardDelete) {
+        if (!app.isComponent()) {
+          new ArrayList<>(app.getEnvironments()).forEach(environment -> this.deleteEnvironment(appKey, environment.getName(), hardDelete));
+        }
+        new ArrayList<>(app.getVersions()).forEach(version -> {
+          new ArrayList<>(version.getDeployments()).forEach(this::deleteDeployment);
+          versionService.delete(appKey, version.getName());
+        });
       }
     }
-    appService.delete(appKey, hardDelete);
+    appService.delete(appKey);
   }
 
   public List<Environment> getAppEnvironments(String appKey) {
@@ -80,11 +90,10 @@ public class ServiceOrchestrator {
     environmentService.update(appKey, envKey, this.environmentFromDto(envDto));
   }
 
+  @Transactional
   public void deleteEnvironment(String appKey, String envKey, boolean hardDelete) {
     if (hardDelete) {
-      Optional<Environment> fetchedEnv = environmentService.get(appKey, envKey);
-
-      fetchedEnv.ifPresent(environment -> new ArrayList<>(environment.getDeployments()).forEach(deploymentService::delete));
+      environmentService.get(appKey, envKey).ifPresent(environment -> new ArrayList<>(environment.getDeployments()).forEach(this::deleteDeployment));
     }
     environmentService.delete(appKey, envKey);
   }
@@ -136,6 +145,11 @@ public class ServiceOrchestrator {
         deploymentService.save(newDeployment);
       });
     }
+  }
+
+  @Transactional
+  public void deleteDeployment(Deployment dep) {
+    deploymentService.delete(dep);
   }
 
   public App appFromDto(AppDto appDto) {

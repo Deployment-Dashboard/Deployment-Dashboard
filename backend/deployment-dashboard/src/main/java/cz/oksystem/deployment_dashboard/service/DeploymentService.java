@@ -34,12 +34,12 @@ public class DeploymentService {
     Environment envToDeployTo = deployment.getEnvironment();
     Version versionToDeploy = deployment.getVersion();
 
-    if (!envToDeployTo.getDeployments().contains(deployment)) {
-      envToDeployTo.addDeployment(deployment);
-    }
-    if (!versionToDeploy.getDeployments().contains(deployment)) {
-      versionToDeploy.addDeployment(deployment);
-    }
+//    if (!envToDeployTo.getDeployments().contains(deployment)) {
+//      envToDeployTo.addDeployment(deployment);
+//    }
+//    if (!versionToDeploy.getDeployments().contains(deployment)) {
+//      versionToDeploy.addDeployment(deployment);
+//    }
 
     return ret;
   }
@@ -84,9 +84,6 @@ public class DeploymentService {
 
   @Transactional
   public void delete(Deployment deployment) {
-    deployment.getVersion().removeDeployment(deployment);
-    deployment.getEnvironment().removeDeployment(deployment);
-
     deploymentRepository.delete(deployment);
   }
 }

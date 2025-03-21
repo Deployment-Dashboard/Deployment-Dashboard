@@ -24,7 +24,7 @@ public class EnvironmentService {
   public Environment save(Environment newEnv) {
     this.validate(newEnv);
 
-    newEnv.getApp().addEnvironment(newEnv);
+    //newEnv.getApp().addEnvironment(newEnv);
     return environmentRepository.save(newEnv);
   }
 
@@ -84,7 +84,7 @@ public class EnvironmentService {
       );
     }
 
-    envToDelete.getApp().removeEnvironment(envToDelete);
+    //envToDelete.getApp().removeEnvironment(envToDelete);
     environmentRepository.delete(envToDelete);
   }
 

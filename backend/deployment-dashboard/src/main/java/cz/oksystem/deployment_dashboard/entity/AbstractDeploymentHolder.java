@@ -23,19 +23,19 @@ public abstract class AbstractDeploymentHolder {
     return Collections.unmodifiableList(this.deployments);
   }
 
-  // List field accessors
-  public void addDeployment(Deployment newDeployment) {
-    if (newDeployment == null) {
-      throw new IllegalArgumentException(
-        "Deployment is null."
-      );
-    }
-    this.deployments.add(newDeployment);
-  }
-
-  public void removeDeployment(Deployment deploymentToRemove) {
-    this.deployments.remove(deploymentToRemove);
-  }
+//  // List field accessors
+//  public void addDeployment(Deployment newDeployment) {
+//    if (newDeployment == null) {
+//      throw new IllegalArgumentException(
+//        "Deployment is null."
+//      );
+//    }
+//    this.deployments.add(newDeployment);
+//  }
+//
+//  public void removeDeployment(Deployment deploymentToRemove) {
+//    this.deployments.remove(deploymentToRemove);
+//  }
 
   // Properties
   public boolean hasDeployment() {

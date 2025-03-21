@@ -25,7 +25,7 @@ public class VersionService {
       );
     }
 
-    newVersion.getApp().addVersion(newVersion);
+    //newVersion.getApp().addVersion(newVersion);
     return versionRepository.save(newVersion);
   }
 
@@ -53,7 +53,7 @@ public class VersionService {
       );
     }
 
-    verToDelete.getApp().removeVersion(verToDelete);
+    //verToDelete.getApp().removeVersion(verToDelete);
     versionRepository.delete(verToDelete);
   }
 }

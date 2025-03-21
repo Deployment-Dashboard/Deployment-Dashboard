@@ -30,9 +30,9 @@ public class AppService {
   public App save(App newApp) {
     this.validate(newApp, true);
 
-    newApp.getParent().ifPresent(
-      parent -> parent.addComponent(newApp)
-    );
+//    newApp.getParent().ifPresent(
+//      parent -> parent.addComponent(newApp)
+//    );
 
     return appRepository.save(newApp);
   }
@@ -79,15 +79,15 @@ public class AppService {
       () -> new CustomExceptions.NotManagedException(App.class, appKeyToUpdate)
     );
 
-    appToUpdate.getParent().ifPresent(
-      parent -> parent.removeComponent(appToUpdate)
-    );
+//    appToUpdate.getParent().ifPresent(
+//      parent -> parent.removeComponent(appToUpdate)
+//    );
 
     appToUpdate.setParent(updateWith.getParent().orElse(null));
 
-    appToUpdate.getParent().ifPresent(
-      parent -> parent.addComponent(appToUpdate)
-    );
+//    appToUpdate.getParent().ifPresent(
+//      parent -> parent.addComponent(appToUpdate)
+//    );
 
     this.validate(updateWith, !appToUpdate.getKey().equals(updateWith.getKey()));
 
@@ -101,29 +101,20 @@ public class AppService {
 
   // TODO dořešit delete/archiv
   @Transactional
-  public void delete(String appKeyToDelete, boolean hardDelete) {
+  public void delete(String appKeyToDelete) {
     App appToDelete = this.get(appKeyToDelete).orElseThrow(
       () -> new CustomExceptions.NotManagedException(App.class, appKeyToDelete)
     );
 
-//    if (!hardDelete) {
-//      appToDelete.setArchivedTimestamp(LocalDateTime.now());
-//      return;
-//    }
-
-    if (!hardDelete && appToDelete.hasDeployment()) {
+    if (appToDelete.hasDeployment()) {
       throw new CustomExceptions.DeletionNotAllowedException(
         App.class, appToDelete.getKey()
       );
     }
 
-    for (App component : appToDelete.getDirectComponents()) {
-      this.delete(component.getKey(), true);
-    }
-
-    appToDelete.getParent().ifPresent(
-      parent -> parent.removeComponent(appToDelete)
-    );
+//    appToDelete.getParent().ifPresent(
+//      parent -> parent.removeComponent(appToDelete)
+//    );
 
     appRepository.delete(appToDelete);
   }

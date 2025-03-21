@@ -151,44 +151,44 @@ public class App {
   }
 
   // List field accessors
-  public void addEnvironment(Environment newEnvironment) {
-    if (newEnvironment == null) {
-      throw new IllegalArgumentException(
-        "Environment is null."
-      );
-    }
-    this.environments.add(newEnvironment);
-  }
+//  public void addEnvironment(Environment newEnvironment) {
+//    if (newEnvironment == null) {
+//      throw new IllegalArgumentException(
+//        "Environment is null."
+//      );
+//    }
+//    this.environments.add(newEnvironment);
+//  }
 
-  public void removeEnvironment(Environment environmentToRemove) {
-    this.environments.remove(environmentToRemove);
-  }
+//  public void removeEnvironment(Environment environmentToRemove) {
+//    this.environments.remove(environmentToRemove);
+//  }
 
-  public void addVersion(Version newVersion) {
-    if (newVersion == null) {
-      throw new IllegalArgumentException(
-        "Version is null."
-      );
-    }
-    this.versions.add(newVersion);
-  }
+//  public void addVersion(Version newVersion) {
+//    if (newVersion == null) {
+//      throw new IllegalArgumentException(
+//        "Version is null."
+//      );
+//    }
+//    this.versions.add(newVersion);
+//  }
 
-  public void removeVersion(Version versionToRemove) {
-    this.versions.remove(versionToRemove);
-  }
+//  public void removeVersion(Version versionToRemove) {
+//    this.versions.remove(versionToRemove);
+//  }
 
-  public void addComponent(App newComponent) {
-    if (newComponent == null) {
-      throw new IllegalArgumentException(
-        "Component is null."
-      );
-    }
-    this.components.add(newComponent);
-  }
+//  public void addComponent(App newComponent) {
+//    if (newComponent == null) {
+//      throw new IllegalArgumentException(
+//        "Component is null."
+//      );
+//    }
+//    this.components.add(newComponent);
+//  }
 
-  public void removeComponent(App componentToRemove) {
-    this.components.remove(componentToRemove);
-  }
+//  public void removeComponent(App componentToRemove) {
+//    this.components.remove(componentToRemove);
+//  }
 
   // Properties
   public boolean isComponent() {

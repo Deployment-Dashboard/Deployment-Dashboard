@@ -9,5 +9,5 @@ export default function Index() {
     navigate("/projects");
   }, [navigate]);
 
-  return null;
+  return;
 }

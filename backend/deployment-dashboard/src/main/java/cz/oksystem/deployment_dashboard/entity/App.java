@@ -14,6 +14,7 @@ import java.util.*;
 @Entity
 @Table(name = "apps", uniqueConstraints = @UniqueConstraint(columnNames = {"app_key", "archived_timestamp"}))
 public class App {
+  public static final String CZECH_NAME = "Aplikace";
 
   @Id
   @GeneratedValue
@@ -37,15 +38,15 @@ public class App {
   private App parent;
 
   @JsonManagedReference
-  @OneToMany(fetch = FetchType.LAZY, mappedBy = "app")
+  @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.REMOVE, orphanRemoval = true)
   private final List<Environment> environments = new ArrayList<>();
 
   @JsonManagedReference
-  @OneToMany(fetch = FetchType.LAZY, mappedBy = "app")
+  @OneToMany(fetch = FetchType.LAZY, mappedBy = "app", cascade = CascadeType.REMOVE, orphanRemoval = true)
   private final List<Version> versions = new ArrayList<>();
 
   @JsonManagedReference
-  @OneToMany(fetch = FetchType.LAZY, mappedBy = "parent")
+  @OneToMany(fetch = FetchType.LAZY, mappedBy = "parent", cascade = CascadeType.REMOVE, orphanRemoval = true)
   private final List<App> components = new ArrayList<>();
 
 
@@ -123,6 +124,16 @@ public class App {
     return components;
   }
 
+  public List<Deployment> getDeployments() {
+    List<Deployment> deployments = new ArrayList<>();
+
+    for (Version version : this.getVersions()) {
+      deployments.addAll(version.getDeployments());
+    }
+
+    return deployments;
+  }
+
   // Setters
   public void setKey(String newKey) {
     if (newKey == null || newKey.isEmpty()) {
@@ -148,46 +159,6 @@ public class App {
 
   public void setParent(@Nullable App newParent) {
     this.parent = newParent;
-  }
-
-  // List field accessors
-  public void addEnvironment(Environment newEnvironment) {
-    if (newEnvironment == null) {
-      throw new IllegalArgumentException(
-        "Environment is null."
-      );
-    }
-    this.environments.add(newEnvironment);
-  }
-
-  public void removeEnvironment(Environment environmentToRemove) {
-    this.environments.remove(environmentToRemove);
-  }
-
-  public void addVersion(Version newVersion) {
-    if (newVersion == null) {
-      throw new IllegalArgumentException(
-        "Version is null."
-      );
-    }
-    this.versions.add(newVersion);
-  }
-
-  public void removeVersion(Version versionToRemove) {
-    this.versions.remove(versionToRemove);
-  }
-
-  public void addComponent(App newComponent) {
-    if (newComponent == null) {
-      throw new IllegalArgumentException(
-        "Component is null."
-      );
-    }
-    this.components.add(newComponent);
-  }
-
-  public void removeComponent(App componentToRemove) {
-    this.components.remove(componentToRemove);
   }
 
   // Properties

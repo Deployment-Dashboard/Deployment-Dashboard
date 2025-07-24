@@ -7,14 +7,16 @@ import jakarta.validation.constraints.NotNull;
 
 @Entity
 @Table(name = "envs", uniqueConstraints = @UniqueConstraint(columnNames = {"app_id", "name"}))
-@AssociationOverride(name = "deployments", joinColumns = @JoinColumn(name = "env_id"))
+@AssociationOverride(name = "deployments", joinColumns = @JoinColumn(name = "env_id", updatable = false))
 public class Environment extends AbstractDeploymentHolder {
+
+  public static final String CZECH_NAME = "Prostředí";
 
   @Id
   @GeneratedValue
   @Column(name = "env_id")
   private Long id;
-  
+
   @NotBlank
   @Column(name = "name")
   private String name;
@@ -22,7 +24,7 @@ public class Environment extends AbstractDeploymentHolder {
   @JsonBackReference
   @NotNull
   @ManyToOne
-  @JoinColumn(name = "app_id")
+  @JoinColumn(name = "app_id", updatable = false)
   private App app;
 
 

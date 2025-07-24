@@ -10,8 +10,10 @@ import java.util.Optional;
 
 @Entity
 @Table(name = "versions", uniqueConstraints = @UniqueConstraint(columnNames = {"name", "app_id"}))
-@AssociationOverride(name = "deployments", joinColumns = @JoinColumn(name = "version_id"))
+@AssociationOverride(name = "deployments", joinColumns = @JoinColumn(name = "version_id", updatable = false))
 public class Version extends AbstractDeploymentHolder {
+
+  public static final String CZECH_NAME = "Verze";
 
   @Id
   @GeneratedValue
@@ -29,7 +31,7 @@ public class Version extends AbstractDeploymentHolder {
   @JsonBackReference
   @NotNull
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "app_id")
+  @JoinColumn(name = "app_id", updatable = false)
   private App app;
 
 

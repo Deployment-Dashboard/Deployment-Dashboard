@@ -14,6 +14,8 @@ import java.util.Optional;
 @Table(name = "deployments", uniqueConstraints = @UniqueConstraint(columnNames = {"env_id", "version_id"}))
 public class Deployment {
 
+  public static final String CZECH_NAME = "Nasazení";
+
   @Id
   @GeneratedValue
   @Column(name = "deployment_id")
@@ -31,13 +33,13 @@ public class Deployment {
   @JsonBackReference
   @NotNull
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "env_id")
+  @JoinColumn(name = "env_id", updatable = false)
   private Environment environment;
 
   @JsonBackReference
   @NotNull
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "version_id")
+  @JoinColumn(name = "version_id", updatable = false)
   private Version version;
 
 

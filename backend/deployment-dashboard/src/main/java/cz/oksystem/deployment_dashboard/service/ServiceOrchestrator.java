@@ -42,23 +42,14 @@ public class ServiceOrchestrator {
     appService.update(appKey, this.appFromDto(appDto));
   }
 
-  public void deleteApp(String appKey, boolean hardDelete) {
-    if (hardDelete) {
-      Optional<App> fetchedApp = appService.get(appKey);
-
-      if (fetchedApp.isPresent()) {
-        App app = fetchedApp.get();
-
-        app.getParent().ifPresentOrElse(null, () -> new ArrayList<>(app.getEnvironments()).forEach(environment -> this.deleteEnvironment(appKey, environment.getName(), hardDelete)));
-        new ArrayList<>(app.getVersions()).forEach(version -> versionService.delete(appKey, version.getName()));
-      }
-    }
-    appService.delete(appKey, hardDelete);
+  @Transactional
+  public void deleteApp(String appKey, boolean force) {
+    appService.delete(appKey, force);
   }
 
   public List<Environment> getAppEnvironments(String appKey) {
     App fetchedApp = appService.get(appKey).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(App.class, appKey)
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, appKey)
     );
 
     return fetchedApp.getEnvironments();
@@ -66,7 +57,7 @@ public class ServiceOrchestrator {
 
   public List<Version> getAppVersions(String appKey) {
     App fetchedApp = appService.get(appKey).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(App.class, appKey)
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, appKey)
     );
 
     return fetchedApp.getVersions();
@@ -80,23 +71,19 @@ public class ServiceOrchestrator {
     environmentService.update(appKey, envKey, this.environmentFromDto(envDto));
   }
 
-  public void deleteEnvironment(String appKey, String envKey, boolean hardDelete) {
-    if (hardDelete) {
-      Optional<Environment> fetchedEnv = environmentService.get(appKey, envKey);
-
-      fetchedEnv.ifPresent(environment -> new ArrayList<>(environment.getDeployments()).forEach(deploymentService::delete));
-    }
-    environmentService.delete(appKey, envKey);
+  @Transactional
+  public void deleteEnvironment(String appKey, String envKey, boolean force) {
+    environmentService.delete(appKey, envKey, force);
   }
 
   @Transactional
   public void release(String projectKey, String envKey, Map<String, String> versionedApps, String jiraTicket, boolean force) {
     App project = appService.get(projectKey).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(App.class, projectKey)
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, projectKey)
     );
 
     Environment envToDeployTo = environmentService.get(projectKey, envKey).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(Environment.class, projectKey + "-" + envKey)
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, Environment.CZECH_NAME, projectKey, envKey)
     );
 
     List<App> projectComponents = project.getComponents();
@@ -104,7 +91,7 @@ public class ServiceOrchestrator {
     if (versionedApps != null && !versionedApps.isEmpty()) {
       versionedApps.forEach((appKey, versionName) -> {
         App fetchedApp = appService.get(appKey).orElseThrow(
-          () -> new CustomExceptions.NotManagedException(App.class, appKey)
+          () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, appKey)
         );
 
         if (!projectComponents.contains(fetchedApp)
@@ -138,13 +125,14 @@ public class ServiceOrchestrator {
     }
   }
 
+
   public App appFromDto(AppDto appDto) {
     App newApp = new App(appDto.getKey(), appDto.getName());
 
     appDto.getParentKey().ifPresent(
       parentKey -> {
         App parent = appService.get(parentKey).orElseThrow(
-          () -> new CustomExceptions.NotManagedException(App.class, parentKey));
+          () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, parentKey));
         newApp.setParent(parent);
       }
     );
@@ -156,7 +144,7 @@ public class ServiceOrchestrator {
 
   public Environment environmentFromDto(EnvironmentDto envDto) {
     App fetchedApp = appService.get(envDto.getAppKey()).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(App.class, envDto.getAppKey())
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, envDto.getAppKey())
     );
 
     return new Environment(envDto.getName(), fetchedApp);
@@ -215,7 +203,7 @@ public class ServiceOrchestrator {
 
   public ProjectDetailDto getAppDetailDto(String key) {
     App fetchedApp = appService.get(key).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(App.class, key)
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, key)
     );
 
     ProjectDetailDto detailDto = new ProjectDetailDto(fetchedApp.getKey(), fetchedApp.getName());

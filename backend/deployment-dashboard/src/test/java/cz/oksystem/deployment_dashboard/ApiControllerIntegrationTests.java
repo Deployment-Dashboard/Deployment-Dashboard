@@ -10,6 +10,7 @@ import cz.oksystem.deployment_dashboard.service.AppService;
 import cz.oksystem.deployment_dashboard.service.DeploymentService;
 import cz.oksystem.deployment_dashboard.service.EnvironmentService;
 import cz.oksystem.deployment_dashboard.service.VersionService;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @Transactional
 class ApiControllerIntegrationTests {
 
@@ -57,6 +60,9 @@ class ApiControllerIntegrationTests {
   @Autowired
   private DeploymentService depService;
 
+  @Autowired
+  private EntityManager em;
+
 
 	@Test
 	void contextLoads() throws Exception {
@@ -67,6 +73,7 @@ class ApiControllerIntegrationTests {
     Assertions.assertNotNull(envService);
     Assertions.assertNotNull(verService);
     Assertions.assertNotNull(depService);
+    Assertions.assertNotNull(em);
 	}
 
   // addApp tests
@@ -213,12 +220,18 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isCreated());
 
+    em.flush();
+    em.clear();
+
+    app = appService.get(app.getKey()).orElse(null);
+
     Optional<App> fe = appService.get("dd-fe");
     Optional<App> db = appService.get("dd-db");
 
+    Assertions.assertNotNull(app);
     Assertions.assertTrue(fe.isPresent());
     Assertions.assertTrue(db.isPresent());
-    Assertions.assertFalse(app.getDirectComponents().isEmpty());
+    Assertions.assertFalse(app.getComponents().isEmpty());
     Assertions.assertTrue(app.getDirectComponents().contains(fe.get()));
     Assertions.assertTrue(app.getDirectComponents().contains(db.get()));
   }

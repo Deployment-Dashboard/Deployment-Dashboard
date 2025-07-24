@@ -30,10 +30,6 @@ public class AppService {
   public App save(App newApp) {
     this.validate(newApp, true);
 
-//    newApp.getParent().ifPresent(
-//      parent -> parent.addComponent(newApp)
-//    );
-
     return appRepository.save(newApp);
   }
 
@@ -60,12 +56,12 @@ public class AppService {
   @Transactional
   void validate(App app, boolean isNewOrKeyChanged) {
     if (this.exists(app.getKey()) && isNewOrKeyChanged) {
-      throw new CustomExceptions.DuplicateKeyException(App.class, app.getKey());
+      throw new CustomExceptions.DuplicateKeyException(App.CZECH_NAME, app.getKey());
     }
 
     app.getParent().ifPresent(parentApp -> {
       if (!this.exists(parentApp)) {
-        throw new CustomExceptions.NotManagedException(App.class, parentApp.getKey());
+        throw new CustomExceptions.NotManagedException(App.CZECH_NAME, parentApp.getKey());
       }
       if (app.hasCycle()) {
         throw new CustomExceptions.RecursiveAppParentingException();
@@ -76,18 +72,11 @@ public class AppService {
   @Transactional
   public App update(String appKeyToUpdate, App updateWith) {
     App appToUpdate = this.get(appKeyToUpdate).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(App.class, appKeyToUpdate)
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, appKeyToUpdate)
     );
-
-//    appToUpdate.getParent().ifPresent(
-//      parent -> parent.removeComponent(appToUpdate)
-//    );
 
     appToUpdate.setParent(updateWith.getParent().orElse(null));
 
-//    appToUpdate.getParent().ifPresent(
-//      parent -> parent.addComponent(appToUpdate)
-//    );
 
     this.validate(updateWith, !appToUpdate.getKey().equals(updateWith.getKey()));
 
@@ -101,20 +90,16 @@ public class AppService {
 
   // TODO dořešit delete/archiv
   @Transactional
-  public void delete(String appKeyToDelete) {
+  public void delete(String appKeyToDelete, boolean force) {
     App appToDelete = this.get(appKeyToDelete).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(App.class, appKeyToDelete)
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, appKeyToDelete)
     );
 
-    if (appToDelete.hasDeployment()) {
+    if (!force && appToDelete.hasDeployment()) {
       throw new CustomExceptions.DeletionNotAllowedException(
-        App.class, appToDelete.getKey()
+        App.CZECH_NAME, appToDelete.getKey()
       );
     }
-
-//    appToDelete.getParent().ifPresent(
-//      parent -> parent.removeComponent(appToDelete)
-//    );
 
     appRepository.delete(appToDelete);
   }

@@ -21,11 +21,10 @@ public class VersionService {
   public Version save(Version newVersion) {
     if (this.exists(newVersion.getApp().getKey(), newVersion.getName())) {
       throw new CustomExceptions.DuplicateKeyException(
-        Version.class, newVersion.getApp().getKey(), newVersion.getName()
+        Version.CZECH_NAME, newVersion.getApp().getKey(), newVersion.getName()
       );
     }
 
-    //newVersion.getApp().addVersion(newVersion);
     return versionRepository.save(newVersion);
   }
 
@@ -40,20 +39,19 @@ public class VersionService {
   }
 
   @Transactional
-  public void delete(String appKey, String versionName) {
+  public void delete(String appKey, String versionName, boolean force) {
     Version verToDelete = this.get(appKey, versionName).orElseThrow(
       () -> new CustomExceptions.NotManagedException(
-        Version.class, App.class, versionName, appKey
+        Version.CZECH_NAME, App.CZECH_NAME, versionName, appKey
       )
     );
 
-    if (verToDelete.hasDeployment()) {
+    if (!force && verToDelete.hasDeployment()) {
       throw new CustomExceptions.DeletionNotAllowedException(
-        Version.class, versionName
+        Version.CZECH_NAME, versionName
       );
     }
 
-    //verToDelete.getApp().removeVersion(verToDelete);
     versionRepository.delete(verToDelete);
   }
 }

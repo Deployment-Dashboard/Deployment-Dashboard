@@ -8,10 +8,10 @@ import java.util.Optional;
 
 public class AppDto {
 
-  @NotBlank(message = "Key is blank.")
+  @NotBlank(message = "Pole 'key' je prázdné.")
   private String key;
 
-  @NotBlank(message = "Name is blank.")
+  @NotBlank(message = "Pole 'name' je prázdné.")
   private String name;
 
   @Nullable

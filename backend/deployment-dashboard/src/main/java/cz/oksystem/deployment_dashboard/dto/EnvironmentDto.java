@@ -4,10 +4,10 @@ import jakarta.validation.constraints.NotBlank;
 
 public class EnvironmentDto {
 
-  @NotBlank(message = "Name is blank.")
+  @NotBlank(message = "Pole 'name' je prázdné.")
   private String name;
 
-  @NotBlank(message = "App key is blank.")
+  @NotBlank(message = "Pole 'appKey' je prázdné.")
   private String appKey;
 
 

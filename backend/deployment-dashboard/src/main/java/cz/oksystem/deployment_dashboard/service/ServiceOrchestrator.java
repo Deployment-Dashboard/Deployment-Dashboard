@@ -7,7 +7,6 @@ import cz.oksystem.deployment_dashboard.entity.Environment;
 import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.serializers.CustomProtocolsSerializer;
-import org.hibernate.Hibernate;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,31 +43,13 @@ public class ServiceOrchestrator {
   }
 
   @Transactional
-  public void deleteApp(String appKey, boolean hardDelete) {
-    Optional<App> fetchedApp = appService.get(appKey);
-
-    System.out.println("Mažu aplikaci: " + appKey);
-    if (fetchedApp.isPresent()) {
-      App app = fetchedApp.get();
-
-      new ArrayList<>(app.getDirectComponents()).forEach(component -> this.deleteApp(component.getKey(), hardDelete));
-
-      if (hardDelete) {
-        if (!app.isComponent()) {
-          new ArrayList<>(app.getEnvironments()).forEach(environment -> this.deleteEnvironment(appKey, environment.getName(), hardDelete));
-        }
-        new ArrayList<>(app.getVersions()).forEach(version -> {
-          new ArrayList<>(version.getDeployments()).forEach(this::deleteDeployment);
-          versionService.delete(appKey, version.getName());
-        });
-      }
-    }
-    appService.delete(appKey);
+  public void deleteApp(String appKey, boolean force) {
+    appService.delete(appKey, force);
   }
 
   public List<Environment> getAppEnvironments(String appKey) {
     App fetchedApp = appService.get(appKey).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(App.class, appKey)
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, appKey)
     );
 
     return fetchedApp.getEnvironments();
@@ -76,7 +57,7 @@ public class ServiceOrchestrator {
 
   public List<Version> getAppVersions(String appKey) {
     App fetchedApp = appService.get(appKey).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(App.class, appKey)
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, appKey)
     );
 
     return fetchedApp.getVersions();
@@ -91,21 +72,18 @@ public class ServiceOrchestrator {
   }
 
   @Transactional
-  public void deleteEnvironment(String appKey, String envKey, boolean hardDelete) {
-    if (hardDelete) {
-      environmentService.get(appKey, envKey).ifPresent(environment -> new ArrayList<>(environment.getDeployments()).forEach(this::deleteDeployment));
-    }
-    environmentService.delete(appKey, envKey);
+  public void deleteEnvironment(String appKey, String envKey, boolean force) {
+    environmentService.delete(appKey, envKey, force);
   }
 
   @Transactional
   public void release(String projectKey, String envKey, Map<String, String> versionedApps, String jiraTicket, boolean force) {
     App project = appService.get(projectKey).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(App.class, projectKey)
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, projectKey)
     );
 
     Environment envToDeployTo = environmentService.get(projectKey, envKey).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(Environment.class, projectKey + "-" + envKey)
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, Environment.CZECH_NAME, projectKey, envKey)
     );
 
     List<App> projectComponents = project.getComponents();
@@ -113,7 +91,7 @@ public class ServiceOrchestrator {
     if (versionedApps != null && !versionedApps.isEmpty()) {
       versionedApps.forEach((appKey, versionName) -> {
         App fetchedApp = appService.get(appKey).orElseThrow(
-          () -> new CustomExceptions.NotManagedException(App.class, appKey)
+          () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, appKey)
         );
 
         if (!projectComponents.contains(fetchedApp)
@@ -147,10 +125,6 @@ public class ServiceOrchestrator {
     }
   }
 
-  @Transactional
-  public void deleteDeployment(Deployment dep) {
-    deploymentService.delete(dep);
-  }
 
   public App appFromDto(AppDto appDto) {
     App newApp = new App(appDto.getKey(), appDto.getName());
@@ -158,7 +132,7 @@ public class ServiceOrchestrator {
     appDto.getParentKey().ifPresent(
       parentKey -> {
         App parent = appService.get(parentKey).orElseThrow(
-          () -> new CustomExceptions.NotManagedException(App.class, parentKey));
+          () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, parentKey));
         newApp.setParent(parent);
       }
     );
@@ -170,7 +144,7 @@ public class ServiceOrchestrator {
 
   public Environment environmentFromDto(EnvironmentDto envDto) {
     App fetchedApp = appService.get(envDto.getAppKey()).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(App.class, envDto.getAppKey())
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, envDto.getAppKey())
     );
 
     return new Environment(envDto.getName(), fetchedApp);
@@ -229,7 +203,7 @@ public class ServiceOrchestrator {
 
   public ProjectDetailDto getAppDetailDto(String key) {
     App fetchedApp = appService.get(key).orElseThrow(
-      () -> new CustomExceptions.NotManagedException(App.class, key)
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, key)
     );
 
     ProjectDetailDto detailDto = new ProjectDetailDto(fetchedApp.getKey(), fetchedApp.getName());

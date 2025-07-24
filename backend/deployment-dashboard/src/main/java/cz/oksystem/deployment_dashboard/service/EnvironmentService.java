@@ -24,7 +24,6 @@ public class EnvironmentService {
   public Environment save(Environment newEnv) {
     this.validate(newEnv);
 
-    //newEnv.getApp().addEnvironment(newEnv);
     return environmentRepository.save(newEnv);
   }
 
@@ -52,7 +51,7 @@ public class EnvironmentService {
   void validate(Environment env) {
     if (this.exists(env.getApp().getKey(), env.getName())) {
       throw new CustomExceptions.DuplicateKeyException(
-        Environment.class, env.getApp().getKey(), env.getName()
+        Environment.CZECH_NAME, env.getApp().getKey(), env.getName()
       );
     }
   }
@@ -61,7 +60,7 @@ public class EnvironmentService {
   public void update(String appKey, String envKeyToUpdate, Environment updateWith) {
     Environment envToUpdate = this.get(appKey, envKeyToUpdate).orElseThrow(
       () -> new CustomExceptions.NotManagedException(
-        Environment.class, App.class, envKeyToUpdate, appKey
+        Environment.CZECH_NAME, App.CZECH_NAME, envKeyToUpdate, appKey
       )
     );
 
@@ -71,20 +70,19 @@ public class EnvironmentService {
   }
 
   @Transactional
-  public void delete(String appKey, String envKeyToDelete) {
+  public void delete(String appKey, String envKeyToDelete, boolean force) {
     Environment envToDelete = this.get(appKey, envKeyToDelete).orElseThrow(
       () -> new CustomExceptions.NotManagedException(
-        Environment.class, App.class, envKeyToDelete, appKey
+        Environment.CZECH_NAME, App.CZECH_NAME, envKeyToDelete, appKey
       )
     );
 
-    if (envToDelete.hasDeployment()) {
+    if (!force && envToDelete.hasDeployment()) {
       throw new CustomExceptions.DeletionNotAllowedException(
-        Environment.class, envKeyToDelete
+        Environment.CZECH_NAME, envKeyToDelete
       );
     }
 
-    //envToDelete.getApp().removeEnvironment(envToDelete);
     environmentRepository.delete(envToDelete);
   }
 

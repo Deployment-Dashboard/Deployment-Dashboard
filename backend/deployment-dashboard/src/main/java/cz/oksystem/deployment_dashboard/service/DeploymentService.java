@@ -1,8 +1,6 @@
 package cz.oksystem.deployment_dashboard.service;
 
 import cz.oksystem.deployment_dashboard.entity.Deployment;
-import cz.oksystem.deployment_dashboard.entity.Environment;
-import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.repository.DeploymentRepository;
 import org.springframework.stereotype.Service;
@@ -30,16 +28,6 @@ public class DeploymentService {
     } else {
       ret = deploymentRepository.save(deployment);
     }
-
-    Environment envToDeployTo = deployment.getEnvironment();
-    Version versionToDeploy = deployment.getVersion();
-
-//    if (!envToDeployTo.getDeployments().contains(deployment)) {
-//      envToDeployTo.addDeployment(deployment);
-//    }
-//    if (!versionToDeploy.getDeployments().contains(deployment)) {
-//      versionToDeploy.addDeployment(deployment);
-//    }
 
     return ret;
   }

@@ -13,14 +13,14 @@ import {
   TagsInput,
   TextInput,
   Text,
-  Title, Loader, Tooltip, Modal, Notification, useModalsStack
+  Title, Loader, Tooltip, Modal, Notification, useModalsStack, Flex, Indicator, Fieldset, ScrollArea
 } from "@mantine/core";
 import {
   IconArrowBackUp,
   IconCheck,
   IconChevronDown,
-  IconChevronUp,
-  IconExternalLink,
+  IconChevronUp, IconExclamationMark,
+  IconExternalLink, IconHelpCircle, IconHelpCircleFilled, IconHistory, IconInfoCircle,
   IconPencil, IconPlus,
   IconRocket, IconTrash,
   IconX
@@ -49,6 +49,13 @@ export async function loader({
 }
 
 export default function ProjectDetail() {
+
+  const collator = new Intl.Collator(undefined, { sensitivity: "base" });
+
+  const equalsCaseInsensitive = (str1: string, str2: string) => {
+    return collator.compare(str1.trim(), str2.trim()) === 0;
+  }
+
   const { revalidate } = useRevalidator();
   const navigate = useNavigate();
 
@@ -155,9 +162,9 @@ export default function ProjectDetail() {
     return appDetail.environmentNames.map(name => ({
       id: envIdCounter.current++,
       name,
-      intermediateName: name,
       newName: name,
       isNew: false,
+      toDelete: false,
     }));
   };
 
@@ -171,9 +178,9 @@ export default function ProjectDetail() {
         {
           id: envIdCounter.current++, // Ensure the id is unique
           name: inputEnvironment.trim(),
-          intermediateName: inputEnvironment.trim(),
           newName: inputEnvironment.trim(),
           isNew: true,
+          toDelete: false,
         }
       ]);
     }
@@ -187,7 +194,7 @@ export default function ProjectDetail() {
     if (!foundEnvironment.isNew) {
       setEnvironments((prev) =>
         prev.map(env =>
-          env.id === idToDelete ? { ...env, newName: '' } : env
+          env.id === idToDelete ? { ...env, toDelete: true } : env
         )
       );
     } else {
@@ -197,17 +204,23 @@ export default function ProjectDetail() {
     setObjectToDelete({ type: "", id: -1 });
   }
 
+  const handleEnvironmentNameChange = (envId, changedName) => {
+    setEnvironments((prev) =>
+      prev.map(env =>
+        env.id === envId ? { ...env, newName: changedName } : env
+      )
+    )
+  }
+
+
+
   const [inputEnvironment, setInputEnvironment] = useState('');
 
   const [enabledEnv, envButtonHandlers] = useDisclosure(false);
 
   useEffect(() => {
     if (inputEnvironment.trim()
-      && !environments.some(env => (
-        (!editingEnv[env.id] &&
-          env.newName === inputEnvironment.trim()) ||
-        (editingEnv[env.id] &&
-          env.intermediateName === inputEnvironment.trim())))) {
+      && !environments.some(env => equalsCaseInsensitive(env.newName, inputEnvironment.trim()) && !env.toDelete)) {
       envButtonHandlers.open();
     } else {
       envButtonHandlers.close();
@@ -223,18 +236,52 @@ export default function ProjectDetail() {
         id: appIdCounter.current++,
         key,
         name,
-        intermediateName: name,
-        intermediateKey: key,
         newName: name,
         newKey: key,
         isNew: false,
+        toDelete: false,
       }))
       .sort((a, b) => a.key.localeCompare(b.key));
   };
 
+  const resetForm = () => {
+    setComponentStates((prev) =>
+      prev.filter(component => !component.isNew).map(component =>
+        ({ ...component,
+          newName: component.name,
+          newKey: component.key,
+          isNew: false,
+          toDelete: false, })
+      )
+    )
+
+    setProjectState((prev) => ({...prev, newName: prev.name, newKey: prev.key}))
+
+    setEnvironments((prev) =>
+      prev.filter(env => !env.isNew).map(env =>
+        ({ ...env,
+          newName: env.name,
+          isNew: false,
+          toDelete: false, })
+      )
+    )
+  }
+
   const [componentStates, setComponentStates] = useState(() => initializeComponentStates());
 
-  const projectId = componentStates.find(component => component.key === appDetail.key).id;
+  const [projectState, setProjectState] = useState(componentStates.find(component => component.key === appDetail.key));
+
+  useEffect(() => {
+    form.setFieldValue('name', projectState.newName);
+    form.setFieldValue('key', projectState.newKey);
+    form.validate();
+  }, [projectState]);
+
+  useEffect(() => {
+    form.validate();
+  }, [componentStates]);
+
+
 
   const [inputComponentName, setInputComponentName] = useState('');
   const [inputComponentKey, setInputComponentKey] = useState('');
@@ -245,11 +292,7 @@ export default function ProjectDetail() {
   useEffect(() => {
     if (inputComponentKey.trim()
       && inputComponentName.trim()
-      && !componentStates.some(component=> (
-        (!editing[component.id] &&
-          component.newKey === inputComponentKey) ||
-        (editing[component.id] &&
-          component.intermediateKey === inputComponentKey))))
+      && !componentStates.some(component=> equalsCaseInsensitive(component.newKey, inputComponentKey) && !component.toDelete))
     {
       componentButtonHandlers.open();
     } else {
@@ -265,11 +308,10 @@ export default function ProjectDetail() {
           id: appIdCounter.current++,
           key: inputComponentKey.trim(),
           name: inputComponentName.trim(),
-          intermediateKey: inputComponentKey.trim(),
-          intermediateName: inputComponentName.trim(),
           newKey: inputComponentKey.trim(),
           newName: inputComponentName.trim(),
           isNew: true,
+          toDelete: false,
       }]);
       setInputComponentName('');
       setInputComponentKey('');
@@ -281,7 +323,7 @@ export default function ProjectDetail() {
 
   useEffect(() => {
     if (objectToDelete.id !== -1) {
-      confirmHandlers.open();
+      openConfirm();
     }
   }, [objectToDelete]);
 
@@ -292,7 +334,7 @@ export default function ProjectDetail() {
     if (!foundComponent.isNew) {
       setComponentStates((prev) =>
         prev.map(component =>
-          component.id === idToDelete ? { ...component, newKey: '' } : component
+          component.id === idToDelete ? { ...component, toDelete: true } : component
         )
       );
     } else {
@@ -304,22 +346,26 @@ export default function ProjectDetail() {
   const hasDeploymentComp = (idToCheck) => {
     const foundApp = componentStates.find(component => component.id === idToCheck);
 
-    return !foundApp.isNew && Object.keys(appDetail.componentKeysAndNamesMap).some(ogKey => ogKey === foundApp.key) && appDetail.environmentNames.some(env => latestVersions[foundApp.key][env] !== "-");
+    return !foundApp.isNew
+      && Object.keys(appDetail.componentKeysAndNamesMap)
+        .some(ogKey => ogKey === foundApp.key)
+      && appDetail.environmentNames
+        .some(env => latestVersions[foundApp.key][env] !== "-");
   }
 
   const hasDeploymentEnv = (idToCheck) => {
     const foundEnv = environments.find(env => env.id === idToCheck);
 
-    return !foundEnv.isNew && Object.keys(appDetail.componentKeysAndNamesMap).some(key => latestVersions[key][foundEnv.name] !== "-");
+    return !foundEnv.isNew
+      && Object.keys(appDetail.componentKeysAndNamesMap)
+        .some(key => latestVersions[key][foundEnv.name] !== "-");
   }
 
   const handleComponentNameChange = (idToChange, newValue) => {
     setComponentStates((prev) =>
       prev.map(component =>
         component.id === idToChange
-          ? idToChange === projectId
-            ? { ...component, newName: newValue }
-            : { ...component, intermediateName: newValue }
+          ? { ...component, newName: newValue }
           : component
       )
     );
@@ -329,76 +375,16 @@ export default function ProjectDetail() {
     setComponentStates((prev) =>
       prev.map(component =>
         component.id === idToChange
-          ? idToChange === projectId
-            ? { ...component, newKey: newValue }
-            : { ...component, intermediateKey: newValue }
+          ? { ...component, newKey: newValue }
           : component
       )
     );
   };
 
-  // chovani pro enter a backspace
-  const handleKeyDownComp = (event, currentInput, index = -1) => {
-    // pokud je stisknut enter a jsme v name inputu, preskocime na key input
-    // jinak pokud jsme v key inputu, pokusime se pridat komponentu
-    if (index === -1) {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        if (currentInput === 'inputComponentName') {
-          event.preventDefault()
-          document.getElementById('inputComponentKey').focus();
-        } else if (currentInput === 'inputComponentKey') {
-          handleAddComponent();
-        }
-      } else if (event.key === 'Backspace') {
-        if (currentInput === 'inputComponentKey' && !inputComponentKey.trim()) {
-          event.preventDefault();
-          document.getElementById('inputComponentName').focus();
-        }
-      }
-      return
-    }
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      if (currentInput === 'inputComponentName' + index) {
-        event.preventDefault()
-        document.getElementById('inputComponentKey' + index).focus();
-      } else if (currentInput === 'inputComponentKey' + index
-        && getComponentErrorMessage(index) === null) {
-        toggleEditing(index, true);
-        const focusedElement = document.activeElement;
-        if (focusedElement) {
-          focusedElement.blur();
-        }
-      }
-    } else if (event.key === 'Backspace') {
-      if (currentInput === 'inputComponentKey' + index && !componentStates.find(component => component.id === index)?.intermediateKey.trim()) {
-        event.preventDefault();
-        document.getElementById('inputComponentName' + index).focus();
-      }
-    }
-  };
-
-  const getComponentErrorMessage = (idToCheck) => {
-    const foundComponent = componentStates.find(component => component.id === idToCheck);
-
-    if (foundComponent.intermediateName.trim().length === 0
-      || foundComponent.intermediateKey.trim().length === 0) {
-      return "Pro přidání komponenty vyplňte název i klíč!"
-    } else if (componentStates.some(component=> (
-      (!editing[component.id] &&
-        component.newKey === foundComponent.intermediateKey.trim()) ||
-      (editing[component.id] &&
-        component.intermediateKey === foundComponent.intermediateKey.trim()) &&
-      component.id !== idToCheck))) {
-      return "Klíč komponenty musí být unikátní!"
-    }
-    return null
-  }
 
   const form = useForm({
     mode: 'uncontrolled',
-    validateInputOnBlur: true,
+    validateInputOnChange: true,
     initialValues: {
       name: appDetail.name,
       key: appDetail.key,
@@ -407,16 +393,15 @@ export default function ProjectDetail() {
     },
 
     validate: {
-      name: (value) => (value.length === 0 ? 'Název nesmí být prázdný' : null),
+      name: (value) => (value.length === 0 ? 'Název projektu nesmí být prázdný.' : null),
       key: (value) => (value.length === 0
-        ? 'Klíč nesmí být prázdný'
+        ? 'Klíč projektu nesmí být prázdný.'
         : componentStates.some(component=> (
-          (!editing[component.id] &&
-            component.newKey === componentStates.find(component => component.id === projectId).newKey) ||
-          (editing[component.id] &&
-            component.intermediateKey === componentStates.find(component => component.id === projectId).newKey))
-        && component.id !== projectId)
-        ? 'Klíč musí být unikátní' : null),
+            equalsCaseInsensitive(component.newKey, projectState.newKey)
+          && component.id !== projectState.id
+          && !component.toDelete
+        ))
+        ? 'Klíč projektu je stejný jako klíč některé z komponent.' : null),
     },
 
     transformValues: (values) => ({
@@ -431,6 +416,25 @@ export default function ProjectDetail() {
     }),
   });
 
+  const [hasErrors, setHasErrors] = useState(false);
+
+  useEffect(() => {
+    form.validate();
+
+    const customErrors = checkFormErrors();
+    const formErrors = !form.isValid();
+
+    setHasErrors(formErrors || customErrors);
+  }, [componentStates, environments])
+
+  const checkFormErrors = () => {
+    const envErrors = document.querySelectorAll('[id^="inputEnv"][aria-invalid="true"]');
+    const compNameErrors = document.querySelectorAll('[id^="inputComponentName"][aria-invalid="true"]');
+    const compKeyErrors = document.querySelectorAll('[id^="inputComponentKey"][aria-invalid="true"]');
+
+    return envErrors.length > 0 || compNameErrors.length > 0 || compKeyErrors.length > 0;
+  }
+
   const initialStates = Object.keys(appDetail.appKeyToVersionDtosMap)
     .filter(key => transformedData[key] && transformedData[key].length > 0)
     .reduce((acc, key) => {
@@ -444,89 +448,43 @@ export default function ProjectDetail() {
     setOpenStates((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const [editing, setEditing] = useState({});
-
-  const toggleEditing = (idToToggle, accept = false) => {
-    setEditing((prev) => {
-      const newEditing = { ...prev, [idToToggle]: !prev[idToToggle] };
-      const row = componentStates.find(component => component.id === idToToggle);
-
-      setTimeout(() => {
-        const input = document.getElementById(`inputComponentName${idToToggle}`);
-        if (newEditing[idToToggle]) {
-          input?.focus();
-          input?.setSelectionRange(input.value.length, input.value.length);
-        } else {
-          input?.blur();
-        }
-      }, 0);
-
-      if (!accept && (row.newKey !== row.intermediateKey || row.newName !== row.intermediateName)) {
-        setComponentStates((prev) =>
-          prev.map(component =>
-            component.id === idToToggle ? { ...component, intermediateName: row.newName, intermediateKey: row.newKey } : component
-          )
-        );
-      } else {
-        setComponentStates((prev) =>
-          prev.map(component =>
-            component.id === idToToggle ? { ...component, newName: row.intermediateName, newKey: row.intermediateKey } : component
-          )
-        );
-      }
-
-      return newEditing;
-    });
-  };
-
-  const [editingEnv, setEditingEnv] = useState({});
-
-  const toggleEditingEnv = (idToToggle, accept = false) => {
-    setEditingEnv((prev) => {
-      const newEditing = { ...prev, [idToToggle]: !prev[idToToggle] };
-      const row = environments.find(env => env.id === idToToggle);
-
-      setTimeout(() => {
-        const input = document.getElementById(`inputEnv${idToToggle}`);
-        if (newEditing[idToToggle]) {
-          input?.focus();
-          input?.setSelectionRange(input.value.length, input.value.length);
-        } else {
-          input?.blur();
-        }
-      }, 0);
-
-      if (!accept && (row.newKey !== row.intermediateKey || row.newName !== row.intermediateName)) {
-        setEnvironments((prev) =>
-          prev.map(env =>
-            env.id === idToToggle ? { ...env, intermediateName: row.newName, intermediateKey: row.newKey } : env
-          )
-        );
-      } else {
-        setEnvironments((prev) =>
-          prev.map(env =>
-            env.id === idToToggle ? { ...env, newName: row.intermediateName, newKey: row.intermediateKey } : env
-          )
-        );
-      }
-
-      return newEditing;
-    });
-  };
-
   const getEnvErrorMessage = (idToCheck) => {
     const foundEnv = environments.find(env => env.id === idToCheck);
 
-    if (foundEnv.intermediateName.trim().length === 0) {
-      return "Pro přidání prostředí vyplňte název!"
-    } else if (environments.some(env => (
-      (!editing[env.id] &&
-        env.newName === foundEnv.intermediateName.trim()) ||
-      (editing[env.id] &&
-        env.intermediateName === foundEnv.intermediateName.trim())) &&
-      env.id !== idToCheck)) {
-      return "Název prostředí musí být unikátní!"
+    if (!foundEnv.toDelete) {
+      if (!foundEnv.newName.trim() && !foundEnv.toDelete) {
+        return "Název prostředí nesmí být prázdný."
+      } else if (environments.some(env =>
+        equalsCaseInsensitive(env.newName, foundEnv.newName.trim())
+        && env.id !== idToCheck
+        && !env.toDelete
+        && env.newName
+      )) {
+        return "Název prostředí musí být unikátní."
+      }
     }
+    return null
+  }
+
+  const getCompErrorMessage = (idToCheck) => {
+    const foundComp = componentStates.find(comp => comp.id === idToCheck);
+
+    if (!foundComp.toDelete) {
+      if (!foundComp.newKey.trim() && !foundComp.toDelete) {
+        return "Klíč komponenty nesmí být prázdný."
+      } else if (equalsCaseInsensitive(foundComp.newKey, projectState.newKey)) {
+        return "Klíč komponenty je stejný jako klíč projektu."
+      } else if (componentStates.some(comp =>
+          equalsCaseInsensitive(comp.newKey, foundComp.newKey.trim())
+          && comp.id !== idToCheck
+          && !comp.toDelete
+          && comp.newKey
+          && comp.id !== projectState.id
+        )) {
+        return "Klíč komponenty musí být unikátní."
+      }
+    }
+
     return null
   }
 
@@ -536,12 +494,12 @@ export default function ProjectDetail() {
     };
 
     try {
-      let response = await fetch(`${API_URL}/apps/${appDetail.key}?hard_delete=true`, requestOptions);
-      if (!response.ok) {
+      let response = await fetch(`${API_URL}/apps/${appDetail.key}?force=true`, requestOptions);
+      if (!response.ok) {f
         const error: ErrorBody = await response.json();
         notifications.show({
           color: "red",
-          title: "Při přidávání došlo k chybě!",
+          title: "Při mazání projektu došlo k chybě!",
           message: error.details,
           position: "top-center",
         });
@@ -579,22 +537,66 @@ export default function ProjectDetail() {
       body: '',
     }
 
-    let response
+    let response;
 
-    const projectState = componentStates.find(component => component.id === projectId);
+    const appsToRemove = formValues.components.filter(component => component.toDelete);
+    const envsToRemove = formValues.environments.filter(env => env.toDelete);
 
-    const appsToRemove = formValues.components.filter(component => component.newKey === '');
-    const envsToRemove = formValues.environments.filter(env => env.newName === '');
+    const appsToAdd = formValues.components
+      .filter(component => component.isNew)
+      .map(component => ({
+        ...component,
+        newKey: component.newKey.toLowerCase()
+    }));
 
-    const appsToAdd = formValues.components.filter(component => component.isNew);
-    const envsToAdd = formValues.environments.filter(env => env.isNew);
+    const envsToAdd = formValues.environments
+      .filter(env => env.isNew)
+      .map(env => ({
+        ...env,
+        newName: env.newName.toLowerCase()
+      }));
 
-    const appsToUpdate = formValues.components.filter(component => component.key !== component.newKey && component.newKey !== '' && !component.isNew && component.id !== projectId);
-    const envsToUpdate = formValues.environments.filter(env => env.name !== env.newName && env.newName !== '' && !env.isNew);
+    const appsToUpdate = formValues.components
+      .filter(component => (
+        !equalsCaseInsensitive(component.key, component.newKey)
+          || component.name !== component.newName)
+        && !component.toDelete
+        && !component.isNew
+        && component.id !== projectState.id)
+      .map(component => ({
+        ...component,
+        newKey: component.newKey.toLowerCase()
+      }));
+
+    const envsToUpdate = formValues.environments
+      .filter(env =>
+        !equalsCaseInsensitive(env.name, env.newName)
+        && !env.toDelete
+        && !env.isNew)
+      .map(env => ({
+        ...env,
+        newName: env.newName.toLowerCase()
+      }));
+
+    const newProjectKey = projectState.newKey.toLowerCase();
+
+    console.log("remove apps: ");
+    console.log(appsToRemove);
+    console.log("add apps: ");
+    console.log(appsToAdd);
+    console.log("update apps: ");
+    console.log(appsToUpdate);
+
+    console.log("remove envs: ");
+    console.log(envsToRemove);
+    console.log("add envs: ");
+    console.log(envsToAdd);
+    console.log("update envs: ");
+    console.log(envsToUpdate);
 
     try {
       for (const app of appsToRemove) {
-        response = await fetch(`${API_URL}/apps/${app.key}?hard_delete=true`, deleteOptions);
+        response = await fetch(`${API_URL}/apps/${app.key}?force=true`, deleteOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           notifications.show({
@@ -608,7 +610,7 @@ export default function ProjectDetail() {
       }
 
       for (const env of envsToRemove) {
-        response = await fetch(`${API_URL}/apps/${projectState.key}/envs/${env.name}?hard_delete=true`, deleteOptions);
+        response = await fetch(`${API_URL}/apps/${projectState.key}/envs/${env.name}?force=true`, deleteOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           notifications.show({
@@ -621,8 +623,8 @@ export default function ProjectDetail() {
         }
       }
 
-      if (projectState.key !== projectState.newKey || projectState.name !== projectState.newName) {
-        putOptions.body = JSON.stringify({key: projectState.newKey, name: projectState.newName})
+      if (!equalsCaseInsensitive(projectState.key, projectState.newKey) || projectState.name !== projectState.newName) {
+        putOptions.body = JSON.stringify({key: newProjectKey, name: projectState.newName})
         response = await fetch(`${API_URL}/apps/${projectState.key}`, putOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
@@ -637,13 +639,13 @@ export default function ProjectDetail() {
       }
 
       for (const app of appsToAdd) {
-        postOptions.body = JSON.stringify({ key: app.newKey, name: app.newName, parentKey: projectState.newKey });
+        postOptions.body = JSON.stringify({ key: app.newKey, name: app.newName, parentKey: newProjectKey });
         response = await fetch(`${API_URL}/apps`, postOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           notifications.show({
             color: "red",
-            title: `Při přidávání komponenty ${app.key} došlo k chybě!`,
+            title: `Při přidávání komponenty ${app.newKey} došlo k chybě!`,
             message: error.details,
             position: "top-center",
           });
@@ -652,7 +654,7 @@ export default function ProjectDetail() {
       }
 
       for (const env of envsToAdd) {
-        postOptions.body = JSON.stringify({appKey: projectState.newKey, name: env.newName});
+        postOptions.body = JSON.stringify({appKey: newProjectKey, name: env.newName});
         response = await fetch(`${API_URL}/apps/${projectState.newKey}/envs`, postOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
@@ -667,7 +669,7 @@ export default function ProjectDetail() {
       }
 
       for (const app of appsToUpdate) {
-        putOptions.body = JSON.stringify({ key: app.newKey, name: app.newName, parentKey: projectState.newKey });
+        putOptions.body = JSON.stringify({ key: app.newKey, name: app.newName, parentKey: newProjectKey });
         response = await fetch(`${API_URL}/apps/${app.key}`, putOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
@@ -682,8 +684,8 @@ export default function ProjectDetail() {
       }
 
       for (const env of envsToUpdate) {
-        putOptions.body = JSON.stringify({appKey: projectState.newKey, name: env.newName});
-        response = await fetch(`${API_URL}/apps/${projectState.newKey}/envs/${env.name}`, putOptions);
+        putOptions.body = JSON.stringify({appKey: newProjectKey, name: env.newName});
+        response = await fetch(`${API_URL}/apps/${newProjectKey}/envs/${env.name}`, putOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           notifications.show({
@@ -695,14 +697,11 @@ export default function ProjectDetail() {
           return;
         }
       }
-      form.reset();
-      initializeComponentStates();
-      initializeEnvironments();
       await revalidate();
-      navigate(`/projects/detail/${projectState.newKey}`);
-      close();
+      await navigate(`/projects/detail/${newProjectKey}`);
+      window.location.reload();
+      closeEdit();
     } catch (error) {
-      console.error("Caught error: ", error);
       notifications.show({
         color: "red",
         title: "Při mazání projektu došlo k chybě!",
@@ -711,6 +710,10 @@ export default function ProjectDetail() {
       })
     }
   }
+
+  const [editOpened, { open: openEdit, close: closeEdit }] = useDisclosure(false);
+  const [confirmOpened, { open: openConfirm, close: closeConfirm }] = useDisclosure(false)
+  const [resetFormOpened, { open: openResetForm, close: closeResetForm }] = useDisclosure(false);
 
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -732,9 +735,6 @@ export default function ProjectDetail() {
     return () => clearTimeout(timeout);
   }, [openStates]);
 
-  const [opened, { open, close }] = useDisclosure(false);
-  const [confirmOpened, confirmHandlers] = useDisclosure(false)
-
   if (!isHydrated) {
     return (
       <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
@@ -753,300 +753,433 @@ export default function ProjectDetail() {
           <Title order={3}>
             Smazat {
               objectToDelete.type === "project"
-                ? `projekt ${componentStates.find(component => component.id === projectId).newName}`
+                ? `projekt ${componentStates.find(component => component.id === projectState.id).name}`
                 : objectToDelete.type === "env"
-                  ? `prostředí ${environments.find(env => env.id === objectToDelete.id)?.intermediateName}`
-                  : `komponentu ${componentStates.find(component => component.id === objectToDelete.id)?.intermediateName}`
+                  ? `prostředí ${environments.find(env => env.id === objectToDelete.id)?.name.toUpperCase()}`
+                  : `komponentu ${componentStates.find(component => component.id === objectToDelete.id)?.name}`
           }?
           </Title>
       }
         opened={confirmOpened}
-        onClose={() => { setTimeout(() => setObjectToDelete({ type: "", id: -1 }), 100); confirmHandlers.close(); }} zIndex={999}
+        onClose={() => { setTimeout(() => setObjectToDelete({ type: "", id: -1 }), 100); closeConfirm(); }} zIndex={999}
         closeButtonProps={{icon: <IconX color="red"/>, variant: "subtle", color: "gray"}}
       >
         <Text mt="lg">
-          Smazáním {objectToDelete.type === "project" ? "projektu" : objectToDelete.type === "env" ? "prostředí" : "komponenty"} budou odstraněna <br/> i všechna související data!
+          Společně s {objectToDelete.type === "project" ? "projektem" : objectToDelete.type === "env" ? "prostředím" : "komponentou"} budou odstraněna <br/> i všechna související data!
         </Text>
         <Group justify="flex-end" pt="xl">
-          <Button variant="light" color="gray" rightSection={<IconX size={16}/>} onClick={() => { setTimeout(() => setObjectToDelete({ type: "", id: -1 }), 100); confirmHandlers.close(); }}>Zrušit akci</Button>
+          <Button variant="light" color="gray" rightSection={<IconX size={16}/>} onClick={() => { setTimeout(() => setObjectToDelete({ type: "", id: -1 }), 100); closeConfirm(); }}>Zrušit akci</Button>
           <Button
             color="red"
             rightSection={<IconTrash size={16}/>}
             onClick={() => {
-              confirmHandlers.close();
+              closeConfirm();
               setTimeout(() =>
-                objectToDelete.type === "project" ?
-                  handleRemoveProject() :
-                objectToDelete.type === "env" ?
-                  handleRemoveEnvironment(objectToDelete.id) :
-                  handleRemoveComponent(objectToDelete.id),
+                objectToDelete.type === "project"
+                  ? handleRemoveProject()
+                  : objectToDelete.type === "env"
+                    ? handleRemoveEnvironment(objectToDelete.id)
+                    : handleRemoveComponent(objectToDelete.id),
                 100)
             }}>Smazat</Button>
         </Group>
       </Modal>
+
       <Modal
-        opened={opened}
+        title={
+        <Title order={3}>
+          Opravdu chcete zahodit změny?
+        </Title>
+      }
+        opened={resetFormOpened}
+        onClose={closeResetForm} zIndex={999}
+        closeButtonProps={{icon: <IconX color="red"/>, variant: "subtle", color: "gray"}}
+      >
+        <Text mt="lg">
+          Hodnoty ve formuláři budou obnoveny na původní hodnoty.
+        </Text>
+        <Group justify="flex-end" pt="xl">
+          <Button variant="light" color="gray" rightSection={<IconX size={16}/>} onClick={closeResetForm}>Zrušit akci</Button>
+          <Button
+            color="red"
+            rightSection={<IconHistory size={16}/>}
+            onClick={() => { resetForm(); closeResetForm(); }}
+          >
+            Zahodit
+          </Button>
+        </Group>
+      </Modal>
+
+      <Modal
+        opened={editOpened}
         size="auto"
-        onClose={() => {
-          close();
-          form.reset();
-        }}
+        onClose={closeEdit}
         closeButtonProps={{icon: <IconX color="red"/>, variant: "subtle", color: "gray"}}
         title={<Title mb="md" order={2}>Úprava projektu {appDetail.name}</Title>}
+        scrollAreaComponent={ScrollArea.Autosize}
         styles={{
-          header: {paddingBottom: 0}
+          header: {paddingBottom: 8},
+          body: {paddingBottom: 0}
         }}
       >
         <form onSubmit={form.onSubmit((values) => handleSubmit(values))}>
-          <TextInput
-            data-autofocus
-            withAsterisk
-            label="Název"
-            placeholder="Zadejte název projektu..."
-            value={componentStates.find(component => component.id === projectId).newName}
-            onInput={(e) => handleComponentNameChange(projectId, e.target.value)}
-            key={form.key('name')}
-            {...form.getInputProps('name')}
-          />
-
-          <TextInput
-            withAsterisk
-            label="Klíč"
-            placeholder="Zadejte klíč projektu..."
-            value={componentStates.find(component => component.id === projectId).newKey.toUpperCase()}
-            onInput={(e) => handleComponentKeyChange(projectId, e.target.value.toLowerCase())}
-            key={form.key('key')}
-            {...form.getInputProps('key')}
-          />
-
-          <Title order={3} mb="lg" mt="lg">
-            Prostředí
-          </Title>
-
-          {environments.filter(env => env.newName !== "").map(environment => (
-            <Group key={`envGroup${environment.id}`} mt="md">
+          <div style={{paddingLeft: 8, paddingRight: 8}}>
+          <Fieldset pb="35">
+          <Flex align="flex-start" direction="row" gap="md" h={55}>
+            <TextInput
+              id={'inputProjectName'}
+              w={322}
+              rightSection={
+                projectState.name !== projectState.newName ?
+                  <Tooltip
+                    label={`Obnovit původní hodnotu.`}
+                  >
+                    <ActionIcon
+                      size="26px"
+                      radius="xl"
+                      color="yellow"
+                      variant="subtle"
+                      onClick={() =>
+                        setProjectState((prev) =>({...prev, newName: prev.name}))
+                      }
+                    >
+                      <IconHistory size={18}/>
+                    </ActionIcon>
+                  </Tooltip> : null
+              }
+              data-autofocus
+              withAsterisk
+              label="Název"
+              placeholder="Zadejte název projektu..."
+              value={projectState.newName}
+              onInput={(e) => setProjectState((prev) => ({...prev, newName: e.target.value}))}
+              key={form.key('name')}
+              {...form.getInputProps('name')}
+            />
+            <TextInput
+              id={'inputProjectKey'}
+              w={322}
+              rightSection={
+                !equalsCaseInsensitive(projectState.key, projectState.newKey) ?
+                  <Tooltip
+                    label={`Obnovit původní hodnotu.`}
+                  >
+                    <ActionIcon
+                      size="26px"
+                      radius="xl"
+                      color="yellow"
+                      variant="subtle"
+                      onClick={() =>
+                        setProjectState((prev) =>({...prev, newKey: prev.key}))
+                      }
+                    >
+                      <IconHistory size={18}/>
+                    </ActionIcon>
+                  </Tooltip> : null
+              }
+              withAsterisk
+              label="Klíč"
+              placeholder="Zadejte klíč projektu..."
+              value={projectState.newKey.toUpperCase()}
+              onInput={(e) => setProjectState((prev) => ({...prev, newKey: e.target.value}))}
+              key={form.key('key')}
+              {...form.getInputProps('key')}
+            />
+          </Flex>
+          </Fieldset>
+          <Fieldset w="fit-content" mt="lg" pb="35" legend={
+            <Title order={3}>
+              Prostředí
+            </Title>}
+          >
+          <Flex align="flex-start" direction="column" gap="md">
+          {environments.map(environment => (
+            <Group align="flex-start" h={50}>
+              <Indicator
+                processing
+                styles={{
+                  indicator: { padding: 0 }
+                }}
+                label={
+                <Tooltip label={<span>Nové prostředí, které bude přidáno <br/>do evidence po odeslání formuláře.</span>}>
+                  <div style={{width: 10, height: 10, cursor: "pointer", position: "relative" }}/>
+                </Tooltip>}
+                position="top-end"
+                disabled={!environment.isNew}>
               <TextInput
+                disabled={environment.toDelete}
+                rightSection={
+                  !environment.isNew ?
+                  !equalsCaseInsensitive(environment.name, environment.newName) && !environment.toDelete ?
+                      <Tooltip
+                        label={`Obnovit původní hodnotu.`}
+                      >
+                        <ActionIcon
+                          size="26px"
+                          radius="xl"
+                          color="yellow"
+                          variant="subtle"
+                          onClick={() =>
+                            setEnvironments((prev) =>
+                              prev.map(env =>
+                                env.id === environment.id ? { ...env, newName: env.name } : env
+                              ))
+                          }
+                        >
+                          <IconHistory size={18}/>
+                        </ActionIcon>
+                      </Tooltip>
+                    : null
+                    : null
+                }
                 id={`inputEnv${environment.id}`}
                 w={300}
                 placeholder="Zadejte název prostředí..."
-                splitChars={[' ']}
-                acceptValueOnBlur
-                clearable
-                value={environment.intermediateName.toUpperCase()}
-                onInput={(e) => setEnvironments((prev) =>
-                  prev.map(env =>
-                    env.id === environment.id ? { ...env, intermediateName: e.target.value.toLowerCase() } : env
-                  )
-                )}
-                style={{ minWidth: '300px', pointerEvents: editingEnv[environment.id] ? 'auto' : 'none' }} // Fix: allow interaction when editing
-                tabIndex={editingEnv[environment.id] ? 0 : -1} // Fix: allow focus when editing
+                value={environment.newName.toUpperCase()}
+                onInput={(e) => handleEnvironmentNameChange(environment.id, e.target.value.toLowerCase())}
+                error={getEnvErrorMessage(environment.id)}
               />
-            {!editingEnv[environment.id] ? (
-              <>
-                <ActionIcon
-                  variant="light"
-                  onClick={() => toggleEditingEnv(environment.id, true)}
-                  style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
-                >
-                  <IconPencil size="20" />
-                </ActionIcon>
-                <ActionIcon
-                  variant="light"
-                  color="red"
-                  onClick={() => {
+              </Indicator>
+              {environment.toDelete ?
+                <Tooltip label="Vrátit prostředí do evidence">
+                  <ActionIcon variant="light" color="orange" mt={4} onClick={() => setEnvironments((prev) =>
+                    prev.map(env =>
+                      env.id === environment.id ? { ...env, toDelete: false } : env
+                    ))}>
+                    <IconHistory size={18}/>
+                  </ActionIcon>
+                </Tooltip> :
+                <ActionIcon variant="light" color="red" mt={4} onClick={() =>
+                  {
                     if (hasDeploymentEnv(environment.id)) {
-                      setObjectToDelete({ type: "env", id: environment.id });
+                      setObjectToDelete({type: "env", id: environment.id});
+                      openConfirm();
                     } else {
-                      handleRemoveEnvironment(environment.id);
+                      handleRemoveEnvironment(environment.id)
                     }
                   }}
-                  style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
                 >
-                  <IconTrash size="20" />
+                  <IconTrash size={18}/>
                 </ActionIcon>
-              </>) : (
-              <>
-                <Tooltip
-                  label={getEnvErrorMessage(environment.id)}
-                  disabled={getEnvErrorMessage(environment.id) === null}
-                >
-                  <ActionIcon
-                    disabled={getEnvErrorMessage(environment.id) !== null}
-                    onClick={() => toggleEditingEnv(environment.id, true)}
-                    style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
-                  >
-                    <IconCheck size="20" />
-                  </ActionIcon>
-                </Tooltip>
-                <ActionIcon
-                  variant="light"
-                  color="red"
-                  onClick={() => {
-                    toggleEditingEnv(environment.id);
-                  }}
-                  style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
-                >
-                  <IconX size="20" />
-                </ActionIcon>
-              </>)}
+              }
             </Group>
           ))}
-          <Group mt="md">
+          </Flex>
+          <Group mt="8px">
             <TextInput
               id={"inputEnv"}
+              label={"Nové prostředí"}
+              h={50}
               w={300}
+              inputWrapperOrder={['label', 'input', 'description', 'error']}
               placeholder="Zadejte název prostředí..."
-              splitChars={[' ']}
-              acceptValueOnBlur
-              clearable
               value={inputEnvironment.toUpperCase()}
               onInput={(e) => {setInputEnvironment(e.target.value.toLowerCase());}}
-              key={form.key('environments')}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && enabledEnv) {
+                  handleAddEnvironment();
+                }
+              }}
+              description={environments.some(env => equalsCaseInsensitive(env.newName, inputEnvironment.trim()) && !env.toDelete && env.newName)
+                ? <Group gap={"6"} c={"yellow"}><IconInfoCircle size={16}/>Prostředí s tímto názvem už je evidováno.</Group> : null}
             />
-            <Tooltip label={environments.some(env => env.newName === inputEnvironment.trim()) ? "Název prostředí musí být unikátní!" : "Pro přidání prostředí vyplňte název!"} disabled={enabledEnv}>
+            <Tooltip label={!inputEnvironment.trim() ? "Pro přidání prostředí vyplňte název." : null} disabled={enabledEnv || environments.some(env => equalsCaseInsensitive(env.newName, inputEnvironment.trim()) && !env.toDelete)}>
               <ActionIcon
                 disabled={!enabledEnv}
                 variant="light"
                 color="green"
                 onClick={handleAddEnvironment}
-                style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
+                mt={35}
               >
                 <IconPlus size="20" />
               </ActionIcon>
             </Tooltip>
-            <ActionIcon
-              disabled
-              style={{ alignSelf: 'flex-end', marginBottom: '5px', visibility: "hidden" }}
-            >
-              <IconPlus size="20" />
-            </ActionIcon>
           </Group>
+          </Fieldset>
 
-
-          <Title order={3} mb="lg" mt="lg">
-            Projektové komponenty
-          </Title>
-
-          {componentStates.filter(component => component.newKey !== "" && component.key !== appDetail.key).map((row, index) => (
-              <Group
-                mt="md"
-                key={row.id}
-                style={{ flexDirection: 'row', justifyContent: 'space-between'}}
-              >
+          <Fieldset mt="lg" pb="35" mb="8" legend={
+            <Title order={3} >
+              Projektové komponenty
+            </Title>}
+          >
+          <Flex align="flex-start" direction="column" gap="md">
+          {componentStates.filter(component => component.key !== appDetail.key).map((row, index) => (
+              <Group align="flex-start" key={row.id} h={index === 0 ? 75 : 50}>
                 <TextInput
-                  id={`inputComponentName${row.id}`}
-                  label={componentStates.length > 0 && index === 0 ? "Název" : ""}
-                  readOnly={!editing[row.id]} // Fix: should be false when editing
-                  placeholder="Zadejte název komponenty..."
-                  value={row.intermediateName}
-                  onInput={(e) => handleComponentNameChange(row.id, e.target.value)}
-                  onKeyDown={(e) => handleKeyDownComp(e, `inputComponentName${row.id}`, row.id)}
-                  style={{ minWidth: '300px', pointerEvents: editing[row.id] ? 'auto' : 'none' }} // Fix: allow interaction when editing
-                  tabIndex={editing[row.id] ? 0 : -1} // Fix: allow focus when editing
-                />
-                <TextInput
-                  id={`inputComponentKey${row.id}`}
-                  label={ componentStates.length > 0 && index === 0 ? "Klíč" : "" }
-                  readOnly={!editing[row.id]}
-                  placeholder="Zadejte klíč komponenty..."
-                  value={row.intermediateKey.toUpperCase()}
-                  onInput={(e) => handleComponentKeyChange(row.id, e.target.value.toLowerCase())}
-                  onKeyDown={(e) => handleKeyDownComp(e, `inputComponentKey${row.id}`, row.id)}
-                  style={{ minWidth: '300px', pointerEvents: editing[row.id] ? 'auto' : 'none' }} // Fix: allow interaction when editing
-                  tabIndex={editing[row.id] ? 0 : -1} // Fix: allow focus when editing
-                />
-                {!editing[row.id] ? (
-                  <>
-                    <ActionIcon
-                      variant="light"
-                      onClick={() => toggleEditing(row.id, true)}
-                      style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
-                    >
-                      <IconPencil size="20" />
-                    </ActionIcon>
-                    <ActionIcon
-                      variant="light"
-                      color="red"
-                      onClick={() => {
-                        if (hasDeploymentComp(row.id)) {
-                          setObjectToDelete({ type: "app", id: row.id });
-                        } else {
-                          handleRemoveComponent(row.id);
-                        }
-                      }}
-                      style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
-                    >
-                      <IconTrash size="20" />
-                    </ActionIcon>
-                  </>) : (
-                  <>
-                    <Tooltip
-                      label={getComponentErrorMessage(row.id)}
-                      disabled={getComponentErrorMessage(row.id) === null}
-                    >
-                      <ActionIcon
-                        disabled={getComponentErrorMessage(row.id) !== null}
-                        onClick={() => toggleEditing(row.id, true)}
-                        style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
+                  disabled={row.toDelete}
+                  rightSection={
+                    !row.isNew ?
+                    !equalsCaseInsensitive(row.name, row.newName) && !row.toDelete ?
+                      <Tooltip
+                        label={`Obnovit původní hodnotu.`}
                       >
-                        <IconCheck size="20" />
-                      </ActionIcon>
-                    </Tooltip>
-                    <ActionIcon
-                      variant="light"
-                      color="red"
-                      onClick={() => {
-                        toggleEditing(row.id);
-                      }}
-                      style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
-                    >
-                      <IconX size="20" />
+                        <ActionIcon
+                          size="26px"
+                          radius="xl"
+                          color="yellow"
+                          variant="subtle"
+                          onClick={() =>
+                            setComponentStates((prev) =>
+                              prev.map(comp =>
+                                comp.id === row.id ? { ...comp, newName: comp.name } : comp
+                              ))
+                          }
+                        >
+                          <IconHistory size={18}/>
+                        </ActionIcon>
+                      </Tooltip>
+                      : null
+                      : null
+                  }
+                  id={`inputComponentName${row.id}`}
+                  w="300"
+                  label={componentStates.length > 0 && index === 0 ? "Název" : ""}
+                  placeholder="Zadejte název komponenty..."
+                  value={row.newName}
+                  onInput={(e) => handleComponentNameChange(row.id, e.target.value)}
+//                  onKeyDown={(e) => handleKeyDownComp(e, `inputComponentName${row.id}`, row.id)}
+                  error={!row.newName.trim() ? "Název nesmí být prázdný." : null}
+                />
+                <TextInput
+                  disabled={row.toDelete}
+                  id={`inputComponentKey${row.id}`}
+                  rightSection={
+                    !row.isNew ?
+                      !equalsCaseInsensitive(row.key, row.newKey) && !row.toDelete ?
+                        <Tooltip
+                          label={`Obnovit původní hodnotu.`}
+                        >
+                          <ActionIcon
+                            size="26px"
+                            radius="xl"
+                            color="yellow"
+                            variant="subtle"
+                            onClick={() =>
+                              setComponentStates((prev) =>
+                                prev.map(comp =>
+                                  comp.id === row.id ? { ...comp, newKey: comp.key } : comp
+                                ))
+                            }
+                          >
+                            <IconHistory size={18}/>
+                          </ActionIcon>
+                        </Tooltip>
+                        : null
+                      : null
+                  }
+                  inputContainer={(children) => <Indicator
+                    processing
+                    styles={{
+                      indicator: {padding: 0}
+                    }}
+                    label={
+                      <Tooltip label={<span>Nová komponenta, která bude přidána <br/>do evidence po odeslání formuláře.</span>}>
+                        <div style={{width: 10, height: 10, cursor: "pointer", position: "relative" }}/>
+                      </Tooltip>}
+                    position="top-end"
+                    disabled={!row.isNew}>
+                    {children}
+                  </Indicator>}
+                  w="300"
+                  label={ componentStates.length > 0 && index === 0 ? "Klíč" : "" }
+                  placeholder="Zadejte klíč komponenty..."
+                  value={row.newKey.toUpperCase()}
+                  onInput={(e) => handleComponentKeyChange(row.id, e.target.value.toLowerCase())}
+  //                onKeyDown={(e) => handleKeyDownComp(e, `inputComponentKey${row.id}`, row.id)}
+                  error={getCompErrorMessage(row.id)}
+                />
+                {row.toDelete ?
+                  <Tooltip label="Vrátit komponentu do evidence">
+                    <ActionIcon variant="light" color="orange" mt={index === 0 ? 27 : 4} onClick={() => setComponentStates((prev) =>
+                      prev.map(comp =>
+                        comp.id === row.id ? { ...comp, toDelete: false } : comp
+                      ))}>
+                      <IconHistory size={18}/>
                     </ActionIcon>
-                  </>)}
+                  </Tooltip> :
+                  <ActionIcon
+                    variant="light"
+                    color="red"
+                    mt={index === 0 ? 27 : 4}
+                    onClick={() =>
+                      {
+                        if (hasDeploymentComp(row.id)) {
+                          setObjectToDelete({type: "app", id: row.id});
+                          openConfirm();
+                        } else {
+                          handleRemoveComponent(row.id)
+                        }
+                      }
+                    }
+                  >
+                    <IconTrash size={18}/>
+                  </ActionIcon>
+                }
               </Group>)
             )}
-
-          <Group style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: "flex-start" }} mt="sm">
+          </Flex>
+          <Group mt="8px">
             <TextInput
+              h={50}
               id='inputComponentName'
-              label={ componentStates.length === 0 ? "Název" : "" }
+              label={"Nová komponenta"}
               placeholder="Zadejte název komponenty..."
               value={inputComponentName}
-              style={{ minWidth: '300px'}}
+              w={300}
               onInput={(e) => {setInputComponentName(e.target.value);}}
-              onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentName')} // Add row on Enter key
+    //          onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentName')} // Add row on Enter key
             />
             <TextInput
+              h={50}
               id='inputComponentKey'
-              label={ componentStates.length === 0 ? "Klíč" : "" }
+              label={" "}
               placeholder="Zadejte klíč komponenty..."
               value={inputComponentKey.toUpperCase()}
-              style={{ minWidth: '300px' }}
+              w={300}
+              inputWrapperOrder={['label', 'input', 'description', 'error']}
               onInput={(e) => {setInputComponentKey(e.target.value.toLowerCase());}}
-              onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentKey')}
+    //          onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentKey')}
+              description={componentStates.some(component =>
+                equalsCaseInsensitive(component.newKey, inputComponentKey.trim()) && !component.toDelete)
+                ? equalsCaseInsensitive(projectState.newKey, inputComponentKey)
+                  ? <Group gap={"6"} c={"yellow"}><IconInfoCircle size={16}/>Klíč komponenty je stejný jako klíč projektu.</Group>
+                  : <Group gap={"6"} c={"yellow"}><IconInfoCircle size={16}/>Komponenta s tímto klíčem už je evidována.</Group>
+                : null
+              }
             />
-            <Tooltip label={componentStates.some(component => component.newKey === inputComponentKey.trim()) ? "Klíč komponenty musí být unikátní!" : "Pro přidání komponenty vyplňte název i klíč!"} disabled={enabledApp}>
+            <Tooltip
+              label={"Pro přidání komponenty vyplňte název i klíč."}
+              disabled={inputComponentKey.trim() && inputComponentName.trim()}
+            >
               <ActionIcon
                 disabled={!enabledApp}
                 variant="light"
                 color="green"
                 onClick={handleAddComponent}
-                style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
+                mt={35}
               >
                 <IconPlus size="20" />
               </ActionIcon>
             </Tooltip>
-            <ActionIcon
-              disabled
-              style={{ alignSelf: 'flex-end', marginBottom: '5px', visibility: "hidden" }}
+
+          </Group>
+          </Fieldset>
+        </div>
+          <Paper
+            style={{
+              position: "sticky",
+              bottom: 0,
+              zIndex: 999
+            }}>
+            <Group
+              py={16}
+              pr={16}
+              justify="flex-end"
             >
-              <IconPlus size="20" />
-            </ActionIcon>
-          </Group>
-          <Group justify="flex-end" pt="xl">
-            <Button variant="light" color="red" rightSection={<IconX size={16}/>}>Zahodit změny</Button>
-            <Button type="submit" rightSection={<IconCheck size={16}/>}>Uložit</Button>
-          </Group>
+              <Button variant="light" color="red" onClick={openResetForm} rightSection={<IconX size={16}/>}>Zahodit změny</Button>
+              <Tooltip label={hasErrors ? "Ve formuláři jsou chyby, pro odeslání je opravte." : null}><Button type="submit" disabled={hasErrors} rightSection={<IconCheck size={16}/>}>Uložit</Button></Tooltip>
+            </Group>
+          </Paper>
         </form>
       </Modal>
       <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
@@ -1071,7 +1204,7 @@ export default function ProjectDetail() {
             <Button
               size="md"
               rightSection={<IconPencil size={16}/>}
-              onClick={open}
+              onClick={openEdit}
             >
               Upravit
             </Button>

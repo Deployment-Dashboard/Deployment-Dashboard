@@ -2,13 +2,25 @@ import { LoaderFunction } from "react-router";
 import ProjectCard from "~/components/project-card"
 import {ProjectOverviewDto, AppDto, ErrorBody} from "~/types";
 import {useLoaderData, useRevalidator} from "react-router";
-import {Button, Grid, Group, TextInput, Modal, Title, ActionIcon, TagsInput, Tooltip, Loader} from "@mantine/core";
+import {
+  Button,
+  Grid,
+  Group,
+  TextInput,
+  Modal,
+  Title,
+  ActionIcon,
+  TagsInput,
+  Tooltip,
+  Loader,
+  ScrollArea, Fieldset, Flex, Indicator, Paper, TagsInputProps
+} from "@mantine/core";
 import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
-import {IconPlus, IconCheck, IconX, IconTrash} from "@tabler/icons-react";
+import {IconPlus, IconCheck, IconX, IconTrash, IconHistory, IconInfoCircle} from "@tabler/icons-react";
 import ContentContainer from "~/components/content-container";
 import {isNotEmpty, useForm} from '@mantine/form';
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {API_URL} from "~/constants"
 
 export let loader: LoaderFunction = async () => {
@@ -18,6 +30,12 @@ export let loader: LoaderFunction = async () => {
 };
 
 export default function Projects() {
+  const collator = new Intl.Collator(undefined, { sensitivity: "base" });
+
+  const equalsCaseInsensitive = (str1: string, str2: string) => {
+    return collator.compare(str1.trim(), str2.trim()) === 0;
+  }
+
   // fetchnute prehledy o projektech
   const overviews = useLoaderData<ProjectOverviewDto[]>();
   const { revalidate } = useRevalidator();
@@ -28,6 +46,7 @@ export default function Projects() {
   // form values, validace a transformace
   const form = useForm({
     mode: 'uncontrolled',
+    validateInputOnChange: true,
     initialValues: {
       name: '',
       key: '',
@@ -36,8 +55,13 @@ export default function Projects() {
     },
 
     validate: {
-      name: isNotEmpty('Název nesmí být prázdný'),
-      key: isNotEmpty('Klíč nesmí být prázdný'),
+      name: (value) => (value.length === 0 ? 'Název projektu nesmí být prázdný.' : null),
+      key: (value) => (value.length === 0
+        ? 'Klíč projektu nesmí být prázdný.'
+        : components.some(component => (
+          equalsCaseInsensitive(component.key, project.key)
+        ))
+          ? 'Klíč projektu je stejný jako klíč některé z komponent.' : null),
     },
 
     transformValues: (values) => ({
@@ -55,6 +79,22 @@ export default function Projects() {
   // tagy prostredi z TagsInput ve formu
   const [environments, setEnvironments] = useState<string[]>([]);
 
+  const handleEnvironmentsChange = (newValues: string[]) => {
+    const unique = Array.from(new Set(newValues.map(v => v.toLowerCase())));
+    setEnvironments(unique);
+  };
+
+
+  const commonEnvsGroup = [{group: 'Nejčastější názvy prostředí', items: ['mpsvprod', 'mpsvtest', 'oktest']}]
+
+  const renderTagsInputOption: TagsInputProps['renderOption'] = ({ option }) => (
+    option.value.toUpperCase()
+  )
+
+  const appIdCounter = useRef(0);
+
+  const [project, setProject] = useState({key: "", name: ""});
+
   // komponenty z TextInputu ve formu
   const [components, setComponents] = useState([]);
   const [inputComponentName, setInputComponentName] = useState('');
@@ -66,17 +106,18 @@ export default function Projects() {
   useEffect(() => {
     if (inputComponentKey.trim()
       && inputComponentName.trim()
-      && !components.some(component => component.key === inputComponentKey.trim())) {
+      && !components.some(component=> equalsCaseInsensitive(component.key, inputComponentKey)))
+    {
       handlers.open();
     } else {
       handlers.close();
     }
-  }, [inputComponentKey, inputComponentName]);
+  }, [inputComponentKey, inputComponentName, components]);
 
   // pridani komponenty
   const handleAddComponent = () => {
     if (inputComponentKey.trim() && inputComponentName.trim()) {
-      setComponents([...components, { key: inputComponentKey.trim()
+      setComponents([...components, { id: appIdCounter.current++, key: inputComponentKey.trim()
         , name: inputComponentName.trim() }]);
       setInputComponentName('');
       setInputComponentKey('');
@@ -87,6 +128,42 @@ export default function Projects() {
   // odebrani komponenty
   const handleRemoveComponent = (index) => {
     setComponents(components.filter((_, i) => i !== index));
+  }
+
+  const handleComponentNameChange = (idToChange, newValue) => {
+    setComponents((prev) =>
+      prev.map(component =>
+        component.id === idToChange
+          ? { ...component, newName: newValue }
+          : component
+      )
+    );
+  };
+
+  const handleComponentKeyChange = (idToChange, newValue) => {
+    setComponents((prev) =>
+      prev.map(component =>
+        component.id === idToChange
+          ? { ...component, key: newValue }
+          : component
+      )
+    );
+  };
+
+  const getCompErrorMessage = (idToCheck) => {
+    const foundComp = components.find(comp => comp.id === idToCheck);
+
+    if (!foundComp.key.trim()) {
+      return "Klíč komponenty nesmí být prázdný."
+    } else if (equalsCaseInsensitive(foundComp.key, project.key)) {
+      return "Klíč komponenty je stejný jako klíč projektu."
+    } else if (components.some(comp =>
+      equalsCaseInsensitive(comp.key, foundComp.key.trim())
+      && comp.id !== idToCheck
+    )) {
+      return "Klíč komponenty musí být unikátní."
+    }
+    return null
   }
 
   // chovani pro enter a backspace
@@ -180,6 +257,16 @@ export default function Projects() {
         position: "top-center",
       });
     }
+
+    useEffect(() => {
+      form.setFieldValue('name', project.name);
+      form.setFieldValue('key', project.key);
+      form.validate();
+    }, [project]);
+
+    useEffect(() => {
+      form.validate();
+    }, [components]);
   };
 
 
@@ -198,111 +285,152 @@ export default function Projects() {
         }}
         closeButtonProps={{icon: <IconX color="red"/>, variant: "subtle", color: "gray"}}
         title={<Title mb="md" order={2}>Přidání nového projektu do evidence</Title>}
+        scrollAreaComponent={ScrollArea.Autosize}
         styles={{
-          header: {paddingBottom: 0}
+          header: {paddingBottom: 8},
+          body: {paddingBottom: 0}
         }}
       >
         <form onSubmit={form.onSubmit((values) => handleSubmit(values))}>
-          <TextInput
-            data-autofocus
-            withAsterisk
-            label="Název"
-            placeholder="Zadejte název projektu..."
-            key={form.key('name')}
-            {...form.getInputProps('name')}
-          />
-
-          <TextInput
-            withAsterisk
-            label="Klíč"
-            placeholder="Zadejte klíč projektu..."
-            key={form.key('key')}
-            {...form.getInputProps('key')}
-          />
-          <TagsInput
-            label="Prostředí"
-            placeholder="Zadejte název prostředí..."
-            splitChars={[' ']}
-            data={[ {group: 'Nejčastější názvy prostředí', items: ['MPSVPROD', 'MPSVTEST', 'OKTEST']}]}
-            acceptValueOnBlur
-            clearable
-            value={environments}
-            onChange={setEnvironments}
-            key={form.key('environments')}
-          />
-
-          <Title order={3} mb="lg" mt="lg">
-            Projektové komponenty
-          </Title>
-
-          {components.map((row, index) => (
-            <Group
-              mt="md"
-              key={index}
-              style={{ flexDirection: 'row', justifyContent: 'space-between' }}
+          <div style={{paddingLeft: 8, paddingRight: 8}}>
+            <Fieldset pb="35">
+              <Flex align="flex-start" direction="row" gap="md" h={55}>
+                <TextInput
+                  w={322}
+                  data-autofocus
+                  withAsterisk
+                  label="Název"
+                  placeholder="Zadejte název projektu..."
+                  value={project.name}
+                  onInput={(e) => setProject((prev) => ({...prev, name: e.target.value}))}
+                  key={form.key('name')}
+                  {...form.getInputProps('name')}
+                />
+                <TextInput
+                  w={322}
+                  withAsterisk
+                  label="Klíč"
+                  placeholder="Zadejte klíč projektu..."
+                  value={project.key.toUpperCase()}
+                  onInput={(e) => setProject((prev) => ({...prev, key: e.target.value}))}
+                  key={form.key('key')}
+                  {...form.getInputProps('key')}
+                />
+              </Flex>
+            </Fieldset>
+            <Fieldset w="100%" mt="lg" legend={
+              <Title order={3}>
+                Prostředí
+              </Title>}
             >
-              <TextInput
-                id={`inputComponentName${index}`}
-                label={ components.length > 0 && index === 0 ? "Název" : "" }
-                readOnly={true}
-                placeholder={`Název komponenty ${index}`}
-                value={row.name}
-                style={{ minWidth: '300px', pointerEvents: 'none', outline: 'none', boxShadow: 'none', borderColor: 'transparent' }}
-                tabIndex={-1}
-              />
-              <TextInput
-                id={`inputComponentKey${index}`}
-                label={ components.length > 0 && index === 0 ? "Klíč" : "" }
-                readOnly={true}
-                placeholder={`Klíč komponenty ${index}`}
-                value={row.key}
-                style={{ minWidth: '300px', pointerEvents: 'none', outline: 'none', boxShadow: 'none', borderColor: 'transparent' }}
-                tabIndex={-1}
-              />
-              <ActionIcon
-                color="red"
-                variant="light"
-                onClick={() => handleRemoveComponent(index)}
-                style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
-              >
-                <IconTrash size="20"/>
-              </ActionIcon>
+            <TagsInput
+              placeholder="Zadejte název prostředí..."
+              splitChars={[' ']}
+              data={commonEnvsGroup}
+              acceptValueOnBlur
+              clearable
+              renderOption={renderTagsInputOption}
+              value={environments}
+              onChange={handleEnvironmentsChange}
+              styles={{
+                pill: { textTransform: "upperCase" }
+              }}
+              key={form.key('environments')}
+            />
+            </Fieldset>
+
+            <Fieldset mt="lg" pb="35" mb="8" legend={
+              <Title order={3} >
+                Projektové komponenty
+              </Title>}
+            >
+              <Flex align="flex-start" direction="column" gap="md">
+                {components.map((row, index) => (
+                  <Group align="flex-start" key={row.id} h={index === 0 ? 75 : 50}>
+                    <TextInput
+                      id={`inputComponentName${row.id}`}
+                      w="300"
+                      label={components.length > 0 && index === 0 ? "Název" : ""}
+                      placeholder="Zadejte název komponenty..."
+                      value={row.name}
+                      onInput={(e) => handleComponentNameChange(row.id, e.target.value)}
+                      //                  onKeyDown={(e) => handleKeyDownComp(e, `inputComponentName${row.id}`, row.id)}
+                      error={!row.name.trim() ? "Název nesmí být prázdný." : null}
+                    />
+                    <TextInput
+                      id={`inputComponentKey${row.id}`}
+                      w="300"
+                      label={ components.length > 0 && index === 0 ? "Klíč" : "" }
+                      placeholder="Zadejte klíč komponenty..."
+                      value={row.key.toUpperCase()}
+                      onInput={(e) => handleComponentKeyChange(row.id, e.target.value.toLowerCase())}
+                      //                onKeyDown={(e) => handleKeyDownComp(e, `inputComponentKey${row.id}`, row.id)}
+                      error={getCompErrorMessage(row.id)}
+                    />
+                  </Group>)
+                )}
+              </Flex>
+              <Group mt="8px">
+                <TextInput
+                  h={50}
+                  id='inputComponentName'
+                  label={"Nová komponenta"}
+                  placeholder="Zadejte název komponenty..."
+                  value={inputComponentName}
+                  w={300}
+                  onInput={(e) => {setInputComponentName(e.target.value);}}
+                  //          onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentName')} // Add row on Enter key
+                />
+                <TextInput
+                  h={50}
+                  id='inputComponentKey'
+                  label={" "}
+                  placeholder="Zadejte klíč komponenty..."
+                  value={inputComponentKey.toUpperCase()}
+                  w={300}
+                  inputWrapperOrder={['label', 'input', 'description', 'error']}
+                  onInput={(e) => {setInputComponentKey(e.target.value.toLowerCase());}}
+                  //          onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentKey')}
+                  description={components.some(component =>
+                    equalsCaseInsensitive(component.key, inputComponentKey.trim()))
+                    ? equalsCaseInsensitive(project.key, inputComponentKey)
+                      ? <Group gap={"6"} c={"yellow"}><IconInfoCircle size={16}/>Klíč komponenty je stejný jako klíč projektu.</Group>
+                      : <Group gap={"6"} c={"yellow"}><IconInfoCircle size={16}/>Komponenta s tímto klíčem už je evidována.</Group>
+                    : null
+                  }
+                />
+                <Tooltip
+                  label={"Pro přidání komponenty vyplňte název i klíč."}
+                  disabled={inputComponentKey.trim().length !== 0 && inputComponentName.trim().length !== 0}
+                >
+                  <ActionIcon
+                    disabled={!enabled}
+                    variant="light"
+                    color="green"
+                    onClick={handleAddComponent}
+                    mt={35}
+                  >
+                    <IconPlus size="20" />
+                  </ActionIcon>
+                </Tooltip>
+
+              </Group>
+            </Fieldset>
+          </div>
+          <Paper
+            style={{
+              position: "sticky",
+              bottom: 0,
+              zIndex: 999
+            }}>
+            <Group
+              py={16}
+              pr={16}
+              justify="flex-end"
+            >
+              <Button type="submit" rightSection={<IconCheck size={16}/>}>Přidat</Button>
             </Group>
-          ))}
-          <Group style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: "flex-start" }} mt="sm">
-            <TextInput
-              id='inputComponentName'
-              label={ components.length === 0 ? "Název" : "" }
-              placeholder="Zadejte název komponenty..."
-              value={inputComponentName}
-              style={{ minWidth: '300px'}}
-              onInput={(e) => {setInputComponentName(e.target.value);}}
-              onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentName')} // Add row on Enter key
-            />
-            <TextInput
-              id='inputComponentKey'
-              label={ components.length === 0 ? "Klíč" : "" }
-              placeholder="Zadejte klíč komponenty..."
-              value={inputComponentKey}
-              style={{ minWidth: '300px' }}
-              onInput={(e) => {setInputComponentKey(e.target.value);}}
-              onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentKey')}
-            />
-            <Tooltip label={components.some(component => component.key === inputComponentKey.trim()) ? "Klíč komponenty musí být unikátní!" : "Pro přidání komponenty vyplňte název i klíč!"} disabled={enabled}>
-              <ActionIcon
-                style={{ alignSelf: 'flex-end', marginBottom: '5px' }}
-                disabled={!enabled}
-                variant="light"
-                color="green"
-                onClick={handleAddComponent}
-              >
-                <IconPlus size="20" />
-              </ActionIcon>
-            </Tooltip>
-          </Group>
-          <Group justify="flex-end" mt="md">
-            <Button type="submit" rightSection={<IconCheck size={16}/>}>Přidat</Button>
-          </Group>
+          </Paper>
         </form>
       </Modal>
 
@@ -330,5 +458,5 @@ export default function Projects() {
         </ContentContainer>
       </div>
     </>
-  );
+);
 }

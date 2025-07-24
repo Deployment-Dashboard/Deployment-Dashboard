@@ -12,16 +12,19 @@ import cz.oksystem.deployment_dashboard.service.EnvironmentService;
 import cz.oksystem.deployment_dashboard.service.VersionService;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.util.List;
 import java.util.Optional;
@@ -35,7 +38,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @Transactional
 class ApiControllerIntegrationTests {
 
@@ -64,8 +66,8 @@ class ApiControllerIntegrationTests {
   private EntityManager em;
 
 
-	@Test
-	void contextLoads() throws Exception {
+  @Test
+  void contextLoads() throws Exception {
     Assertions.assertNotNull(objectMapper);
     Assertions.assertNotNull(mockMvc);
     Assertions.assertNotNull(apiController);
@@ -74,7 +76,14 @@ class ApiControllerIntegrationTests {
     Assertions.assertNotNull(verService);
     Assertions.assertNotNull(depService);
     Assertions.assertNotNull(em);
-	}
+  }
+
+  @BeforeEach
+  void setup(WebApplicationContext context, @Value("${server.servlet.context-path}") String contextPath) {
+    this.mockMvc = MockMvcBuilders.webAppContextSetup(context)
+      .defaultRequest(get("/").contextPath(contextPath))
+      .build();
+  }
 
   // addApp tests
 
@@ -84,19 +93,19 @@ class ApiControllerIntegrationTests {
     AppDto appDto = new AppDto();
 
     mockMvc.perform(
-      post("/api/apps")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto))
-        .accept(MediaType.APPLICATION_JSON))
+        post("/deploydash/api/apps")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto))
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
-      .andExpect(jsonPath("$.message").value("App could not be added."))
-      .andExpect(jsonPath("$.details").value(containsString("Key is blank.")))
-      .andExpect(jsonPath("$.details").value(containsString("Name is blank")))
+      .andExpect(jsonPath("$.message").value("Aplikaci se nepodařilo přidat."))
+      .andExpect(jsonPath("$.details").value(containsString("Pole 'key' je prázdné.")))
+      .andExpect(jsonPath("$.details").value(containsString("Pole 'name' je prázdné.")))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps"));
   }
 
   // verify that empty key field get rejected
@@ -106,18 +115,18 @@ class ApiControllerIntegrationTests {
     appDto.setName("deployment dashboard");
 
     mockMvc.perform(
-      post("/api/apps")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto))
-        .accept(MediaType.APPLICATION_JSON))
+        post("/deploydash/api/apps")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto))
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
-      .andExpect(jsonPath("$.message").value("App could not be added."))
-      .andExpect(jsonPath("$.details").value("Key is blank."))
+      .andExpect(jsonPath("$.message").value("Aplikaci se nepodařilo přidat."))
+      .andExpect(jsonPath("$.details").value("Nepodařilo se zpracovat DTO: Pole 'key' je prázdné."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps"));
   }
 
   // verify that empty name field gets rejected
@@ -127,18 +136,18 @@ class ApiControllerIntegrationTests {
     appDto.setKey("dd");
 
     mockMvc.perform(
-      post("/api/apps")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto))
-        .accept(MediaType.APPLICATION_JSON))
+        post("/deploydash/api/apps")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto))
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
-      .andExpect(jsonPath("$.message").value("App could not be added."))
-      .andExpect(jsonPath("$.details").value("Name is blank."))
+      .andExpect(jsonPath("$.message").value("Aplikaci s klíčem 'dd' se nepodařilo přidat."))
+      .andExpect(jsonPath("$.details").value("Nepodařilo se zpracovat DTO: Pole 'name' je prázdné."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps"));
   }
 
   // verify that an app is persisted from valid JSON
@@ -147,10 +156,10 @@ class ApiControllerIntegrationTests {
     AppDto appDto = new AppDto("dd", "deployment dashboard");
 
     mockMvc.perform(
-      post("/api/apps")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto)))
+        post("/deploydash/api/apps")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto)))
       .andDo(print())
       .andExpect(status().isCreated());
 
@@ -171,12 +180,20 @@ class ApiControllerIntegrationTests {
     AppDto componentDto = new AppDto("dd-fe", "front end", "dd");
 
     mockMvc.perform(
-      post("/api/apps")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(componentDto)))
+        post("/deploydash/api/apps")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(componentDto)))
       .andDo(print())
       .andExpect(status().isCreated());
+
+    em.flush();
+    em.clear();
+
+    Optional<App> refetchedApp = appService.get(app.getKey());
+    Assertions.assertTrue(refetchedApp.isPresent());
+
+    app = refetchedApp.get();
 
     Optional<App> component = appService.get("dd-fe");
 
@@ -189,10 +206,10 @@ class ApiControllerIntegrationTests {
     AppDto componentDto = new AppDto("dd-fe", "front end", "dd");
 
     mockMvc.perform(
-      post("/api/apps/")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(componentDto)))
+        post("/deploydash/api/apps/")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(componentDto)))
       .andDo(print())
       .andExpect(status().isNotFound());
   }
@@ -205,18 +222,18 @@ class ApiControllerIntegrationTests {
     AppDto componentDtoDb = new AppDto("dd-db", "database", "dd");
 
     mockMvc.perform(
-      post("/api/apps")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(componentDtoFe)))
+        post("/deploydash/api/apps")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(componentDtoFe)))
       .andDo(print())
       .andExpect(status().isCreated());
 
     mockMvc.perform(
-      post("/api/apps")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(componentDtoDb)))
+        post("/deploydash/api/apps")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(componentDtoDb)))
       .andDo(print())
       .andExpect(status().isCreated());
 
@@ -243,15 +260,15 @@ class ApiControllerIntegrationTests {
     String appJson = objectMapper.writeValueAsString(appDto);
 
     mockMvc.perform(
-      post("/api/apps")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(appJson))
+        post("/deploydash/api/apps")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(appJson))
       .andDo(print())
       .andExpect(status().isCreated());
 
     mockMvc.perform(
-        post("/api/apps")
+        post("/deploydash/api/apps")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(appJson)
@@ -259,10 +276,10 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isConflict())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
-      .andExpect(jsonPath("$.message").value("App could not be added."))
-      .andExpect(jsonPath("$.details").value("App with key 'dd' already exists."))
+      .andExpect(jsonPath("$.message").value("Aplikaci s klíčem 'dd' se nepodařilo přidat."))
+      .andExpect(jsonPath("$.details").value("Aplikace s klíčem 'dd' již existuje."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps"));
   }
 
   // updateApp tests
@@ -274,7 +291,7 @@ class ApiControllerIntegrationTests {
     AppDto appDto = new AppDto();
 
     mockMvc.perform(
-        put("/api/apps/dd")
+        put("/deploydash/api/apps/dd")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(objectMapper.writeValueAsString(appDto))
@@ -282,11 +299,11 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
-      .andExpect(jsonPath("$.message").value("App could not be updated."))
-      .andExpect(jsonPath("$.details").value(containsString("Key is blank.")))
-      .andExpect(jsonPath("$.details").value(containsString("Name is blank")))
+      .andExpect(jsonPath("$.message").value("Aplikaci s klíčem 'dd' se nepodařilo aktualizovat."))
+      .andExpect(jsonPath("$.details").value(containsString("Pole 'key' je prázdné.")))
+      .andExpect(jsonPath("$.details").value(containsString("Pole 'name' je prázdné")))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd"));
   }
 
   // verify that empty key field gets rejected
@@ -297,7 +314,7 @@ class ApiControllerIntegrationTests {
     appDto.setName("deployment dashboard");
 
     mockMvc.perform(
-        put("/api/apps/dd")
+        put("/deploydash/api/apps/dd")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(objectMapper.writeValueAsString(appDto))
@@ -305,10 +322,10 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
-      .andExpect(jsonPath("$.message").value("App could not be updated."))
-      .andExpect(jsonPath("$.details").value("Key is blank."))
+      .andExpect(jsonPath("$.message").value("Aplikaci s klíčem 'dd' se nepodařilo aktualizovat."))
+      .andExpect(jsonPath("$.details").value("Nepodařilo se zpracovat DTO: Pole 'key' je prázdné."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd"));
   }
 
   // verify that empty name field gets rejected
@@ -319,7 +336,7 @@ class ApiControllerIntegrationTests {
     appDto.setKey("dd");
 
     mockMvc.perform(
-        put("/api/apps/dd")
+        put("/deploydash/api/apps/dd")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(objectMapper.writeValueAsString(appDto))
@@ -327,10 +344,10 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
-      .andExpect(jsonPath("$.message").value("App could not be updated."))
-      .andExpect(jsonPath("$.details").value("Name is blank."))
+      .andExpect(jsonPath("$.message").value("Aplikaci s klíčem 'dd' se nepodařilo aktualizovat."))
+      .andExpect(jsonPath("$.details").value("Nepodařilo se zpracovat DTO: Pole 'name' je prázdné."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd"));
   }
 
   // verify that NotFound is returned for nonexistent key
@@ -339,10 +356,10 @@ class ApiControllerIntegrationTests {
     AppDto appDto = new AppDto("dd", "deployment dashboard");
 
     mockMvc.perform(
-      put("/api/apps/dd")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto)))
+        put("/deploydash/api/apps/dd")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto)))
       .andDo(print())
       .andExpect(status().isNotFound());
   }
@@ -355,10 +372,10 @@ class ApiControllerIntegrationTests {
     AppDto appDto = new AppDto("dd", "kontrolní linka");
 
     mockMvc.perform(
-      put("/api/apps/dd")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto)))
+        put("/deploydash/api/apps/dd")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto)))
       .andDo(print())
       .andExpect(status().isOk());
 
@@ -376,10 +393,10 @@ class ApiControllerIntegrationTests {
     AppDto appDto = new AppDto("kl", "kontrolní linka");
 
     mockMvc.perform(
-      put("/api/apps/dd")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(appDto)))
+        put("/deploydash/api/apps/dd")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(appDto)))
       .andDo(print())
       .andExpect(status().isOk());
 
@@ -396,7 +413,7 @@ class ApiControllerIntegrationTests {
     AppDto appDto = new AppDto("kl", "nekontrolní linka");
 
     mockMvc.perform(
-        put("/api/apps/dd")
+        put("/deploydash/api/apps/dd")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(objectMapper.writeValueAsString(appDto))
@@ -404,10 +421,10 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isConflict())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
-      .andExpect(jsonPath("$.message").value("App could not be updated."))
-      .andExpect(jsonPath("$.details").value("App with key 'kl' already exists."))
+      .andExpect(jsonPath("$.message").value("Aplikaci s klíčem 'dd' se nepodařilo aktualizovat."))
+      .andExpect(jsonPath("$.details").value("Aplikace s klíčem 'kl' již existuje."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd"));
   }
 
   @Test
@@ -416,7 +433,7 @@ class ApiControllerIntegrationTests {
     AppDto appDto = new AppDto("dd", "deployment dashboard", "dd");
 
     mockMvc.perform(
-        put("/api/apps/dd")
+        put("/deploydash/api/apps/dd")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(objectMapper.writeValueAsString(appDto))
@@ -424,10 +441,10 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isConflict())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
-      .andExpect(jsonPath("$.message").value("App could not be updated."))
-      .andExpect(jsonPath("$.details").value("App to app relationship forms a circle."))
+      .andExpect(jsonPath("$.message").value("Aplikaci s klíčem 'dd' se nepodařilo aktualizovat."))
+      .andExpect(jsonPath("$.details").value("Meziaplikační vztah je cyklický."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd"));
   }
 
   @Test
@@ -437,7 +454,7 @@ class ApiControllerIntegrationTests {
     AppDto appDto = new AppDto("dd", "deployment dashboard", "test");
 
     mockMvc.perform(
-        put("/api/apps/dd")
+        put("/deploydash/api/apps/dd")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(objectMapper.writeValueAsString(appDto))
@@ -445,10 +462,10 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isConflict())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
-      .andExpect(jsonPath("$.message").value("App could not be updated."))
-      .andExpect(jsonPath("$.details").value("App to app relationship forms a circle."))
+      .andExpect(jsonPath("$.message").value("Aplikaci s klíčem 'dd' se nepodařilo aktualizovat."))
+      .andExpect(jsonPath("$.details").value("Meziaplikační vztah je cyklický."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd"));
   }
 
   // deleteApp tests
@@ -457,16 +474,16 @@ class ApiControllerIntegrationTests {
   @Test
   void deleteNonexistentAppFails() throws Exception {
     mockMvc.perform(
-        delete("/api/apps/dd")
+        delete("/deploydash/api/apps/dd")
           .characterEncoding("utf-8")
           .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isNotFound())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.NOT_FOUND.value()))
-      .andExpect(jsonPath("$.message").value("App could not be archived/deleted."))
-      .andExpect(jsonPath("$.details").value("App with key 'dd' is not managed."))
+      .andExpect(jsonPath("$.message").value("Aplikaci s klíčem 'dd' se nepodařilo archivovat/smazat."))
+      .andExpect(jsonPath("$.details").value("Aplikace s klíčem 'dd' není v evidenci."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd"));
   }
 
   // verify that an app is deleted
@@ -475,7 +492,7 @@ class ApiControllerIntegrationTests {
     appService.save(new App("dd", "deployment dashboard"));
 
     mockMvc.perform(
-      delete("/api/apps/dd?hard_delete=true"))
+        delete("/deploydash/api/apps/dd"))
       .andExpect(status().isOk());
 
     Assertions.assertFalse(appService.exists("dd"));
@@ -486,7 +503,7 @@ class ApiControllerIntegrationTests {
 //    App app = appService.save(new App("dd", "deployment dashboard"));
 //
 //    mockMvc.perform(
-//      delete("/api/apps/dd"))
+//      delete("/deploydash/api/apps/dd"))
 //      .andExpect(status().isOk());
 //
 //    Assertions.assertTrue(app.getArchivedTimestamp().isPresent());
@@ -498,14 +515,22 @@ class ApiControllerIntegrationTests {
     envService.save(new Environment("test", app));
 
     mockMvc.perform(
-        get("/api/apps/dd/envs/test/versions?dd=1-0"))
+        get("/deploydash/api/apps/dd/envs/test/versions?dd=1-0"))
       .andDo(print())
       .andExpect(status().isOk());
+
+    em.flush();
+    em.clear();
+
+    Optional<App> refetchedApp = appService.get(app.getKey());
+    Assertions.assertTrue(refetchedApp.isPresent());
+
+    app = refetchedApp.get();
 
     Assertions.assertTrue(app.hasDeployment());
 
     mockMvc.perform(
-        delete("/api/apps/dd?hard_delete=true"))
+        delete("/deploydash/api/apps/dd?force=true"))
       .andExpect(status().isOk());
 
     Assertions.assertFalse(appService.exists(app));
@@ -517,20 +542,28 @@ class ApiControllerIntegrationTests {
     envService.save(new Environment("test", app));
 
     mockMvc.perform(
-        get("/api/apps/dd/envs/test/versions?dd=1-0"))
+        get("/deploydash/api/apps/dd/envs/test/versions?dd=1-0"))
       .andDo(print())
       .andExpect(status().isOk());
+
+    em.flush();
+    em.clear();
+
+    Optional<App> refetchedApp = appService.get(app.getKey());
+    Assertions.assertTrue(refetchedApp.isPresent());
+
+    app = refetchedApp.get();
 
     Assertions.assertTrue(app.hasDeployment());
 
     mockMvc.perform(
-        delete("/api/apps/dd"))
+        delete("/deploydash/api/apps/dd"))
       .andExpect(status().isConflict())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
-      .andExpect(jsonPath("$.message").value("App could not be archived/deleted."))
-      .andExpect(jsonPath("$.details").value("App with key 'dd' has deployments."))
+      .andExpect(jsonPath("$.message").value("Aplikaci s klíčem 'dd' se nepodařilo archivovat/smazat."))
+      .andExpect(jsonPath("$.details").value("Aplikace s klíčem 'dd' má nasazení."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd"));
 
     Assertions.assertTrue(appService.exists(app));
     Assertions.assertTrue(app.hasDeployment());
@@ -546,7 +579,7 @@ class ApiControllerIntegrationTests {
     EnvironmentDto envDto = new EnvironmentDto();
 
     mockMvc.perform(
-        post("/api/apps/dd/envs")
+        post("/deploydash/api/apps/dd/envs")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(objectMapper.writeValueAsString(envDto))
@@ -554,12 +587,12 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
-      .andExpect(jsonPath("$.message").value("Environment could not be added."))
-      .andExpect(jsonPath("$.details").value(containsString("Name is blank.")))
-      .andExpect(jsonPath("$.details").value(containsString("App key is blank.")))
+      .andExpect(jsonPath("$.message").value("Prostředí se nepodařilo přidat."))
+      .andExpect(jsonPath("$.details").value(containsString("Pole 'name' je prázdné.")))
+      .andExpect(jsonPath("$.details").value(containsString("Pole 'appKey' je prázdné.")))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs"));
-}
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs"));
+  }
 
   @Test
   void addEnvEmptyAppKeyFails() throws Exception {
@@ -568,7 +601,7 @@ class ApiControllerIntegrationTests {
     envDto.setName("prod");
 
     mockMvc.perform(
-        post("/api/apps/dd/envs")
+        post("/deploydash/api/apps/dd/envs")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(objectMapper.writeValueAsString(envDto))
@@ -576,10 +609,10 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
-      .andExpect(jsonPath("$.message").value("Environment could not be added."))
-      .andExpect(jsonPath("$.details").value(containsString("App key is blank.")))
+      .andExpect(jsonPath("$.message").value("Prostředí s klíčem 'prod' se nepodařilo přidat."))
+      .andExpect(jsonPath("$.details").value(containsString("Pole 'appKey' je prázdné.")))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs"));
   }
 
   @Test
@@ -589,7 +622,7 @@ class ApiControllerIntegrationTests {
     envDto.setAppKey("dd");
 
     mockMvc.perform(
-        post("/api/apps/dd/envs")
+        post("/deploydash/api/apps/dd/envs")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(objectMapper.writeValueAsString(envDto))
@@ -597,10 +630,10 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
-      .andExpect(jsonPath("$.message").value("Environment could not be added."))
-      .andExpect(jsonPath("$.details").value(containsString("Name is blank.")))
+      .andExpect(jsonPath("$.message").value("Prostředí se nepodařilo přidat."))
+      .andExpect(jsonPath("$.details").value(containsString("Pole 'name' je prázdné.")))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs"));
   }
 
   @Test
@@ -608,18 +641,18 @@ class ApiControllerIntegrationTests {
     EnvironmentDto envDto = new EnvironmentDto("dd", "test");
 
     mockMvc.perform(
-      post("/api/apps/dd/envs")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(envDto))
-        .accept(MediaType.APPLICATION_JSON))
+        post("/deploydash/api/apps/dd/envs")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(envDto))
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isNotFound())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.NOT_FOUND.value()))
-      .andExpect(jsonPath("$.message").value("Environment could not be added."))
-      .andExpect(jsonPath("$.details").value("App with key 'dd' is not managed."))
+      .andExpect(jsonPath("$.message").value("Prostředí s klíčem 'test' se nepodařilo přidat."))
+      .andExpect(jsonPath("$.details").value("Aplikace s klíčem 'dd' není v evidenci."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs"));
   }
 
   @Test
@@ -628,19 +661,24 @@ class ApiControllerIntegrationTests {
     EnvironmentDto envDto = new EnvironmentDto("dd", "test");
 
     mockMvc.perform(
-      post("/api/apps/dd/envs")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(envDto)))
+        post("/deploydash/api/apps/dd/envs")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(envDto)))
       .andDo(print())
       .andExpect(status().isCreated())
       .andReturn();
 
-    Optional<App> fetchedApp = appService.get("dd");
-    Optional<Environment> fetchedEnv = envService.get("dd", "test");
+    em.flush();
+    em.clear();
+
+    Optional<App> fetchedApp = appService.get(app.getKey());
+    Optional<Environment> fetchedEnv = envService.get(app.getKey(), envDto.getName());
 
     Assertions.assertTrue(fetchedApp.isPresent());
     Assertions.assertTrue(fetchedEnv.isPresent());
+
+    app = fetchedApp.get();
 
     Assertions.assertFalse(app.getEnvironments().isEmpty());
     Assertions.assertEquals(fetchedEnv.get().getApp(), app);
@@ -655,15 +693,15 @@ class ApiControllerIntegrationTests {
 
 
     mockMvc.perform(
-      post("/api/apps/dd/envs")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(envJson))
+        post("/deploydash/api/apps/dd/envs")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(envJson))
       .andDo(print())
       .andExpect(status().isCreated());
 
     mockMvc.perform(
-        post("/api/apps/dd/envs")
+        post("/deploydash/api/apps/dd/envs")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(envJson)
@@ -671,10 +709,10 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isConflict())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
-      .andExpect(jsonPath("$.message").value("Environment could not be added."))
-      .andExpect(jsonPath("$.details").value("Environment with key 'test' for App 'dd' already exists."))
+      .andExpect(jsonPath("$.message").value("Prostředí s klíčem 'test' se nepodařilo přidat."))
+      .andExpect(jsonPath("$.details").value("Prostředí s klíčem 'test' pro aplikaci 'dd' již existuje."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs"));
   }
 
   @Test
@@ -684,26 +722,33 @@ class ApiControllerIntegrationTests {
     EnvironmentDto envDtoProd = new EnvironmentDto("dd", "prod");
 
     mockMvc.perform(
-      post("/api/apps/dd/envs")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(envDtoTest)))
+        post("/deploydash/api/apps/dd/envs")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(envDtoTest)))
       .andDo(print())
       .andExpect(status().isCreated());
 
     mockMvc.perform(
-      post("/api/apps/dd/envs")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(envDtoProd)))
+        post("/deploydash/api/apps/dd/envs")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(envDtoProd)))
       .andDo(print())
       .andExpect(status().isCreated());
 
+    em.flush();
+    em.clear();
+
+    Optional<App> refetechedApp = appService.get(app.getKey());
     Optional<Environment> testEnv = envService.get("dd", "test");
     Optional<Environment> prodEnv = envService.get("dd", "prod");
 
+    Assertions.assertTrue(refetechedApp.isPresent());
     Assertions.assertTrue(testEnv.isPresent());
     Assertions.assertTrue(prodEnv.isPresent());
+
+    app = refetechedApp.get();
 
     Assertions.assertFalse(app.getEnvironments().isEmpty());
     Assertions.assertEquals(testEnv.get().getApp(), app);
@@ -717,18 +762,30 @@ class ApiControllerIntegrationTests {
     App app = appService.save(new App("dd", "deployment dashboard"));
     List<Environment> envs = envService.saveAll(new Environment("test", app), new Environment("prod", app), new Environment("integ", app), new Environment("mpsv-prod", app));
 
-    envs.forEach(env -> Assertions.assertTrue(app.getEnvironments().contains(env)));
+    em.flush();
+    em.clear();
+
+    Optional<App> refetchedApp = appService.get(app.getKey());
+    Assertions.assertTrue(refetchedApp.isPresent());
+
+    app = refetchedApp.get();
+
+    for (Environment env : envs) {
+      Optional<Environment> refetechedEnv = envService.get(app.getKey(), env.getName());
+      Assertions.assertTrue(refetechedEnv.isPresent());
+      Assertions.assertTrue(app.getEnvironments().contains(refetechedEnv.get()));
+    }
 
     MvcResult result = mockMvc.perform(
-      get("/api/apps/dd/envs")
-        .accept(MediaType.APPLICATION_JSON))
+        get("/deploydash/api/apps/dd/envs")
+          .accept(MediaType.APPLICATION_JSON))
       .andDo(print())
       .andExpect(status().isOk())
       .andReturn();
 
     String response = result.getResponse().getContentAsString();
 
-    for (Environment env: envs) {
+    for (Environment env : envs) {
       Assertions.assertTrue(response.contains(objectMapper.writeValueAsString(env)));
     }
   }
@@ -742,7 +799,7 @@ class ApiControllerIntegrationTests {
     EnvironmentDto envDto = new EnvironmentDto();
 
     mockMvc.perform(
-        put("/api/apps/dd/envs/test")
+        put("/deploydash/api/apps/dd/envs/test")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(objectMapper.writeValueAsString(envDto))
@@ -750,11 +807,11 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
-      .andExpect(jsonPath("$.message").value("Environment could not be updated."))
-      .andExpect(jsonPath("$.details").value(containsString("App key is blank.")))
-      .andExpect(jsonPath("$.details").value(containsString("Name is blank")))
+      .andExpect(jsonPath("$.message").value("Prostředí s klíčem 'test' se nepodařilo aktualizovat."))
+      .andExpect(jsonPath("$.details").value(containsString("Pole 'appKey' je prázdné.")))
+      .andExpect(jsonPath("$.details").value(containsString("Pole 'name' je prázdné")))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs/test"));
   }
 
   @Test
@@ -765,7 +822,7 @@ class ApiControllerIntegrationTests {
     envDto.setAppKey("dd");
 
     mockMvc.perform(
-        put("/api/apps/dd/envs/test")
+        put("/deploydash/api/apps/dd/envs/test")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(objectMapper.writeValueAsString(envDto))
@@ -773,10 +830,10 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
-      .andExpect(jsonPath("$.message").value("Environment could not be updated."))
-      .andExpect(jsonPath("$.details").value(containsString("Name is blank")))
+      .andExpect(jsonPath("$.message").value("Prostředí s klíčem 'test' se nepodařilo aktualizovat."))
+      .andExpect(jsonPath("$.details").value(containsString("Pole 'name' je prázdné.")))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs/test"));
   }
 
   @Test
@@ -787,7 +844,7 @@ class ApiControllerIntegrationTests {
     envDto.setName("prod");
 
     mockMvc.perform(
-        put("/api/apps/dd/envs/test")
+        put("/deploydash/api/apps/dd/envs/test")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(objectMapper.writeValueAsString(envDto))
@@ -795,10 +852,10 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
-      .andExpect(jsonPath("$.message").value("Environment could not be updated."))
-      .andExpect(jsonPath("$.details").value(containsString("App key is blank")))
+      .andExpect(jsonPath("$.message").value("Prostředí s klíčem 'test' se nepodařilo aktualizovat."))
+      .andExpect(jsonPath("$.details").value(containsString("Pole 'appKey' je prázdné")))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs/test"));
   }
 
   @Test
@@ -809,7 +866,7 @@ class ApiControllerIntegrationTests {
     EnvironmentDto envDto = new EnvironmentDto("dd", "prod");
 
     mockMvc.perform(
-        put("/api/apps/dd/envs/test")
+        put("/deploydash/api/apps/dd/envs/test")
           .characterEncoding("utf-8")
           .contentType(MediaType.APPLICATION_JSON)
           .content(objectMapper.writeValueAsString(envDto))
@@ -817,10 +874,10 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isConflict())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
-      .andExpect(jsonPath("$.message").value("Environment could not be updated."))
-      .andExpect(jsonPath("$.details").value("Environment with key 'prod' for App 'dd' already exists."))
+      .andExpect(jsonPath("$.message").value("Prostředí s klíčem 'test' se nepodařilo aktualizovat."))
+      .andExpect(jsonPath("$.details").value("Prostředí s klíčem 'prod' pro aplikaci 'dd' již existuje."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs/test"));
   }
 
   @Test
@@ -830,18 +887,23 @@ class ApiControllerIntegrationTests {
     EnvironmentDto envDto = new EnvironmentDto("dd", "prod");
 
     mockMvc.perform(
-      put("/api/apps/dd/envs/test")
-        .characterEncoding("utf-8")
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(envDto)))
+        put("/deploydash/api/apps/dd/envs/test")
+          .characterEncoding("utf-8")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(objectMapper.writeValueAsString(envDto)))
       .andDo(print())
       .andExpect(status().isOk());
 
-    Optional<App> fetchedApp = appService.get("dd");
+    em.flush();
+    em.clear();
+
+    Optional<App> refetchedApp = appService.get("dd");
     Optional<Environment> fetchedEnv = envService.get("dd", "prod");
 
-    Assertions.assertTrue(fetchedApp.isPresent());
+    Assertions.assertTrue(refetchedApp.isPresent());
     Assertions.assertTrue(fetchedEnv.isPresent());
+
+    app = refetchedApp.get();
 
     Assertions.assertFalse(envService.exists("dd", "test"));
     Assertions.assertTrue(envService.exists("dd", "prod"));
@@ -853,7 +915,7 @@ class ApiControllerIntegrationTests {
   @Test
   void deleteNonexistentEnvFails() throws Exception {
     mockMvc.perform(
-      delete("/api/apps/dd/envs/test"))
+        delete("/deploydash/api/apps/dd/envs/test"))
       .andExpect(status().isNotFound());
   }
 
@@ -863,7 +925,7 @@ class ApiControllerIntegrationTests {
     envService.save(new Environment("test", app));
 
     mockMvc.perform(
-      delete("/api/apps/dd/envs/test"))
+        delete("/deploydash/api/apps/dd/envs/test"))
       .andExpect(status().isOk());
 
     Assertions.assertFalse(envService.exists("dd", "test"));
@@ -876,20 +938,29 @@ class ApiControllerIntegrationTests {
     envService.save(new Environment("test", app));
 
     mockMvc.perform(
-        get("/api/apps/dd/envs/test/versions?dd=1-0"))
+        get("/deploydash/api/apps/dd/envs/test/versions?dd=1-0"))
       .andDo(print())
       .andExpect(status().isOk());
+
+    em.flush();
+    em.clear();
+
+    Optional<App> refetchedApp = appService.get(app.getKey());
+
+    Assertions.assertTrue(refetchedApp.isPresent());
+
+    app = refetchedApp.get();
 
     Assertions.assertTrue(app.hasDeployment());
 
     mockMvc.perform(
-        delete("/api/apps/dd/envs/test"))
+        delete("/deploydash/api/apps/dd/envs/test"))
       .andExpect(status().isConflict())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.CONFLICT.value()))
-      .andExpect(jsonPath("$.message").value("Environment could not be archived/deleted."))
-      .andExpect(jsonPath("$.details").value("Environment with key 'test' has deployments."))
+      .andExpect(jsonPath("$.message").value("Prostředí s klíčem 'test' se nepodařilo archivovat/smazat."))
+      .andExpect(jsonPath("$.details").value("Prostředí s klíčem 'test' má nasazení."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs/test"));
   }
 
   // newVersion tests
@@ -897,13 +968,74 @@ class ApiControllerIntegrationTests {
   @Test
   void deployNonexistentAppFails() throws Exception {
     mockMvc.perform(
-      get("/api/apps/dd/envs/test/versions?dd=1-0"))
+        get("/deploydash/api/apps/dd/envs/test/versions?dd=1-0"))
+      .andDo(print())
       .andExpect(status().isNotFound())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.NOT_FOUND.value()))
-      .andExpect(jsonPath("$.message").value("Deployment could not be added."))
-      .andExpect(jsonPath("$.details").value("App with key 'dd' is not managed."))
+      .andExpect(jsonPath("$.message").value("Nasazení se nepodařilo zaevid."))
+      .andExpect(jsonPath("$.details").value("Aplikace s klíčem 'dd' není v evidenci."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test/versions"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs/test/versions"));
+  }
+
+  @Test
+  void sameVersionRedeployFails() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    envService.save(new Environment("test", app));
+
+    mockMvc.perform(
+        get("/deploydash/api/apps/dd/envs/test/versions?dd=1-0"))
+      .andExpect(status().isOk());
+
+    em.flush();
+    em.clear();
+
+    mockMvc.perform(
+        get("/deploydash/api/apps/dd/envs/test/versions?dd=1-0"))
+      .andDo(print())
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("Nasazení se nepodařilo zaevidovat."))
+      .andExpect(jsonPath("$.details").value(
+        "Aplikace 'dd' ve verzi '1-0' již byla na prostředí 'test' nasazena. " +
+          "Pokud chcete nasazení přesto zaevidovat, použijte k tomu URL v poli 'goToUrl'."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs/test/versions"))
+      .andExpect(jsonPath("$.goToUrl").value("http://localhost/deploydash/api/force/apps/dd/envs/test/versions?dd=1-0"));
+  }
+
+  @Test
+  void versionRollbackFails() throws Exception {
+    App app = appService.save(new App("dd", "deployment dashboard"));
+    envService.save(new Environment("test", app));
+
+    mockMvc.perform(
+        get("/deploydash/api/apps/dd/envs/test/versions?dd=1-0"))
+      .andExpect(status().isOk());
+
+    em.flush();
+    em.clear();
+
+    mockMvc.perform(
+        get("/deploydash/api/apps/dd/envs/test/versions?dd=2-0"))
+      .andExpect(status().isOk());
+
+    em.flush();
+    em.clear();
+
+    mockMvc.perform(
+        get("/deploydash/api/apps/dd/envs/test/versions?dd=1-0"))
+      .andDo(print())
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
+      .andExpect(jsonPath("$.message").value("Nasazení se nepodařilo zaevidovat."))
+      .andExpect(jsonPath("$.details").value(
+        "Aplikace 'dd' je na prostředí 'test' nasazena ve verzi '2-0', " +
+          "která je dle evidence novější, než právě nasazovaná verze '1-0'. P" +
+          "okud chcete nasazení přesto zaevidovat, použijte k tomu URL v poli 'goToUrl'."))
+      .andExpect(jsonPath("$.timestamp").isNotEmpty())
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs/test/versions"))
+      .andExpect(jsonPath("$.goToUrl").value("http://localhost/deploydash/api/force/apps/dd/envs/test/versions?dd=1-0"));
   }
 
   @Test
@@ -911,13 +1043,13 @@ class ApiControllerIntegrationTests {
     appService.save(new App("dd", "deployment dashboard"));
 
     mockMvc.perform(
-        get("/api/apps/dd/envs/test/versions?dd=1-0"))
+        get("/deploydash/api/apps/dd/envs/test/versions?dd=1-0"))
       .andExpect(status().isNotFound())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.NOT_FOUND.value()))
-      .andExpect(jsonPath("$.message").value("Deployment could not be added."))
-      .andExpect(jsonPath("$.details").value("Environment with key 'dd-test' is not managed."))
+      .andExpect(jsonPath("$.message").value("Nasazení se nepodařilo zaevidovat."))
+      .andExpect(jsonPath("$.details").value("Prostředí s klíčem 'test' pro aplikaci 'dd' není v evidenci."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
-      .andExpect(jsonPath("$.path").value("/api/apps/dd/envs/test/versions"));
+      .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs/test/versions"));
   }
 
   @Test
@@ -926,13 +1058,22 @@ class ApiControllerIntegrationTests {
     Environment env = envService.save(new Environment("test", app));
 
     mockMvc.perform(
-        get("/api/apps/dd/envs/test/versions?dd=1-0"))
+        get("/deploydash/api/apps/dd/envs/test/versions?dd=1-0"))
       .andExpect(status().isOk());
 
+    em.flush();
+    em.clear();
+
+    Optional<App> refetchedApp = appService.get(app.getKey());
+    Optional<Environment> refetechedEnv = envService.get(app.getKey(), env.getName());
     Optional<Version> fetchedVersion = verService.get(app.getKey(), "1-0");
 
+    Assertions.assertTrue(refetchedApp.isPresent());
+    Assertions.assertTrue(refetechedEnv.isPresent());
     Assertions.assertTrue(fetchedVersion.isPresent());
 
+    app = refetchedApp.get();
+    env = refetechedEnv.get();
     Version version = fetchedVersion.get();
 
     Assertions.assertEquals(app, version.getApp());
@@ -949,12 +1090,31 @@ class ApiControllerIntegrationTests {
     App component = appService.save(new App("dd-fe", "front end", app));
     Environment env = envService.save(new Environment("test", app));
 
+    em.flush();
+    em.clear();
+
     mockMvc.perform(
-        get("/api/apps/dd/envs/test/versions?dd=1-0&dd-fe=1-0"))
+        get("/deploydash/api/apps/dd/envs/test/versions?dd=1-0&dd-fe=1-0"))
       .andExpect(status().isOk());
+
+    em.flush();
+    em.clear();
 
     Optional<Version> fetchedVersion = verService.get(app.getKey(), "1-0");
     Assertions.assertTrue(fetchedVersion.isPresent());
+
+    Optional<App> refetchedApp = appService.get(app.getKey());
+    Assertions.assertTrue(refetchedApp.isPresent());
+
+    Optional<App> refetchedComponent = appService.get(component.getKey());
+    Assertions.assertTrue(refetchedComponent.isPresent());
+
+    Optional<Environment> refetchedEnv = envService.get(app.getKey(), env.getName());
+    Assertions.assertTrue(refetchedEnv.isPresent());
+
+    app = refetchedApp.get();
+    component = refetchedComponent.get();
+    env = refetchedEnv.get();
 
     Version version = fetchedVersion.get();
 
@@ -985,16 +1145,30 @@ class ApiControllerIntegrationTests {
     App component = appService.save(new App("dd-fe", "front end", app));
     Environment env = envService.save(new Environment("test", app));
 
+    em.flush();
+    em.clear();
+
     mockMvc.perform(
-        get("/api/apps/dd/envs/test/versions?dd-fe=1-0"))
+        get("/deploydash/api/apps/dd/envs/test/versions?dd-fe=1-0"))
       .andExpect(status().isOk());
+
+    em.flush();
+    em.clear();
 
     Optional<Version> fetchedVersion = verService.get(app.getKey(), "1-0");
     Assertions.assertTrue(fetchedVersion.isEmpty());
 
-
     Optional<Version> componentFetchedVersion = verService.get(component.getKey(), "1-0");
     Assertions.assertTrue(componentFetchedVersion.isPresent());
+
+    Optional<App> refetchedComponent = appService.get(component.getKey());
+    Assertions.assertTrue(refetchedComponent.isPresent());
+
+    Optional<Environment> refetchedEnv = envService.get(app.getKey(), env.getName());
+    Assertions.assertTrue(refetchedEnv.isPresent());
+
+    component = refetchedComponent.get();
+    env = refetchedEnv.get();
 
     Version componentVersion = componentFetchedVersion.get();
 

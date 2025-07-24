@@ -1,6 +1,7 @@
 import ContentContainer from "~/components/content-container";
-import {Button, Text, Title} from "@mantine/core";
+import {Button, Center, Stack, Text, Title} from "@mantine/core";
 import { Link } from "react-router";
+import HomepageLink from "~/components/homepage-link";
 
 export default function NotFoundPage() {
   return (
@@ -10,8 +11,15 @@ export default function NotFoundPage() {
         style={{visibility: "hidden"}}
       />
       <ContentContainer>
-        <Title order={2} size="h1" fw={700}>Error 404 - Page Not Found</Title>
-        <Text mt="lg">Webová stránka, kterou hledáte, nebyla nalezena.<br/>Zkontrolujte prosím zadanou adresu, nebo se vraťte na <Link to="/projects" style={{textDecoration: "underline", color: "green"}}>hlavní stránku</Link>.</Text>
+        <Center>
+          <Stack gap={0} mt="xl">
+            <Title order={2} size="h1" fw={700}>Error 404 - Page Not Found</Title>
+            <Text mt="lg">
+              Webová stránka, kterou hledáte, nebyla nalezena.<br/>Zkontrolujte prosím zadanou adresu, nebo se vraťte
+              na <HomepageLink/>.
+            </Text>
+          </Stack>
+        </Center>
       </ContentContainer>
     </div>
   );

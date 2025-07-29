@@ -19,7 +19,7 @@ import ModalAddProject from "~/components/projects/index/modal-add-project";
 //
 
 export let loader: LoaderFunction = async () => {
-  const response = await fetch(`${API_URL}/apps`);
+  const response = await fetch(`${API_URL}/apps-overview`);
   const projects: ProjectOverviewDto[] = await response.json();
   return projects;
 };

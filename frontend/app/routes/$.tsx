@@ -1,7 +1,10 @@
-import ContentContainer from "~/components/content-container";
+import ContentContainer from "~/components/global/content-container";
 import {Button, Center, Stack, Text, Title} from "@mantine/core";
-import { Link } from "react-router";
-import HomepageLink from "~/components/homepage-link";
+import HomepageLink from "~/components/global/homepage-link";
+
+//
+// Splat route pro neexistující stránky
+//
 
 export default function NotFoundPage() {
   return (

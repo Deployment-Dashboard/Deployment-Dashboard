@@ -52,12 +52,17 @@ public class Version extends AbstractDeploymentHolder {
         "Name is empty."
       );
     }
+    if (description != null && description.length() > 1024) {
+      throw new IllegalArgumentException("Max length for version description is 1024.");
+    }
     this.app = app;
     this.name = name;
     this.description = description;
   }
 
   // Getters
+  public Long getId() { return this.id; }
+
   public String getName() { return this.name; }
 
   public Optional<String> getDescription() {
@@ -77,6 +82,10 @@ public class Version extends AbstractDeploymentHolder {
   }
 
   public void setDescription(@Nullable String newDescription) {
+    if (newDescription != null && newDescription.length() > 1024) {
+      throw new IllegalArgumentException("Max length for version description is 1024.");
+    }
+
     this.description = newDescription;
   }
 
@@ -103,9 +112,5 @@ public class Version extends AbstractDeploymentHolder {
       ", app=" + app +
       ", deployments=" + this.getDeployments() +
       '}';
-  }
-
-  public Long getId() {
-    return this.id;
   }
 }

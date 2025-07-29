@@ -1,5 +1,5 @@
 import {Link, LoaderFunctionArgs, redirect, replace, useLoaderData, useNavigate, useRevalidator} from "react-router";
-import ContentContainer from "~/components/content-container";
+import ContentContainer from "~/components/global/content-container";
 import {
   ActionIcon,
   Badge,
@@ -10,59 +10,107 @@ import {
   Paper,
   Stack,
   Table,
-  TagsInput,
   TextInput,
   Text,
-  Title, Loader, Tooltip, Modal, Notification, useModalsStack, Flex, Indicator, Fieldset, ScrollArea
+  Title, Loader, Tooltip, Modal, Flex, Indicator, Fieldset, ScrollArea
 } from "@mantine/core";
 import {
   IconArrowBackUp,
   IconCheck,
   IconChevronDown,
-  IconChevronUp, IconExclamationMark,
-  IconExternalLink, IconHelpCircle, IconHelpCircleFilled, IconHistory, IconInfoCircle,
+  IconChevronUp,
+  IconHistory, IconInfoCircle,
   IconPencil, IconPlus,
-  IconRocket, IconTrash,
+  IconTrash,
   IconX
 } from "@tabler/icons-react";
 import {API_URL} from "~/constants"
 import {useDisclosure} from "@mantine/hooks";
 import {useEffect, useRef, useState} from "react";
 import {useForm} from "@mantine/form";
-import {notifications} from "@mantine/notifications";
+import {NotificationData, notifications} from "@mantine/notifications";
 import {ErrorBody} from "~/types";
+import IconJira from "~/components/global/icon-jira";
+import {equalsCaseInsensitive} from "~/util-methods";
 
-// TODO datove typy a upravit parsovani, je to hnus
+//
+// Detail projektu
+//
+
 export async function loader({
-                               params,
+                               params, request
                              }: LoaderFunctionArgs) {
-  console.log(`fetching data for: ${params.appKey}`);
   const response = await fetch(`${API_URL}/apps/${params.appKey}`);
+
+  const url = new URL(request.url);
+  const from = url.searchParams.get("from");
+  const scrollToApp = url.searchParams.get("appKey");
+  const scrollToVersion = url.searchParams.get("versionName")
+
+  const scrollTo = scrollToApp && scrollToVersion ? {appKey: scrollToApp, versionName: scrollToVersion} : null;
 
   if (!response.ok) {
     return redirect('/404');
   }
 
-  const appDetail = await response.json();
+  const data = await response.json();
 
-  return (appDetail);
+  let goBackTo = {url: "/projects", buttonText: "přehled"}
+
+  switch(from) {
+    case "history":
+      goBackTo = {url: "/deployment-history", buttonText: "historii"}
+  }
+
+  return {appDetail: data, goBackTo: goBackTo, scrollTo: scrollTo}
 }
 
 export default function ProjectDetail() {
 
-  const collator = new Intl.Collator(undefined, { sensitivity: "base" });
+  //
+  // DATA
+  //
 
-  const equalsCaseInsensitive = (str1: string, str2: string) => {
-    return collator.compare(str1.trim(), str2.trim()) === 0;
-  }
+  // načtení dat ze server loaderu
+  const loaderData = useLoaderData();
+  const appDetail = loaderData.appDetail
+
+  appDetail.environmentNames.sort();
+
+  // projekt
+  const [projectState, setProjectState] = useState(componentStates.find(component => component.key === appDetail.key));
+  // komponenty
+  const [componentStates, setComponentStates] = useState(() => initializeComponentStates());
+  const [inputComponentName, setInputComponentName] = useState('');
+  const [inputComponentKey, setInputComponentKey] = useState('');
+  // prostředí
+  const [environments, setEnvironments] = useState(() => initializeEnvironments());
+  const [inputEnvironment, setInputEnvironment] = useState('');
+  const [enabledEnv, envButtonHandlers] = useDisclosure(false);
+
+  // state pro buttons
+  const [enabledApp, componentButtonHandlers] = useDisclosure(false);
+
+  // mapa přetečených tabulek (na základě přetečení nastavujeme jinak border, kvůli scrollbaru
+  const [overflowMap, setOverflowMap] = useState<Record<string, boolean>>({});
+
+  // odkazy na pozadi tabulek
+  const paperRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // přehled posledních verzí
+  const latestVersions = getLatestVersionForComponentsAndEnvs();
+
+  // transformace dat pro tabulky
+  const transformedData = transformData();
+
+  // počítadla
+  const appIdCounter = useRef(0);
+  const envIdCounter = useRef(0);
 
   const { revalidate } = useRevalidator();
   const navigate = useNavigate();
 
-  const appDetail = useLoaderData();
-  appDetail.environmentNames.sort();
-
-  const getLatestVersionForComponentsAndEnvs = (data) => {
+  const getLatestVersionForComponentsAndEnvs = () => {
     const latestVersions = {};
 
     Object.keys(appDetail.appKeyToVersionDtosMap).forEach((key) => {
@@ -76,7 +124,7 @@ export default function ProjectDetail() {
           }
         }
         if (!latestVersions[key][name]) {
-          latestVersions[key][name] = "-"; // Default value for missing versions
+          latestVersions[key][name] = "-";
         }
       });
     });
@@ -86,7 +134,7 @@ export default function ProjectDetail() {
     );
   };
 
-  const transformData = (data) => {
+  const transformData = () => {
     const transformedData = {};
 
     Object.keys(appDetail.appKeyToVersionDtosMap).forEach((appKey) => {
@@ -113,30 +161,29 @@ export default function ProjectDetail() {
 
 
   const handleCellClick = (appKey, versionName) => {
-    const row = document.getElementById(`row-${appKey}-${versionName}`);
-
-    if (row) {
-      if (!openStates[appKey]) {
-        toggleCollapse(appKey);
-      }
-
-      setTimeout(() => row.scrollIntoView({ block: "center", behavior: "smooth" }), 300)
-
-      setTimeout(() => {
+    const targetId = `row-${appKey}-${versionName}`;
+    const tryScrollToRow = () => {
+      const row = document.getElementById(targetId);
+      if (row) {
+        row.scrollIntoView({ block: "center", behavior: "smooth" });
         row.style.boxShadow = "inset 0 0 3px 3px green";
         row.style.transition = "box-shadow 0.2s ease-in-out";
-      }, 1300);
+        setTimeout(() => {
+          row.style.boxShadow = "";
+        }, 1500);
+      } else {
+        setTimeout(tryScrollToRow, 100);
+      }
+    };
 
-      setTimeout(() => {
-        row.style.transition = "box-shadow 0.2s ease-in-out";
-        row.style.boxShadow = "";
-      }, 2800);
+    if (!openStates[appKey]) {
+      toggleCollapse(appKey);
+      setTimeout(tryScrollToRow, 500);
+    } else {
+      tryScrollToRow();
     }
   };
 
-  const [overflowMap, setOverflowMap] = useState<Record<string, boolean>>({});
-
-  const paperRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const checkOverflow = () => {
     const newOverflowMap: Record<string, boolean> = {};
@@ -153,11 +200,6 @@ export default function ProjectDetail() {
     return () => window.removeEventListener("resize", checkOverflow);
   }, []);
 
-  const latestVersions = getLatestVersionForComponentsAndEnvs(appDetail);
-  const transformedData = transformData(appDetail);
-
-  const envIdCounter = useRef(0);
-
   const initializeEnvironments = () => {
     return appDetail.environmentNames.map(name => ({
       id: envIdCounter.current++,
@@ -168,7 +210,7 @@ export default function ProjectDetail() {
     }));
   };
 
-  const [environments, setEnvironments] = useState(() => initializeEnvironments());
+
 
 
   const handleAddEnvironment = () => {
@@ -212,12 +254,6 @@ export default function ProjectDetail() {
     )
   }
 
-
-
-  const [inputEnvironment, setInputEnvironment] = useState('');
-
-  const [enabledEnv, envButtonHandlers] = useDisclosure(false);
-
   useEffect(() => {
     if (inputEnvironment.trim()
       && !environments.some(env => equalsCaseInsensitive(env.newName, inputEnvironment.trim()) && !env.toDelete)) {
@@ -227,7 +263,7 @@ export default function ProjectDetail() {
     }
   }, [inputEnvironment, environments]);
 
-  const appIdCounter = useRef(0);
+
 
   // komponenty z TextInputu ve formu
   const initializeComponentStates = () => {
@@ -267,9 +303,7 @@ export default function ProjectDetail() {
     )
   }
 
-  const [componentStates, setComponentStates] = useState(() => initializeComponentStates());
 
-  const [projectState, setProjectState] = useState(componentStates.find(component => component.key === appDetail.key));
 
   useEffect(() => {
     form.setFieldValue('name', projectState.newName);
@@ -283,11 +317,7 @@ export default function ProjectDetail() {
 
 
 
-  const [inputComponentName, setInputComponentName] = useState('');
-  const [inputComponentKey, setInputComponentKey] = useState('');
 
-  // state pro button pridavajici komponenty
-  const [enabledApp, componentButtonHandlers] = useDisclosure(false);
 
   useEffect(() => {
     if (inputComponentKey.trim()
@@ -495,14 +525,14 @@ export default function ProjectDetail() {
 
     try {
       let response = await fetch(`${API_URL}/apps/${appDetail.key}?force=true`, requestOptions);
-      if (!response.ok) {f
+      if (!response.ok) {
         const error: ErrorBody = await response.json();
         notifications.show({
           color: "red",
           title: "Při mazání projektu došlo k chybě!",
           message: error.details,
           position: "top-center",
-        });
+        } as NotificationData);
         return;
       }
       navigate("/projects");
@@ -518,7 +548,7 @@ export default function ProjectDetail() {
         title: "Při mazání projektu došlo k chybě!",
         message: "Nastala neočekávaná chyba.",
         position: "top-center",
-      });
+      } as NotificationData);
     }
   }
 
@@ -604,7 +634,7 @@ export default function ProjectDetail() {
             title: `Při odebírání komponenty ${app.key} došlo k chybě!`,
             message: error.details,
             position: "top-center",
-          });
+          } as NotificationData);
           return;
         }
       }
@@ -618,7 +648,7 @@ export default function ProjectDetail() {
             title: `Při odebírání prostředí ${env.name} došlo k chybě!`,
             message: error.details,
             position: "top-center",
-          });
+          } as NotificationData);
           return;
         }
       }
@@ -633,7 +663,7 @@ export default function ProjectDetail() {
             title: `Při aktualizaci projektu ${projectState.key} došlo k chybě!`,
             message: error.details,
             position: "top-center",
-          });
+          } as NotificationData);
           return;
         }
       }
@@ -648,7 +678,7 @@ export default function ProjectDetail() {
             title: `Při přidávání komponenty ${app.newKey} došlo k chybě!`,
             message: error.details,
             position: "top-center",
-          });
+          } as NotificationData);
           return;
         }
       }
@@ -663,7 +693,7 @@ export default function ProjectDetail() {
             title: `Při aktualizaci prostředí ${env.newName} došlo k chybě!`,
             message: error.details,
             position: "top-center",
-          });
+          } as NotificationData);
           return;
         }
       }
@@ -678,7 +708,7 @@ export default function ProjectDetail() {
             title: `Při aktualizaci aplikace ${app.key} došlo k chybě!`,
             message: error.details,
             position: "top-center",
-          });
+          } as NotificationData);
           return;
         }
       }
@@ -693,7 +723,7 @@ export default function ProjectDetail() {
             title: `Při aktualizaci prostředí ${env.name} došlo k chybě!`,
             message: error.details,
             position: "top-center",
-          });
+          } as NotificationData);
           return;
         }
       }
@@ -707,12 +737,12 @@ export default function ProjectDetail() {
         title: "Při mazání projektu došlo k chybě!",
         message: "Nastala neočekávaná chyba.",
         position: "top-center",
-      })
+      } as NotificationData)
     }
   }
 
   const [editOpened, { open: openEdit, close: closeEdit }] = useDisclosure(false);
-  const [confirmOpened, { open: openConfirm, close: closeConfirm }] = useDisclosure(false)
+  const [confirmOpened, { open: openConfirm, close: closeConfirm }] = useDisclosure(false);
   const [resetFormOpened, { open: openResetForm, close: closeResetForm }] = useDisclosure(false);
 
   const [isHydrated, setIsHydrated] = useState(false);
@@ -734,6 +764,12 @@ export default function ProjectDetail() {
 
     return () => clearTimeout(timeout);
   }, [openStates]);
+
+  useEffect(() => {
+    if (!isHydrated || !loaderData.scrollTo) return;
+
+    handleCellClick(loaderData.scrollTo.appKey, loaderData.scrollTo.versionName);
+  }, [isHydrated, loaderData.scrollTo]);
 
   if (!isHydrated) {
     return (
@@ -1009,7 +1045,7 @@ export default function ProjectDetail() {
                   disabled={row.toDelete}
                   rightSection={
                     !row.isNew ?
-                    !equalsCaseInsensitive(row.name, row.newName) && !row.toDelete ?
+                    !equalsCaseInsensitive(row.name as string, row.newName as string) && !row.toDelete ?
                       <Tooltip
                         label={`Obnovit původní hodnotu.`}
                       >
@@ -1037,7 +1073,6 @@ export default function ProjectDetail() {
                   placeholder="Zadejte název komponenty..."
                   value={row.newName}
                   onInput={(e) => handleComponentNameChange(row.id, e.target.value)}
-//                  onKeyDown={(e) => handleKeyDownComp(e, `inputComponentName${row.id}`, row.id)}
                   error={!row.newName.trim() ? "Název nesmí být prázdný." : null}
                 />
                 <TextInput
@@ -1085,7 +1120,6 @@ export default function ProjectDetail() {
                   placeholder="Zadejte klíč komponenty..."
                   value={row.newKey.toUpperCase()}
                   onInput={(e) => handleComponentKeyChange(row.id, e.target.value.toLowerCase())}
-  //                onKeyDown={(e) => handleKeyDownComp(e, `inputComponentKey${row.id}`, row.id)}
                   error={getCompErrorMessage(row.id)}
                 />
                 {row.toDelete ?
@@ -1127,7 +1161,6 @@ export default function ProjectDetail() {
               value={inputComponentName}
               w={300}
               onInput={(e) => {setInputComponentName(e.target.value);}}
-    //          onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentName')} // Add row on Enter key
             />
             <TextInput
               h={50}
@@ -1138,7 +1171,6 @@ export default function ProjectDetail() {
               w={300}
               inputWrapperOrder={['label', 'input', 'description', 'error']}
               onInput={(e) => {setInputComponentKey(e.target.value.toLowerCase());}}
-    //          onKeyDown={(e) => handleKeyDownComp(e, 'inputComponentKey')}
               description={componentStates.some(component =>
                 equalsCaseInsensitive(component.newKey, inputComponentKey.trim()) && !component.toDelete)
                 ? equalsCaseInsensitive(projectState.newKey, inputComponentKey)
@@ -1189,25 +1221,11 @@ export default function ProjectDetail() {
             size="md"
             leftSection={<IconArrowBackUp size={16}/>}
             component={Link}
-            to="/projects"
+            to={loaderData.goBackTo.url}
           >
-            Zpět na přehled
+            Zpět na {loaderData.goBackTo.buttonText}
           </Button>
           <Group style={{alignSelf: "flex-end"}}>
-            <Button
-              size="md"
-              rightSection={<IconRocket size={16}/>}
-              disabled
-            >
-              Nasadit
-            </Button>
-            <Button
-              size="md"
-              rightSection={<IconPencil size={16}/>}
-              onClick={openEdit}
-            >
-              Upravit
-            </Button>
             <Button
               size="md"
               rightSection={<IconTrash size={16}/>}
@@ -1232,11 +1250,18 @@ export default function ProjectDetail() {
                 alignItems:"flex-start"
               }}
             >
-              <Title
-                style={{color: "green"}}
-              >
-                Detail projektu {appDetail.name}
-              </Title>
+              <Group gap="5px">
+                <Title
+                  style={{color: "green"}}
+                >
+                  Detail projektu {appDetail.name}
+                </Title>
+                <ActionIcon
+                  size="lg"
+                  variant="subtle"
+                  onClick={openEdit}
+                ><IconPencil size={16}/></ActionIcon>
+              </Group>
               <Group justify="space-between" ml="xl" pr="xl" mt="xl" w="100%" h="100%">
                 <Stack h="100%" justify="center" gap="xl">
                   <Stack gap="xs">
@@ -1350,12 +1375,19 @@ export default function ProjectDetail() {
               <Card withBorder shadow="sm" radius="md" pb="48px"
                     style={{display: "flex", flexDirection: "column", alignItems: "flex-start"}}>
                 <Group w="100%" justify="space-between">
+                  <Group gap="5px">
                   <Title
                     style={{color: "green"}}
                     order={2}
                   >
                     Verze komponent
                   </Title>
+                    <ActionIcon
+                      size="lg"
+                      variant="subtle"
+                      onClick={openEdit}
+                    ><IconPencil size={16}/></ActionIcon>
+                  </Group>
                   <Button
                     mr="sm"
                     mt="sm"
@@ -1512,8 +1544,10 @@ export default function ProjectDetail() {
                                                   style={{textAlign: 'center'}}>{rowData[name].date ? new Date(rowData[name].date).toLocaleDateString("cs-CZ") : "-"}</Table.Td>
                                         <Table.Td key={`ticket-value-cell-${name}`}
                                                   style={{textAlign: 'center'}}>{rowData[name].jiraUrl
-                                          ? <ActionIcon component="a" href={rowData[name].jiraUrl}
-                                                        variant="subtle"><IconExternalLink/></ActionIcon>
+                                          ? <ActionIcon component="a" href={rowData[name].jiraUrl} color="blue"
+                                                        variant="subtle">
+                                            <IconJira/>
+                                          </ActionIcon>
                                           : "-"}</Table.Td>
                                       </>
                                     ))}

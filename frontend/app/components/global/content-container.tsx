@@ -1,6 +1,10 @@
 import React from "react";
 import { Paper } from '@mantine/core';
 
+//
+// Kontejner obsahu stránky
+//
+
 export default function ContentContainer({ children }: { children: React.ReactNode }) {
 
   return (

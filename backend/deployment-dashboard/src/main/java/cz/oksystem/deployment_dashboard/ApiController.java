@@ -4,6 +4,7 @@ import cz.oksystem.deployment_dashboard.dto.*;
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Deployment;
 import cz.oksystem.deployment_dashboard.entity.Environment;
+import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
 import cz.oksystem.deployment_dashboard.exceptions.CustomResponseBody;
 import cz.oksystem.deployment_dashboard.service.ServiceOrchestrator;
@@ -38,12 +39,9 @@ class ApiController {
       .toList());
   }
 
-  // overview vsech aplikaci
-  @GetMapping("/apps")
-  ResponseEntity<List<ProjectOverviewDto>> getAllProjectOverviews() {
-      return ResponseEntity.ok(serviceOrchestrator.getAllProjectOverviews());
-  }
-
+  //
+  // APPS
+  //
 
   //  nová aplikace - POST /api/apps
   //  kontrolovat duplicity klice aplikace
@@ -100,41 +98,20 @@ class ApiController {
     }
   }
 
-  // bezne zaevidovani nove verze
-  @GetMapping("/apps/{key}/envs/{envKey}/versions")
-  ResponseEntity<CustomResponseBody> multipleNewVersions(@PathVariable("key") String appKey,
-                                             @PathVariable("envKey") String envKey,
-                                             @RequestParam Map<String, String> parameters) {
-    return doMultipleNewVersions(appKey, envKey, parameters, false);
+  // overview vsech aplikaci
+  @GetMapping("/apps-overview")
+  ResponseEntity<List<ProjectOverviewDto>> getAllProjectOverviews() {
+    return ResponseEntity.ok(serviceOrchestrator.getAllProjectOverviews());
   }
 
-  // vynucene zaevidovani v pripade konfliktu
-  @GetMapping("/force/apps/{key}/envs/{envKey}/versions")
-  ResponseEntity<CustomResponseBody> multipleNewVersionsForce(@PathVariable("key") String appKey,
-                                                               @PathVariable("envKey") String envKey,
-                                                               @RequestParam Map<String, String> parameters) {
-    return doMultipleNewVersions(appKey, envKey, parameters, true);
+  // detailni informace o vsech aplikacich
+  @GetMapping(path = "/apps")
+  @ResponseStatus(value = HttpStatus.OK)
+  ResponseEntity<List<ProjectDetailDto>> getAllAppDetails() {
+    return ResponseEntity.ok(serviceOrchestrator.getAllAppDetailDtos());
   }
 
-  private ResponseEntity<CustomResponseBody> doMultipleNewVersions(String appKey, String envKey, Map<String, String> parameters, boolean force) {
-    try {
-      String ticketUuid = parameters.get("ticket");
-
-      HashMap<String, String> versionedApps = new HashMap<>(parameters);
-      versionedApps.remove("ticket");
-
-      serviceOrchestrator.release(appKey, envKey, versionedApps, ticketUuid, force);
-      return ResponseEntity.ok(new CustomResponseBody(HttpStatus.OK, "Nasazení úspěšně zaevidováno."));
-    } catch (CustomExceptions.NotManagedException
-             | CustomExceptions.NoSuchAppComponentException ex) {
-      throw new CustomExceptions.EntityAdditionException(Deployment.CZECH_NAME, "", ex);
-    } catch (CustomExceptions.VersionRedeployException
-             | CustomExceptions.VersionRollbackException ex) {
-      throw new CustomExceptions.DeploymentEvidenceException(ex);
-    }
-  }
-
-  // detailni informace o specifikovane aplikace
+  // detailni informace o specifikovane aplikaci
   @GetMapping("/apps/{key}")
   @ResponseStatus(value = HttpStatus.OK)
   ResponseEntity<ProjectDetailDto> getAppDetail(@PathVariable("key") String key) {
@@ -143,13 +120,6 @@ class ApiController {
     } catch (CustomExceptions.NotManagedException ex) {
       throw new CustomExceptions.EntityFetchException("Aplikace", ex);
     }
-  }
-
-  // detailni informace o vsech aplikacich
-  @GetMapping(path = "/apps/all")
-  @ResponseStatus(value = HttpStatus.OK)
-  ResponseEntity<List<ProjectDetailDto>> getAllAppDetails() {
-    return ResponseEntity.ok(serviceOrchestrator.getAllAppDetailDtos());
   }
 
   // získání všech prostředí - GET /api/apps/:key/envs
@@ -162,6 +132,10 @@ class ApiController {
       throw new CustomExceptions.EntityFetchException(Environment.CZECH_NAME, ex);
     }
   }
+
+  //
+  // ENVIRONMENTS
+  //
 
   //  nové prostředí aplikace - POST /api/apps/:key/envs
   //  zakázat duplicity
@@ -219,9 +193,83 @@ class ApiController {
     }
   }
 
-  @GetMapping(path = "/apps/deployments")
+  //
+  // VERSIONS
+  //
+
+  // update verze
+  @PutMapping(path = "/apps/{appKey}/versions/{versionName}", consumes = "application/json")
+  @ResponseStatus(value = HttpStatus.OK)
+  void updateVersion(@PathVariable("appKey") String appKey,
+                     @PathVariable("versionName") String versionName,
+                     @Valid @RequestBody VersionDto versionDto,
+                     BindingResult result) {
+    try {
+      if (result.hasErrors()) {
+        throw new HttpMessageConversionException(getBindingResultErrorMessage(result));
+      }
+      serviceOrchestrator.updateVersion(appKey, versionName, versionDto);
+    } catch (HttpMessageConversionException
+             | CustomExceptions.NotManagedException
+             | CustomExceptions.DuplicateKeyException ex) {
+      throw new CustomExceptions.EntityUpdateException(Version.CZECH_NAME, versionName, ex);
+    }
+  }
+
+  //
+  // DEPLOYMENTS
+  //
+
+  // bezne zaevidovani nove verze
+  @GetMapping("/apps/{key}/envs/{envKey}/versions")
+  ResponseEntity<CustomResponseBody> multipleNewVersions(@PathVariable("key") String appKey,
+                                             @PathVariable("envKey") String envKey,
+                                             @RequestParam Map<String, String> parameters) {
+    return doMultipleNewVersions(appKey, envKey, parameters, false);
+  }
+
+  // vynucene zaevidovani v pripade konfliktu
+  @GetMapping("/force/apps/{key}/envs/{envKey}/versions")
+  ResponseEntity<CustomResponseBody> multipleNewVersionsForce(@PathVariable("key") String appKey,
+                                                               @PathVariable("envKey") String envKey,
+                                                               @RequestParam Map<String, String> parameters) {
+    return doMultipleNewVersions(appKey, envKey, parameters, true);
+  }
+
+  private ResponseEntity<CustomResponseBody> doMultipleNewVersions(String appKey, String envKey, Map<String, String> parameters, boolean force) {
+    try {
+      String ticketUuid = parameters.get("ticket");
+
+      HashMap<String, String> versionedApps = new HashMap<>(parameters);
+      versionedApps.remove("ticket");
+
+      serviceOrchestrator.release(appKey, envKey, versionedApps, ticketUuid, force);
+      return ResponseEntity.ok(new CustomResponseBody(HttpStatus.OK, "Nasazení úspěšně zaevidováno."));
+    } catch (CustomExceptions.NotManagedException
+             | CustomExceptions.NoSuchAppComponentException ex) {
+      throw new CustomExceptions.EntityAdditionException(Deployment.CZECH_NAME, "", ex);
+    } catch (CustomExceptions.VersionRedeployException
+             | CustomExceptions.VersionRollbackException ex) {
+      throw new CustomExceptions.DeploymentEvidenceException(ex);
+    }
+  }
+
+  @GetMapping(path = "/deployments")
   @ResponseStatus(value = HttpStatus.OK)
   ResponseEntity<List<DeploymentDto>> getAllDeployments() {
     return ResponseEntity.ok(serviceOrchestrator.getAllDeployments());
+  }
+
+  @DeleteMapping(path = "/apps/{appKey}/envs/{envKey}/versions/{versionName}/deployment")
+  @ResponseStatus(value = HttpStatus.OK)
+  void deleteDeployment(@PathVariable("appKey") String appKey,
+                        @PathVariable("envKey") String envKey,
+                        @PathVariable("versionName") String versionName) {
+    try {
+      serviceOrchestrator.deleteDeployment(appKey, envKey, versionName);
+    } catch (CustomExceptions.NotManagedException
+             | CustomExceptions.DeletionNotAllowedException ex) {
+      throw new CustomExceptions.EntityDeletionOrArchivationException(Deployment.CZECH_NAME, "", ex);
+    }
   }
 }

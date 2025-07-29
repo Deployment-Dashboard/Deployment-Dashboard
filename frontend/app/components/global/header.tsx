@@ -1,6 +1,9 @@
 import { Link, NavLink } from "react-router";
 import {Box, Flex, Paper} from "@mantine/core";
-import {Container} from "@mantine/core";
+
+//
+// Hlavička dashboardu
+//
 
 export default function Header() {
   return (

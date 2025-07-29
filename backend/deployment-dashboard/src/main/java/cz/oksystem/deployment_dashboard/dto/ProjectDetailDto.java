@@ -24,40 +24,42 @@ public class ProjectDetailDto {
     this.appKeyToVersionDtosMap = appKeyToVersionDtosMap;
   }
 
+  // Getters
   public String getKey() {
     return key;
-  }
-
-  public void setKey(String key) {
-    this.key = key;
   }
 
   public String getName() {
     return name;
   }
 
-  public void setName(String name) {
-    this.name = name;
-  }
-
   public List<String> getEnvironmentNames() {
     return environmentNames;
-  }
-
-  public void setEnvironmentNames(List<String> environmentNames) {
-    this.environmentNames = environmentNames;
   }
 
   public Map<String, String> getComponentKeysAndNamesMap() {
     return componentKeysAndNamesMap;
   }
 
-  public void setComponentKeysAndNamesMap(Map<String, String> componentKeysAndNamesMap) {
-    this.componentKeysAndNamesMap = componentKeysAndNamesMap;
-  }
-
   public Map<String, List<VersionDto>> getAppKeyToVersionDtosMap() {
     return appKeyToVersionDtosMap;
+  }
+
+  // Setters
+  public void setKey(String key) {
+    this.key = key;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public void setEnvironmentNames(List<String> environmentNames) {
+    this.environmentNames = environmentNames;
+  }
+
+  public void setComponentKeysAndNamesMap(Map<String, String> componentKeysAndNamesMap) {
+    this.componentKeysAndNamesMap = componentKeysAndNamesMap;
   }
 
   public void setAppKeyToVersionDtosMap(Map<String, List<VersionDto>> appKeyToVersionDtosMap) {

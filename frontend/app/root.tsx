@@ -1,7 +1,7 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import type { LinksFunction, MetaFunction } from "react-router";
 
-import Header from "~/components/header";
+import Header from "~/components/global/header";
 
 import "./tailwind.css";
 
@@ -14,7 +14,7 @@ import './styles.css'
 import '@mantine/notifications/styles.css';
 import {ColorSchemeScript, colorsTuple, createTheme, MantineProvider, virtualColor} from '@mantine/core';
 import {Notifications} from "@mantine/notifications";
-import ScrollToTopButton from "~/components/scroll-to-top-button";
+import ScrollToTopButton from "~/components/global/scroll-to-top-button";
 
 export const meta: MetaFunction = () => {
   return [

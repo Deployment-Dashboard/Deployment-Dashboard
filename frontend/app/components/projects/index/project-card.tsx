@@ -3,42 +3,54 @@ import {
   Text,
   Button,
   Group,
-  Modal,
-  Title,
   Pill,
-  List,
   ScrollArea,
   HoverCard,
   Stack, Badge, Loader
 } from '@mantine/core';
 import {ProjectOverviewDto} from "~/types";
 
-import { IconArrowsMaximize, IconRocket, IconX} from "@tabler/icons-react";
+import { IconArrowsMaximize } from "@tabler/icons-react";
 import { Link } from "react-router";
-import {useDisclosure, useIntersection} from "@mantine/hooks";
+import {useIntersection} from "@mantine/hooks";
 import {useEffect, useRef, useState} from "react";
-import ContentContainer from "~/components/content-container";
 
+//
+// Karta projektu na domovské stránce
+//
 
-interface ProjectCardProps {
-  data: ProjectOverviewDto
-}
+export default function ProjectCard({data : projectOverview}) {
 
-export default function ProjectCard({data : projectOverview} : ProjectCardProps) {
-  const [opened, { open, close }] = useDisclosure(false);
+  //
+  // DATA
+  //
 
+  // popisky tagů s nasazenými aplikacemi
   const tagLabels = projectOverview.versionedComponentsNames.sort();
 
+  // odkaz na container tagů
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // počet přetékajících (schovaných) tagů
   const [hiddenTagsCount, setHiddenTagsCount] = useState(0);
+
+  // reference tagů
   const entriesRef = useRef<IntersectionObserverEntry[]>([]);
 
-// Store refs in an array
+  // pomocná proměnná pro kontrolu, zda tagy přetekly
   const intersections = tagLabels.map(() => useIntersection({
     root: containerRef.current,
     threshold: 1,
   }));
 
+  // kontrola hydratace stránky (zda již na klientu proběhlo doplnění dynamických dat)
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  //
+  // USE EFFECTS
+  //
+
+  // počítání přetečených tagů
   useEffect(() => {
     intersections.forEach(({ entry }, index) => {
       if (entry) {
@@ -50,8 +62,7 @@ export default function ProjectCard({data : projectOverview} : ProjectCardProps)
     setHiddenTagsCount(hiddenCount);
   }, [intersections]);
 
-  const [isHydrated, setIsHydrated] = useState(false);
-
+  // kontrola hydratace
   useEffect(() => {
     setIsHydrated(true);
   }, []);
@@ -66,14 +77,6 @@ export default function ProjectCard({data : projectOverview} : ProjectCardProps)
 
   return (
     <>
-      <Modal
-        size="auto" opened={opened} onClose={close}
-        closeButtonProps={{icon: <IconX color="red"/>, variant: "subtle", color: "gray"}}
-      >
-        <Title mb="md" order={2}>Přidání nového projektu do evidence</Title>
-        <Text>TODO</Text>
-      </Modal>
-
       <Card withBorder shadow="sm" radius="md" style={{height: "490px", width: "320px"}}>
         <Card.Section withBorder inheritPadding py="xs">
           <Text fw={500} size="lg">{projectOverview.name}</Text>
@@ -166,20 +169,11 @@ export default function ProjectCard({data : projectOverview} : ProjectCardProps)
 
         <Group style={{flexDirection: "row", justifyContent: "space-evenly", marginTop: "auto"}}>
           <Button
-            rightSection={<IconRocket size={16} />}
-            component="a"
-            onClick={open}
-            style={{alignSelf: "flex-end"}}
-            disabled
-          >
-            Nasadit
-          </Button>
-          <Button
             variant="light"
             rightSection={<IconArrowsMaximize size={16} />}
             component={Link}
             to={`/projects/detail/${projectOverview.key}`}
-            style={{alignSelf: "flex-end"}}
+            style={{alignSelf: "flex-end", width: "100%"}}
           >
             Zobrazit detail
           </Button>

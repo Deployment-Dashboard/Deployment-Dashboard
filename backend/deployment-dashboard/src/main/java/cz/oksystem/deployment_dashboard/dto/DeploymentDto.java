@@ -13,19 +13,29 @@ public class DeploymentDto {
 
   private String versionName;
 
+  private String versionDescription;
+
   private String jiraUrl;
 
   public DeploymentDto() {}
 
-  public DeploymentDto(LocalDateTime deployedAt, String appKey, String appName, String environmentName, String versionName, String jiraUrl) {
+  public DeploymentDto(LocalDateTime deployedAt,
+                       String appKey,
+                       String appName,
+                       String environmentName,
+                       String versionName,
+                       String versionDescription,
+                       String jiraUrl) {
     this.deployedAt = deployedAt;
     this.appKey = appKey;
     this.appName = appName;
     this.environmentName = environmentName;
     this.versionName = versionName;
+    this.versionDescription = versionDescription;
     this.jiraUrl = jiraUrl;
   }
 
+  // Getters
   public LocalDateTime getDeployedAt() {
     return deployedAt;
   }
@@ -46,10 +56,13 @@ public class DeploymentDto {
     return versionName;
   }
 
+  public String getVersionDescription() { return versionDescription; }
+
   public String getJiraUrl() {
     return jiraUrl;
   }
 
+  // Setters
   public void setDeployedAt(LocalDateTime deployedAt) {
     this.deployedAt = deployedAt;
   }
@@ -69,6 +82,8 @@ public class DeploymentDto {
   public void setVersionName(String versionName) {
     this.versionName = versionName;
   }
+
+  public void setVersionDescription(String versionDescription) { this.versionDescription = versionDescription; }
 
   public void setJiraUrl(String jiraUrl) {
     this.jiraUrl = jiraUrl;

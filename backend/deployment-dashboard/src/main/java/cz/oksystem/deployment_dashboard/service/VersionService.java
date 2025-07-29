@@ -1,5 +1,6 @@
 package cz.oksystem.deployment_dashboard.service;
 
+import cz.oksystem.deployment_dashboard.dto.VersionDto;
 import cz.oksystem.deployment_dashboard.entity.App;
 import cz.oksystem.deployment_dashboard.entity.Version;
 import cz.oksystem.deployment_dashboard.exceptions.CustomExceptions;
@@ -53,5 +54,17 @@ public class VersionService {
     }
 
     versionRepository.delete(verToDelete);
+  }
+
+  @Transactional
+  public void update(String appKey, String versionName, VersionDto versionDto) {
+    Version verToUpdate = this.get(appKey, versionName).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(
+        Version.CZECH_NAME, App.CZECH_NAME, versionName, appKey
+      )
+    );
+
+    verToUpdate.setName(versionDto.getName());
+    verToUpdate.setDescription(versionDto.getDescription());
   }
 }

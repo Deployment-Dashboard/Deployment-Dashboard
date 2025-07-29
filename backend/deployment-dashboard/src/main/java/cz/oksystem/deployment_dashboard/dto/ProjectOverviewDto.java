@@ -36,6 +36,7 @@ public class ProjectOverviewDto {
     this.versionedComponentsNames = versionedComponentsNames;
   }
 
+  // Getters
   public String getKey() {
     return key;
   }
@@ -58,6 +59,7 @@ public class ProjectOverviewDto {
 
   public List<String> getVersionedComponentsNames() { return List.copyOf(versionedComponentsNames); }
 
+  // Setters
   public void setKey(String key) {
     this.key = key;
   }

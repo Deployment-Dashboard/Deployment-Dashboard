@@ -71,6 +71,8 @@ public class Deployment {
   }
 
   // Getters
+  public Long getId() { return this.id; }
+
   public Optional<LocalDateTime> getDate() {
     return Optional.ofNullable(this.date);
   }

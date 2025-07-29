@@ -197,6 +197,7 @@ public class ServiceOrchestrator {
         deployment.getVersion().getApp().getName(),
         deployment.getEnvironment().getName(),
         deployment.getVersion().getName(),
+        deployment.getVersion().getDescription().orElse(""),
         deployment.getJiraUrl().map(jiraUrl -> jiraUrl.replace("ok-jira://", protocolsSerializer.getCustomProtocols().get("ok-jira"))).orElse("")))
       .collect(Collectors.toList()).reversed();
   }
@@ -258,5 +259,13 @@ public class ServiceOrchestrator {
       detailDtos.add(this.getAppDetailDto(app.getKey()));
     }
     return detailDtos;
+  }
+
+  public void updateVersion(String appKey, String versionName, VersionDto versionDto) {
+    versionService.update(appKey, versionName, versionDto);
+  }
+
+  public void deleteDeployment(String appKey, String envKey, String versionName) {
+    deploymentService.delete(appKey, envKey, versionName);
   }
 }

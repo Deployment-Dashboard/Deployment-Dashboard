@@ -1,8 +1,8 @@
-import {Link, LoaderFunctionArgs, redirect, useLoaderData, useNavigate} from "react-router";
+import {LoaderFunctionArgs, useLoaderData} from "react-router";
 import {API_URL} from "~/constants";
 
 import {
-  Button, Card,
+  Button,
   Center, Loader,
   MantineColor,
   Paper,
@@ -10,11 +10,14 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import ContentContainer from "~/components/content-container";
-import {ReactElement, useEffect, useMemo, useState} from "react";
+import ContentContainer from "~/components/global/content-container";
+import {ReactElement, useEffect, useState} from "react";
 import { IconCheck, IconExclamationMark, IconX } from "@tabler/icons-react";
-import HomepageLink from "~/components/homepage-link";
+import HomepageLink from "~/components/global/homepage-link";
 
+//
+// Potvrzovací stránka pro zaevidování nového nasazení
+//
 
 export async function loader({
                                request,
@@ -30,6 +33,12 @@ export async function loader({
 }
 
 export default function ProjectsTrackDeploymentAppKeyEnvVersion() {
+
+  //
+  // DATA
+  //
+
+  // obsah stránky
   const [pageContent, setPageContent] = useState<{
     icon: {
       resolvedColor: MantineColor;
@@ -41,10 +50,18 @@ export default function ProjectsTrackDeploymentAppKeyEnvVersion() {
     additionalText: null
   });
 
+  // data ze server loaderu
   let initialLoaderData = useLoaderData();
-
   const [loaderData, setLoaderData] = useState(initialLoaderData);
 
+  // kontrola hydratace
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  //
+  // USE EFFECTS
+  //
+
+  // aktualizace obsahu podle odpovědi BE
   useEffect(() => {
     switch (loaderData.statusCode) {
       case 200:
@@ -94,8 +111,7 @@ export default function ProjectsTrackDeploymentAppKeyEnvVersion() {
     }
   }, [loaderData]);
 
-  const [isHydrated, setIsHydrated] = useState(false);
-
+  // hydratace
   useEffect(() => {
     setIsHydrated(true);
   }, []);

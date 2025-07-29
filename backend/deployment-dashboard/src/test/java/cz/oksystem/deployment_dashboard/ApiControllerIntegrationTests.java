@@ -972,7 +972,7 @@ class ApiControllerIntegrationTests {
       .andDo(print())
       .andExpect(status().isNotFound())
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.NOT_FOUND.value()))
-      .andExpect(jsonPath("$.message").value("Nasazení se nepodařilo zaevid."))
+      .andExpect(jsonPath("$.message").value("Nasazení se nepodařilo zaevidovat."))
       .andExpect(jsonPath("$.details").value("Aplikace s klíčem 'dd' není v evidenci."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
       .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs/test/versions"));
@@ -997,11 +997,10 @@ class ApiControllerIntegrationTests {
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
       .andExpect(jsonPath("$.message").value("Nasazení se nepodařilo zaevidovat."))
       .andExpect(jsonPath("$.details").value(
-        "Aplikace 'dd' ve verzi '1-0' již byla na prostředí 'test' nasazena. " +
-          "Pokud chcete nasazení přesto zaevidovat, použijte k tomu URL v poli 'goToUrl'."))
+        "Aplikace 'dd' ve verzi '1-0' již byla na prostředí 'test' nasazena."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
       .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs/test/versions"))
-      .andExpect(jsonPath("$.goToUrl").value("http://localhost/deploydash/api/force/apps/dd/envs/test/versions?dd=1-0"));
+      .andExpect(jsonPath("$.forceDeploymentEvidenceUrl").value("http://localhost/deploydash/api/force/apps/dd/envs/test/versions?dd=1-0"));
   }
 
   @Test
@@ -1030,12 +1029,10 @@ class ApiControllerIntegrationTests {
       .andExpect(jsonPath("$.statusCode").value(HttpStatus.BAD_REQUEST.value()))
       .andExpect(jsonPath("$.message").value("Nasazení se nepodařilo zaevidovat."))
       .andExpect(jsonPath("$.details").value(
-        "Aplikace 'dd' je na prostředí 'test' nasazena ve verzi '2-0', " +
-          "která je dle evidence novější, než právě nasazovaná verze '1-0'. P" +
-          "okud chcete nasazení přesto zaevidovat, použijte k tomu URL v poli 'goToUrl'."))
+        "Aplikace 'dd' je na prostředí 'test' nasazena ve verzi '2-0', která je dle evidence novější, než právě nasazovaná verze '1-0'."))
       .andExpect(jsonPath("$.timestamp").isNotEmpty())
       .andExpect(jsonPath("$.path").value("/deploydash/api/apps/dd/envs/test/versions"))
-      .andExpect(jsonPath("$.goToUrl").value("http://localhost/deploydash/api/force/apps/dd/envs/test/versions?dd=1-0"));
+      .andExpect(jsonPath("$.forceDeploymentEvidenceUrl").value("http://localhost/deploydash/api/force/apps/dd/envs/test/versions?dd=1-0"));
   }
 
   @Test

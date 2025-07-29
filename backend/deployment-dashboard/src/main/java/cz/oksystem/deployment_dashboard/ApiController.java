@@ -246,9 +246,8 @@ class ApiController {
       serviceOrchestrator.release(appKey, envKey, versionedApps, ticketUuid, force);
       return ResponseEntity.ok(new CustomResponseBody(HttpStatus.OK, "Nasazení úspěšně zaevidováno."));
     } catch (CustomExceptions.NotManagedException
-             | CustomExceptions.NoSuchAppComponentException ex) {
-      throw new CustomExceptions.EntityAdditionException(Deployment.CZECH_NAME, "", ex);
-    } catch (CustomExceptions.VersionRedeployException
+             | CustomExceptions.NoSuchAppComponentException
+             | CustomExceptions.VersionRedeployException
              | CustomExceptions.VersionRollbackException ex) {
       throw new CustomExceptions.DeploymentEvidenceException(ex);
     }

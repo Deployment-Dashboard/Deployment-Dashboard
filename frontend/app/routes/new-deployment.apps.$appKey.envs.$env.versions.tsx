@@ -1,5 +1,5 @@
 import {LoaderFunctionArgs, useLoaderData} from "react-router";
-import {API_URL} from "~/constants";
+import {DOCKER_API_URL} from "~/constants";
 
 import {
   Button,
@@ -26,10 +26,12 @@ export async function loader({
   const requestPathname = requestUrl.pathname;
   const requestSearch = requestUrl.search;
 
-  const backEndUrl = API_URL + requestPathname.replace("deploydash/new-deployment/", "") + requestSearch;
+  const backEndUrl = DOCKER_API_URL + requestPathname.replace("deploydash/new-deployment/", "") + requestSearch;
   const response = await fetch(backEndUrl);
 
-  return await response.json();
+  const data = await response.json();
+  console.log(data);
+  return data;
 }
 
 export default function ProjectsTrackDeploymentAppKeyEnvVersion() {
@@ -84,10 +86,8 @@ export default function ProjectsTrackDeploymentAppKeyEnvVersion() {
               Pokud chcete nasazení přesto zaevidovat, klikněte{" "}
               <a
                 onClick={async () => {
-                  const response = await fetch(loaderData.forceDeploymentEvidenceUrl);
-                  setIsHydrated(false)
+                  const response = await fetch(loaderData.forceDeploymentEvidenceUrl.replace("deploydash", "localhost"));
                   const newData = await response.json();
-                  setIsHydrated(true)
                   setLoaderData(newData);
                 }}
                 style={{ textDecoration: "underline", color: "green", cursor: "pointer" }}

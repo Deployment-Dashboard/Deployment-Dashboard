@@ -3,6 +3,8 @@ package cz.oksystem.deployment_dashboard.dto;
 import java.time.LocalDateTime;
 
 public class DeploymentDto {
+  private Long id;
+
   private LocalDateTime deployedAt;
 
   private String appKey;
@@ -19,13 +21,15 @@ public class DeploymentDto {
 
   public DeploymentDto() {}
 
-  public DeploymentDto(LocalDateTime deployedAt,
+  public DeploymentDto(Long id,
+                       LocalDateTime deployedAt,
                        String appKey,
                        String appName,
                        String environmentName,
                        String versionName,
                        String versionDescription,
                        String jiraUrl) {
+    this.id = id;
     this.deployedAt = deployedAt;
     this.appKey = appKey;
     this.appName = appName;
@@ -36,6 +40,10 @@ public class DeploymentDto {
   }
 
   // Getters
+  public Long getId() {
+    return id;
+  }
+
   public LocalDateTime getDeployedAt() {
     return deployedAt;
   }
@@ -63,6 +71,10 @@ public class DeploymentDto {
   }
 
   // Setters
+  public void setId(Long id) {
+    this.id = id;
+  }
+
   public void setDeployedAt(LocalDateTime deployedAt) {
     this.deployedAt = deployedAt;
   }

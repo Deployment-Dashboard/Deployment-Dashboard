@@ -73,37 +73,43 @@ export default function DeploymentDataTable({
 
   // proměnné pro ikonku v checkboxu aplikací
   const allCheckedApp = (projectKey) => {
-    return componentGroups.find(item => item.key === projectKey).components.every((componentKey) => {
-      return apps.find(item => item.label === componentKey).checked;
+    const group = componentGroups.find(item => item?.key === projectKey);
+    if (!group) return false;
+    return group.components.every((componentKey) => {
+      const app = apps.find(item => item.label === componentKey);
+      return app?.checked || false;
     });
   };
   const indeterminateApp = (projectKey) => {
-    const components = componentGroups.find((item) => item.key === projectKey).components;
+    const group = componentGroups.find((item) => item?.key === projectKey);
+    if (!group) return false;
+    const components = group.components;
     const checkedCount = components.filter((componentKey) =>
       apps.find((item) => item.label === componentKey)?.checked
     ).length;
     return checkedCount > 0 && checkedCount < components.length;
   };
 
+
   // proměnné pro ikonku checkboxu verzí
   const allCheckedVersion = (appKey) => {
     const group = versionGroups.find(components =>
-      components.group.some(component => component.key === appKey)
+      components.group.some(component => component?.key === appKey)
     );
     if (!group) return false;
 
-    const component = group.group.find(component => component.key === appKey);
+    const component = group.group.find(component => component?.key === appKey);
     return component.versions.every(version =>
       versions.find(item => item.label === `${appKey}-${version}`)?.checked
     );
   };
   const indeterminateVersion = (appKey) => {
     const group = versionGroups.find(components =>
-      components.group.some(component => component.key === appKey)
+      components.group.some(component => component?.key === appKey)
     );
     if (!group) return false;
 
-    const component = group.group.find(component => component.key === appKey);
+    const component = group.group.find(component => component?.key === appKey);
     const checkedVersions = component.versions.filter(version =>
       versions.find(item => item.label === `${appKey}-${version}`)?.checked
     );
@@ -142,6 +148,36 @@ export default function DeploymentDataTable({
     environmentName: row.environmentName,
     versionName: row.versionName,
   });
+
+  // For filtering Apps componentGroups
+  const [openedComponentGroups, setOpenedComponentGroups] = useState({});
+  // For filtering Versions top-level groups
+  const [openedVersionGroups, setOpenedVersionGroups] = useState({});
+  // For filtering Versions second-level components inside versionGroups
+  const [openedVersionComponents, setOpenedVersionComponents] = useState({});
+
+  // Helpers for toggling open states
+  const toggleComponentGroup = (key) => {
+    setOpenedComponentGroups((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const toggleVersionGroup = (key) => {
+    setOpenedVersionGroups((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const toggleVersionComponent = (key) => {
+    setOpenedVersionComponents((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
 
   return (<DataTable
     selectionColumnStyle={{ backgroundColor: "black", zIndex: 2 }}
@@ -223,20 +259,20 @@ export default function DeploymentDataTable({
             <ScrollArea.Autosize w={measuredWidth - 50} mah={415} offsetScrollbars overscrollBehavior="contain">
               <Stack gap={0}>
                 {componentGroups.map((group) => {
-                  const [opened, setOpened] = useState(false);
+                  const opened = !!openedComponentGroups[group?.key];
 
                   return (
                     <>
                       <div style={{display: 'flex', alignItems: 'center'}}>
                         <Checkbox
-                          checked={allCheckedApp(group.key)}
-                          indeterminate={indeterminateApp(group.key)}
+                          checked={allCheckedApp(group?.key)}
+                          indeterminate={indeterminateApp(group?.key)}
                           onChange={() => {
-                            const newCheckedState = !allCheckedApp(group.key);
+                            const newCheckedState = !allCheckedApp(group?.key);
                             appHandlers.setState((current) =>
                               current.map((value) =>
                                 group.components.includes(value.label)
-                                  ? {...value, checked: newCheckedState}
+                                  ? { ...value, checked: newCheckedState }
                                   : value
                               )
                             );
@@ -248,10 +284,10 @@ export default function DeploymentDataTable({
                           ml={5}
                           justify="space-between"
                           variant="subtle"
-                          onClick={() => setOpened((o) => !o)}
+                          onClick={() => toggleComponentGroup(group?.key)}
                           leftSection={
-                            <Text c="var(--mantine-color-text)">{details.find((detail) => detail.key === group.key)
-                              ?.componentKeysAndNamesMap[group.key]}
+                            <Text c="var(--mantine-color-text)">{details.find((detail) => detail?.key === group?.key)
+                              ?.componentKeysAndNamesMap[group?.key]}
                             </Text>
                           }
 
@@ -263,14 +299,15 @@ export default function DeploymentDataTable({
                       <Collapse in={opened}>
                         {group.components.map((component) => {
                           const value = apps.find((item) => item.label === component);
+                          if (!value) return null;
                           return (
                             <Checkbox
-                              key={value.key}
+                              key={value?.key}
                               mt="xs"
                               ml={33}
                               label={
                                 <Group>
-                                  <Text>{details.find((detail) => detail.key === group.key)
+                                  <Text>{details.find((detail) => detail?.key === group?.key)
                                     ?.componentKeysAndNamesMap[value.label]}
                                   </Text>
                                   <Badge color="green">
@@ -278,7 +315,7 @@ export default function DeploymentDataTable({
                                   </Badge>
                                 </Group>
                               }
-                              checked={value.checked}
+                              checked={value?.checked}
                               onChange={(event) =>
                                 appHandlers.setItemProp(
                                   apps.indexOf(value),
@@ -297,7 +334,7 @@ export default function DeploymentDataTable({
             </ScrollArea.Autosize>
             <Button
               mt={5}
-              disabled={apps.every((value) => !value.checked)}
+              disabled={apps.every((value) => !value?.checked)}
               variant="light"
               onClick={() => {
                 close();
@@ -310,7 +347,7 @@ export default function DeploymentDataTable({
             </Button>
           </Stack>
         ),
-        filtering: apps.some((value) => value.checked)
+        filtering: apps.some((value) => value?.checked)
       },
       {
         accessor: 'appName',
@@ -368,30 +405,40 @@ export default function DeploymentDataTable({
             <ScrollArea.Autosize mah={425} offsetScrollbars overscrollBehavior="contain">
               <Stack gap={0}>
                 {versionGroups.map((versionGroup) => {
-                  const [openedTopLevel, setOpenedTopLevel] = useState(false);
+                  const openedTopLevel = !!openedVersionGroups[versionGroup.groupKey];
 
                   return (
                     <>
                       <div style={{display: 'flex', alignItems: 'center'}}>
                         <Checkbox
-                          checked={versionGroup.group.every(component => allCheckedVersion(component.key))}
-                          indeterminate={versionGroup.group.some(component => !allCheckedVersion(component.key))
-                            && versionGroup.group.some(component =>
-                              indeterminateVersion(component.key)
-                              || allCheckedVersion(component.key))}
-
+                          checked={versionGroup.group.every((component) =>
+                            allCheckedVersion(component?.key)
+                          )}
+                          indeterminate={
+                            versionGroup.group.some(
+                              (component) => !allCheckedVersion(component?.key)
+                            ) &&
+                            versionGroup.group.some(
+                              (component) =>
+                                indeterminateVersion(component?.key) ||
+                                allCheckedVersion(component?.key)
+                            )
+                          }
                           onChange={() => {
-                            const newCheckedState = !versionGroup.group.every(component =>
-                              allCheckedVersion(component.key))
+                            const newCheckedState = !versionGroup.group.every(
+                              (component) => allCheckedVersion(component?.key)
+                            );
 
-                            const labels = versionGroup.group.flatMap(component =>
-                              component.versions.map(version =>
-                                `${component.key}-${version}`));
+                            const labels = versionGroup.group.flatMap((component) =>
+                              component.versions.map(
+                                (version) => `${component?.key}-${version}`
+                              )
+                            );
 
                             versionHandlers.setState((current) =>
                               current.map((value) =>
                                 labels.includes(value.label)
-                                  ? {...value, checked: newCheckedState}
+                                  ? { ...value, checked: newCheckedState }
                                   : value
                               )
                             );
@@ -403,11 +450,13 @@ export default function DeploymentDataTable({
                           ml={5}
                           justify="space-between"
                           variant="subtle"
-                          onClick={() => setOpenedTopLevel((o) => !o)}
+                          onClick={() =>
+                            toggleVersionGroup(versionGroup.groupKey)
+                          }
                           leftSection={
                             <Text c="var(--mantine-color-text)">
                               {details.find((detail) =>
-                                detail.key === versionGroup.groupKey)
+                                detail?.key === versionGroup.groupKey)
                                 ?.componentKeysAndNamesMap[versionGroup.groupKey]}
                             </Text>
                           }
@@ -421,28 +470,29 @@ export default function DeploymentDataTable({
                       </div>
                       <Collapse in={openedTopLevel}>
                         {versionGroup.group.map((component) => {
-                          const [openedSecondLevel, setOpenedSecondLevel] = useState(false);
+                          const openedSecondLevel = !!openedVersionComponents[component?.key];
 
                           return (
                             <div>
                               <div style={{display: 'flex', alignItems: 'center'}}>
                                 <Checkbox
-                                  key={component.key}
+                                  key={component?.key}
                                   ml={33}
-                                  checked={allCheckedVersion(component.key)}
-                                  indeterminate={indeterminateVersion(component.key)}
+                                  checked={allCheckedVersion(component?.key)}
+                                  indeterminate={indeterminateVersion(component?.key)}
                                   onChange={() => {
-                                    const newCheckedState = !allCheckedVersion(component.key);
+                                    const newCheckedState = !allCheckedVersion(
+                                      component?.key
+                                    );
                                     versionHandlers.setState((current) =>
                                       current.map((value) =>
                                         component.versions.includes(
                                           value.label.substring(
-                                            component.key.length + 1,
+                                            component?.key.length + 1,
                                             value.label.length
                                           )
-                                        )
-                                        && value.label.startsWith(component.key)
-                                          ? {...value, checked: newCheckedState}
+                                        ) && value.label.startsWith(component?.key)
+                                          ? { ...value, checked: newCheckedState }
                                           : value
                                       )
                                     );
@@ -454,12 +504,12 @@ export default function DeploymentDataTable({
                                   ml={5}
                                   justify="space-between"
                                   variant="subtle"
-                                  onClick={() => setOpenedSecondLevel((o) => !o)}
+                                  onClick={() => toggleVersionComponent(component?.key)}
                                   leftSection={
                                     <Text c="var(--mantine-color-text)">
                                       {details.find((appDetail) =>
-                                        appDetail.key === versionGroup.groupKey)
-                                        ?.componentKeysAndNamesMap[component.key]}
+                                        appDetail?.key === versionGroup.groupKey)
+                                        ?.componentKeysAndNamesMap[component?.key]}
                                     </Text>
                                   }
 
@@ -472,20 +522,22 @@ export default function DeploymentDataTable({
                               </div>
                               <Collapse in={openedSecondLevel}>
                                 {component.versions.map(version => {
-                                    const versionListState = versions.find(versionListState =>
-                                      versionListState.label === `${component.key}-${version}`);
+                                  const versionListState = versions.find(versionListState =>
+                                    versionListState.label === `${component?.key}-${version}`);
 
-                                    return (
+                                  if (!versionListState) return null;
+
+                                  return (
                                       <Checkbox
-                                        key={versionListState.key}
+                                        key={versionListState?.key}
                                         mt="xs"
                                         ml={66}
                                         label={
                                           <Text>
-                                            {version.substring(component.length + 1, version.length)}
+                                            {version.substring(component?.key?.length + 1, version.length)}
                                           </Text>
                                         }
-                                        checked={versionListState.checked}
+                                        checked={versionListState?.checked}
                                         onChange={(event) =>
                                           versionHandlers.setItemProp(
                                             versions.indexOf(versionListState),
@@ -508,7 +560,7 @@ export default function DeploymentDataTable({
             </ScrollArea.Autosize>
             <Button
               mt={5}
-              disabled={versions.every((value) => !value.checked)}
+              disabled={versions.every((value) => !value?.checked)}
               variant="light"
               onClick={() => {
                 close();
@@ -536,7 +588,7 @@ export default function DeploymentDataTable({
             />
           );
         },
-        filtering: versions.some((value) => value.checked)
+        filtering: versions.some((value) => value?.checked)
       },
       {
         accessor: 'versionDescription',
@@ -576,7 +628,7 @@ export default function DeploymentDataTable({
                 component="a"
                 href={
                   `${CONTEXT_PATH}/projects/detail/` +
-                  `${componentGroups.find(group => group.components.includes(row.appKey)).key}` +
+                  `${componentGroups.find(group => group.components.includes(row.appKey))?.key}` +
                   `?from=history&appKey=${row.appKey}&versionName=${row.versionName}`}
               >
                 <IconZoomScan/>
@@ -584,7 +636,7 @@ export default function DeploymentDataTable({
             </Tooltip>
             {isEditable ? (
               <Tooltip label="Smazat záznam">
-                <ActionIcon color="red" variant="subtle" component="a" href={row.jiraUrl}>
+                <ActionIcon color="red" variant="subtle">
                   <IconTrash onClick={() => {setSingleDelete(makeKey(row)); setModalType('delete-one'); openModal();}}/>
                 </ActionIcon>
               </Tooltip>) : null}

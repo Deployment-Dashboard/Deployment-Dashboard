@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mock Jira</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="page">
+    <div class="page__container">
+        <div class="page__intro">
+            <h1 class="page__title page__title--primary">Vítejte v aplikaci MockJira</h1>
+            <p>Tato aplikace byla vyvinuta v rámci bakálářské práce:</p>
+            <div class="page__intro-highlight">
+                Continuous Integration/Continuous Delivery a webová aplikace pro evidenci nasazených verzí napříč různými prostředími
+            </div>
+            <p>
+                a slouží jako náhrada za plnohodnotnou instalaci ticketovacího nástroje <a href="https://www.atlassian.com/software/jira">Jira</a>
+                společnosti <a href="https://www.atlassian.com">Atlassian</a> pro demonstraci funkcionality aplikace Deployment Dashboard.
+            </p>
+            <p>Více informací a návod k použití naleznete <a href="/readme">zde</a>.</p>
+        </div>
+        <table class="table">
+            <caption class="table__caption">Tabulka uložených ticketů</caption>
+            <thead>
+                <tr>
+                    <th class="table__head-cell table__head-cell--left">Klíč</th>
+                    <th class="table__head-cell table__head-cell--left">Stav</th>
+                    <th class="table__head-cell table__head-cell--left">Potvrzení nasazení</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if tickets|length > 0 %}
+                    {% for ticket in tickets %}
+                        <tr>
+                            <td class="table__body-cell">{{ ticket.key }}</td>
+                            <td class="table__body-cell">{{ ticket.status }}</td>
+                            <td class="table__body-cell"><a class="link--white" href="{{ ticket.description|extract_url }}">Potvrdit</a></td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5" class="table__body-cell table__body-cell--no-records">Žádné tickety k zobrazení.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

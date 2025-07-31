@@ -11,10 +11,10 @@ import {
   Title,
   Tooltip
 } from "@mantine/core";
-import {IconCheck, IconInfoCircle, IconPlus, IconX} from "@tabler/icons-react";
+import {IconCheck, IconInfoCircle, IconMinus, IconPlus, IconX} from "@tabler/icons-react";
 import {useForm} from "@mantine/form";
 import {useEffect, useRef, useState} from "react";
-import {API_URL} from "~/constants";
+import {BROWSER_API_URL} from "~/constants";
 import {ErrorBody} from "~/types";
 import {NotificationData, notifications} from "@mantine/notifications";
 import {useDisclosure} from "@mantine/hooks";
@@ -79,16 +79,16 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
   };
 
   // odebrání komponenty
-  const handleRemoveComponent = (index) => {
-    setComponents(components.filter((_, i) => i !== index));
-  }
+    const handleRemoveComponent = (componentId) => {
+      setComponents(components.filter(component => component.id !== componentId));
+    }
 
   // změna jména komponenty
   const handleComponentNameChange = (idToChange, newValue) => {
     setComponents((prev) =>
       prev.map(component =>
         component.id === idToChange
-          ? { ...component, newName: newValue }
+          ? { ...component, name: newValue }
           : component
       )
     );
@@ -129,7 +129,7 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
 
     try {
       // přidání projektu
-      let response = await fetch(`${API_URL}/apps`, requestOptions);
+      let response = await fetch(`${BROWSER_API_URL}/apps`, requestOptions);
       if (!response.ok) {
         const error: ErrorBody = await response.json();
         notifications.show({
@@ -151,7 +151,7 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
           name: environment.valueOf()
         });
 
-        response = await fetch(`${API_URL}/apps/${formValues.key}/envs`, requestOptions);
+        response = await fetch(`${BROWSER_API_URL}/apps/${formValues.key}/envs`, requestOptions);
 
         if (!response.ok) {
           const error: ErrorBody = await response.json();
@@ -168,12 +168,12 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
       // komponenty
       for (const component of formValues.components) {
         requestOptions.body = JSON.stringify({
-          key: component.key,
+          key: component.key.toLowerCase(),
           name: component.name,
           parentKey: formValues.key
         });
 
-        response = await fetch(`${API_URL}/apps`, requestOptions);
+        response = await fetch(`${BROWSER_API_URL}/apps`, requestOptions);
 
         if (!response.ok) {
           const error: ErrorBody = await response.json();
@@ -208,17 +208,6 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
         position: "top-center",
       } as NotificationData);
     }
-
-    useEffect(() => {
-      form.setFieldValue('name', project.name);
-      form.setFieldValue('key', project.key);
-
-      form.validate();
-    }, [project]);
-
-    useEffect(() => {
-      form.validate();
-    }, [components]);
   };
 
   const form = useForm({
@@ -237,16 +226,16 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
       key: (value) => (value.length === 0
         ? 'Klíč projektu nesmí být prázdný.'
         : components.some(component => (
-          equalsCaseInsensitive(component.key, project.key)
+          equalsCaseInsensitive(component.key, value)
         ))
           ? 'Klíč projektu je stejný jako klíč některé z komponent.' : null),
     },
 
     transformValues: (values) => ({
-      key: values.key,
+      key: values.key.toLowerCase(),
       name: values.name,
       app: values.AppDto = {
-        key: values.key,
+        key: values.key.toLowerCase(),
         name: values.name,
       },
       environments: environments,
@@ -264,17 +253,20 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
   // získání chybové hlášky pro TextInputs komponenty
   const getComponentErrorMessage = (idToCheck) => {
     const foundComp = components.find(comp => comp.id === idToCheck);
+    const currentProjectKey = form.getValues().key;
 
     if (!foundComp.key.trim()) {
       return "Klíč komponenty nesmí být prázdný."
-    } else if (equalsCaseInsensitive(foundComp.key, project.key)) {
+    } else if (equalsCaseInsensitive(foundComp.key, currentProjectKey)) {
+      form.validateField('key')
       return "Klíč komponenty je stejný jako klíč projektu."
-    } else if (foundComp.key.trim() &&
-      components.some(comp =>
-        equalsCaseInsensitive(comp.key, foundComp.key.trim()) &&
-        comp.id !== idToCheck
-    )) {
+    } else if (components.some(comp =>
+      equalsCaseInsensitive(comp.key, foundComp.key) &&
+      comp.id !== idToCheck)) {
       return "Klíč komponenty musí být unikátní."
+    }
+    if (form.getValues().key.trim()) {
+      form.validateField('key')
     }
     return null
   }
@@ -290,12 +282,17 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
 
   // kontrola, zda povolit tlačítko pro přidání komponenty
   useEffect(() => {
-    if (!inputComponentKey.trim() || inputComponentName.trim()) {
+    const currentProjectKey = form.getValues().key;
+
+    if (!inputComponentKey.trim() || !inputComponentName.trim()) {
       setAdditionState({disabled: true, reason: "Pro přidání komponenty vyplňte název i klíč."});
+    } else if (equalsCaseInsensitive(inputComponentKey, currentProjectKey)
+      || (components.some(component => equalsCaseInsensitive(component.key, inputComponentKey)))) {
+      setAdditionState({disabled: true, reason: ""})
     } else {
-      handlers.close();
+      setAdditionState({disabled: false, reason: ""});
     }
-  }, [inputComponentKey, inputComponentName, components]);
+  }, [inputComponentKey, inputComponentName, components, form.getValues().key]);
 
   return (
     <Modal
@@ -330,22 +327,27 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
               withAsterisk
               label="Název"
               placeholder="Zadejte název projektu..."
-              value={project.name}
               onInput={(e) => setProject((prev) => ({...prev, name: e.target.value}))}
               key={form.key('name')}
               {...form.getInputProps('name')}
             />
             <TextInput
+              styles={{
+                input: { textTransform: project.key ? "uppercase" : "initial" }
+              }}
               id="inputProjectKey"
               w={322}
               withAsterisk
               label="Klíč"
               placeholder="Zadejte klíč projektu..."
-              value={project.key.toUpperCase()}
-              onInput={(e) => setProject((prev) => ({...prev, key: e.target.value}))}
+              onInput={(e) => {
+                const newKey = e.target.value;
+                setProject((prev) => ({...prev, key: newKey}));
+              }}
               key={form.key('key')}
               {...form.getInputProps('key')}
             />
+
           </Flex>
         </Fieldset>
         <Fieldset w="100%" mt="lg" legend={
@@ -354,6 +356,7 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
           </Title>}
         >
           <TagsInput
+            style={{maxWidth: "660px"}}
             id='tagsInputEnvironments'
             placeholder="Zadejte název prostředí..."
             splitChars={[' ']}
@@ -368,7 +371,7 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
             onChange={handleEnvironmentsOnChange}
             onBlur={handleEnvironmentsOnBlur}
             styles={{
-              pill: { textTransform: "upperCase" }
+              pill: { textTransform: "uppercase" }
             }}
             key={form.key('environments')}
           />
@@ -392,14 +395,25 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
                   error={!row.name.trim() ? "Název nesmí být prázdný." : null}
                 />
                 <TextInput
+                  styles={{
+                    input: { textTransform: row.key ? "uppercase" : "initial" }
+                  }}
                   id={`inputComponentKey${row.id}`}
                   w="300"
                   label={ components.length > 0 && index === 0 ? "Klíč" : "" }
                   placeholder="Zadejte klíč komponenty..."
-                  value={row.key.toUpperCase()}
-                  onInput={(e) => handleComponentKeyChange(row.id, e.target.value.toLowerCase())}
+                  value={row.key}
+                  onInput={(e) => handleComponentKeyChange(row.id, e.target.value)}
                   error={getComponentErrorMessage(row.id)}
                 />
+                <ActionIcon
+                  variant="light"
+                  color="red"
+                  mt={index === 0 ? 30 : 2}
+                  onClick={() => handleRemoveComponent(row.id)}
+                >
+                  <IconMinus size="20" />
+                </ActionIcon>
               </Group>)
             )}
           </Flex>
@@ -414,18 +428,33 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
               onInput={(e) => {setInputComponentName(e.target.value);}}
             />
             <TextInput
+              styles={{
+                input: { textTransform: inputComponentKey ? "uppercase" : "initial" }
+              }}
               h={50}
               id='inputComponentKey'
               label={" "}
               placeholder="Zadejte klíč komponenty..."
-              value={inputComponentKey.toUpperCase()}
+              value={inputComponentKey}
               w={300}
               inputWrapperOrder={['label', 'input', 'description', 'error']}
-              onInput={(e) => {setInputComponentKey(e.target.value.toLowerCase());}}
+              onInput={(e) => {setInputComponentKey(e.target.value);}}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !additionState.disabled) {
+                  handleAddComponent();
+                }
+              }}
+              description={components.some(component =>
+                equalsCaseInsensitive(component.key, inputComponentKey))
+                ? <Group gap={"6"} c={"yellow"}><IconInfoCircle size={16}/>Komponenta s tímto klíčem už je evidována.</Group>
+                : form.getValues().key.trim() && equalsCaseInsensitive(form.getValues().key, inputComponentKey)
+                  ? <Group gap={"6"} c={"yellow"}><IconInfoCircle size={16}/>Klíč komponenty je stejný jako klíč projektu.</Group>
+                  : null
+              }
             />
             <Tooltip
               label={additionState.reason}
-              disabled={!additionState.disabled}
+              disabled={!additionState.reason}
             >
               <ActionIcon
                 disabled={additionState.disabled}

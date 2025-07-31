@@ -192,6 +192,7 @@ public class ServiceOrchestrator {
     List<Deployment> deployments = deploymentService.getAllDeployments();
 
     return deployments.stream().map(deployment -> new DeploymentDto(
+        deployment.getId(),
         deployment.getDate().get(),
         deployment.getVersion().getApp().getKey(),
         deployment.getVersion().getApp().getName(),

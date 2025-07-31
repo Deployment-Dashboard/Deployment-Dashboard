@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nasazovací šablona projektu {{ project.name }}</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; margin: 0; padding: 40px; color: #333; }
+        .content-wrapper { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; }
+        h1 { color: #0052cc; padding-bottom: 8px; }
+        .component-section { background: #f9fafc; border-radius: 8px; padding: 15px 20px; margin-bottom: 22px; }
+        h2 { color: #0747a6; margin-top: 25px; margin-bottom: 10px; }
+        label { display: flex; align-items: center; justify-content: center; font-size: 15px; color: #555; cursor: pointer; background: #f5f8fa; border: 2px solid #0052cc; border-radius: 12px; padding: 8px 18px; min-width: 300px; gap: 12px; }
+        input[type='checkbox'] { cursor: pointer; transform: scale(1.2); }
+        input[type='text'] { width: 100px; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        .submit-buttons { margin-top: 30px; text-align: center; }
+        .submit-buttons button { background-color: #0052cc; color: white; border: none; padding: 10px 20px; margin: 5px; font-size: 16px; border-radius: 8px; cursor: pointer; transition: background-color 0.3s ease; }
+        .submit-buttons button:hover { background-color: #003d99; }
+    </style>
+</head>
+
+<body>
+    <div class="content-wrapper">
+        {% set component_names = {"db": "Databáze", "be": "Back end", "fe": "Front end"} %}
+        <h1>Nasazovací šablona projektu {{ project.name }}</h1>
+
+        <div class="component-section">
+            <h2>{{ project.name }}</h2>
+            <div class="checklist-container">
+                <label><input type="checkbox"> <span>{{ project.name }}</span> <input type="text" placeholder="X.X.X"></label>
+            </div>
+        </div>
+
+        {% for type, items in components.items() %}
+        <div class="component-section">
+            <h2>{{ component_names.get(type, type) }}</h2>
+            <div class="checklist-container">
+                {% for item in items %}
+                <label>
+                    <input type="checkbox" name="{{ item.key }}"> {{ item.name }}
+                    <input type="text" placeholder="X.X.X" style="margin-left: 10px;">
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="submit-buttons">
+            {% for env in envs %}
+                <button>{{ env | upper }}</button>
+            {% endfor %}
+        </div>
+    </div>
+    <script>
+        function generateUUID() {
+        return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+        );
+        }
+
+        document.querySelectorAll('.submit-buttons button').forEach(button => {
+        button.addEventListener('click', () => {
+            const env = button.textContent.toLowerCase();
+            const projectKey = "{{ project.key }}";
+            const projectName = "{{ project.name }}";
+
+            const checklist = document.querySelectorAll('.checklist-container label');
+            const versions = [];
+
+            checklist.forEach(label => {
+            const checkbox = label.querySelector('input[type=checkbox]');
+            const textInput = label.querySelector('input[type=text]');
+            if (checkbox.checked && textInput.value && textInput.value !== 'X.X.X') {
+                const keyName = checkbox.name || projectKey; // fallback if no name attribute
+                versions.push(`${encodeURIComponent(keyName)}=${encodeURIComponent(textInput.value)}`);
+            }
+            });
+
+            const versionsStr = versions.join('&');
+            const uuid = generateUUID();
+
+            const jiraUrl = `http://localhost:5000/secure/CreateIssueDetails!init.jspa?` +
+            `pid=${encodeURIComponent(projectKey)}` +
+            `&summary=${encodeURIComponent(`Prosím o nasazení projektu ${projectName} na prostředí ${env}`)}` +
+            `&description=${encodeURIComponent(`Lorem ipsum dolor sit amet http://localhost:3000/deploydash/new-deployment/apps/${projectKey}/envs/${env}/versions?${versionsStr}&ticket=ok-jira://${uuid}`)}`;
+
+            window.open(jiraUrl, '_blank').focus();
+        });
+        });
+    </script>
+</body>
+</html>

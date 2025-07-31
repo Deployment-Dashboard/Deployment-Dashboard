@@ -12,7 +12,7 @@ import {
   IconPencil, IconTrash, IconX,
 } from "@tabler/icons-react";
 import {DataTableSortStatus} from 'mantine-datatable';
-import {API_URL} from "~/constants"
+import {BROWSER_API_URL, DOCKER_API_URL} from "~/constants"
 import {useEffect, useMemo, useRef, useState} from "react";
 import sortBy from 'lodash/sortBy';
 import {DatesRangeValue} from "@mantine/dates";
@@ -31,8 +31,8 @@ import {NotificationData, notifications} from "@mantine/notifications";
 
 export let loader: LoaderFunction = async () => {
   const [response1, response2] = await Promise.all([
-    fetch(`${API_URL}/deployments`),
-    fetch(`${API_URL}/apps`)
+    fetch(`${DOCKER_API_URL}/deployments`),
+    fetch(`${DOCKER_API_URL}/apps`)
   ]);
 
   const data1 = await response1.json();
@@ -43,6 +43,7 @@ export let loader: LoaderFunction = async () => {
 
 export default function DeploymentHistory() {
 
+  const revalidator = useRevalidator();
   //
   // DATA
   //
@@ -82,25 +83,27 @@ export default function DeploymentHistory() {
   // skupiny projekt-komponenty pro srolovatelné části
   const componentGroups = details.flatMap((detail) =>
     ({
-      key: detail.key,
+      key: detail?.key,
       components: Object.keys(detail.componentKeysAndNamesMap)
         .sort((a, b) =>
           a.localeCompare(b)).map((key) => key)
     })
-  ).sort((a, b) => a.key.localeCompare(b.key));
+  ).sort((a, b) => a?.key.localeCompare(b?.key));
 
   // přidání checked a key k aplikacím pro DataTable
-  const initialAppValues = details.flatMap((detail) =>
-    Object.keys(detail.componentKeysAndNamesMap)
-      .map((key) => ({
-        label: `${key}`,
-        checked: false,
-        key: randomId()
-      }))
-  ).sort((a, b) => a.label.localeCompare(b.label));
+  const initializeAppValues = (data) => {
+    return details.flatMap((data) =>
+      Object.keys(data.componentKeysAndNamesMap)
+        .map((key) => ({
+          label: `${key}`,
+          checked: false,
+          key: randomId()
+        }))
+    ).sort((a, b) => a.label.localeCompare(b.label));
+  }
 
   // aplikace
-  const [apps, appHandlers] = useListState(initialAppValues);
+  const [apps, appHandlers] = useListState(initializeAppValues(details));
 
   // skupiny aplikace-verze pro srolovatelné části
   const versionGroups = details.flatMap((detail) => {
@@ -119,26 +122,28 @@ export default function DeploymentHistory() {
     })
 
     if (group.length > 0) {
-      groups = [...groups, {groupKey: detail.key, group: group}]
+      groups = [...groups, {groupKey: detail?.key, group: group}]
     }
     return groups;
   }).sort((a, b) => a.groupKey.localeCompare(b.groupKey));
 
   // přidání checked a key k verzím pro DataTable
-  const initialVersionValues = details.map(
-    (detail) => detail.appKeyToVersionDtosMap).flatMap(
-    (versionMap) => Object.keys(versionMap).flatMap(
-      (appKey) => versionMap[appKey].filter(
-        (versionDto) => (
-          Object.keys(versionDto.environmentToDateAndJiraUrlMap).length > 0)).map(version => ({
-        label: `${appKey}-${version.name}`,
-        checked: false,
-        key: randomId()
-      })))
-  );
+  const initializeVersionValues = (data) => {
+    return details.map(
+      (data) => data.appKeyToVersionDtosMap).flatMap(
+      (versionMap) => Object.keys(versionMap).flatMap(
+        (appKey) => versionMap[appKey].filter(
+          (versionDto) => (
+            Object.keys(versionDto.environmentToDateAndJiraUrlMap).length > 0)).map(version => ({
+          label: `${appKey}-${version.name}`,
+          checked: false,
+          key: randomId()
+        })))
+    );
+  }
 
   // verze
-  const [versions, versionHandlers] = useListState(initialVersionValues);
+  const [versions, versionHandlers] = useListState(initializeVersionValues(details));
 
   // je aktivní nějaký filtr?
   const [isFiltered, setIsFiltered] = useState(false);
@@ -163,17 +168,6 @@ export default function DeploymentHistory() {
   // state modalu
   const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false)
 
-  // obsah modalu
-  const [modalContent, setModalContent] = useState<{
-    title: string;
-    message: string;
-    action: (() => void) | null;
-  }>({
-    title: "",
-    message: "",
-    action: null
-  });
-
   // změněné verze
   const [editedVersions, setEditedVersions] = useState({});
 
@@ -196,10 +190,10 @@ export default function DeploymentHistory() {
       const {appKey, environmentName, versionName} = JSON.parse(editedVersionKey);
       const editedVersion = editedVersions[editedVersionKey];
 
-      putOptions.body = JSON.stringify({name: editedVersion.newName ?? versionName, description: editedVersion.description});
+      putOptions.body = JSON.stringify({name: editedVersion.newVersionName ?? versionName, description: editedVersion.newVersionDescription});
 
       try {
-        response = await fetch(`${API_URL}/apps/${appKey}/versions/${versionName}`, putOptions);
+        response = await fetch(`${BROWSER_API_URL}/apps/${appKey}/versions/${versionName}`, putOptions);
       } catch (error) {
         notifications.show({
           color: "red",
@@ -216,8 +210,8 @@ export default function DeploymentHistory() {
         position: "top-center",
       } as NotificationData)
     }
-    await revalidate();
-    window.location.reload();
+    setIsEditable(false);
+    revalidator.revalidate();
   }
 
   const handleDeleteVersions = async () => {
@@ -231,7 +225,21 @@ export default function DeploymentHistory() {
       const {appKey, environmentName, versionName} = JSON.parse(singleDelete);
 
       try {
-        response = await fetch(`${API_URL}/apps/${appKey}/versions/${versionName}`, deleteOptions);
+        response = await fetch(`${BROWSER_API_URL}/apps/${appKey}/envs/${environmentName}/versions/${versionName}/deployment`, deleteOptions);
+        if (!response.ok) {
+          notifications.show({
+            color: "red",
+            title: `Nepodařilo se smazat nasazení ${record.appKey}:${record.environmentName}:v${record.versionName} zaevidovaného ${record.deployedAt}.`,
+            message: "Nastala neočekávaná chyba.",
+            position: "top-center",
+          } as NotificationData)
+        } else {
+          notifications.show({
+            color: "green",
+            title: "Smazání nasazení proběhlo úspěšně!",
+            position: "top-center",
+          } as NotificationData)
+        }
       } catch (error) {
         notifications.show({
           color: "red",
@@ -243,7 +251,16 @@ export default function DeploymentHistory() {
     } else if (modalType === 'delete-many') {
       for (const record of selectedRecords) {
         try {
-          response = await fetch(`${API_URL}/apps/${record.appKey}/envs/${record.environmentName}/versions/${record.versionName}/deployment`, deleteOptions);
+          response = await fetch(`${BROWSER_API_URL}/apps/${record.appKey}/envs/${record.environmentName}/versions/${record.versionName}/deployment`, deleteOptions);
+          if (!response.ok) {
+            notifications.show({
+              color: "red",
+              title: `Nepodařilo se smazat nasazení ${record.appKey}:${record.environmentName}:v${record.versionName} zaevidovaného ${record.deployedAt}.`,
+              message: "Nastala neočekávaná chyba.",
+              position: "top-center",
+            } as NotificationData)
+            break;
+          }
         } catch (error) {
           notifications.show({
             color: "red",
@@ -253,16 +270,15 @@ export default function DeploymentHistory() {
           } as NotificationData)
         }
       }
-    }
-    if (response?.ok) {
       notifications.show({
         color: "green",
         title: "Smazání nasazení proběhlo úspěšně!",
         position: "top-center",
       } as NotificationData)
     }
-    await revalidate();
-    window.location.reload();
+    setSelectedRecords([]);
+    setSingleDelete("")
+    revalidator.revalidate();
   }
 
   const resetVersionChanges = () => {
@@ -276,67 +292,39 @@ export default function DeploymentHistory() {
   // POMOCNÉ METODY
   //
 
-  // znovuzavolání loaderu
-  const { revalidate } = useRevalidator();
-
   // obsah potvrzovacího modalu
-  const getModalContent = () => {
-    const newContent: {
-      title: string;
-      message: string;
-      action: (() => void) | null;
-    } = {
-      title: "",
-      message: "",
-      action: null
-    };
-
+  const getModalTitle = () => {
     switch (modalType) {
       case 'cancel':
-        newContent.title = "Opravdu chcete zrušit provedené změny?";
-        newContent.action = () => {
-          resetVersionChanges();
-          closeModal();
-        };
-        break;
+        return "Opravdu chcete zrušit provedené změny?";
       case 'confirm':
-        newContent.title = "Chystáte se provést změny.";
-        newContent.action = () => {
-          handleSubmitVersions();
-          closeModal();
-        };
-        break;
+        return "Chystáte se provést změny.";
       case 'delete-one':
-        newContent.title = "Opravdu chcete smazat vybranou položku?";
-        newContent.action = () => {
-
-          closeModal()
-        };
-        break;
+        return "Opravdu chcete smazat vybranou položku?";
       case 'delete-many':
-        newContent.title = "Opravdu chcete smazat vybrané položky?";
-        newContent.action = () => {
-          closeModal();
-        };
-        break;
+        return "Opravdu chcete smazat vybrané položky?";
       default:
-        break;
+        return "";
     }
-
-    setModalContent(newContent);
   };
-
-
 
   //
   // USE EFFECTS
   //
 
+  useEffect(() => {
+    versionHandlers.setState(initializeVersionValues(details))
+    appHandlers.setState(initializeAppValues(details))
+  }, [details])
+
+  useEffect(() => {
+    setRecords(sortBy(deployments, 'deployedAt'));
+  }, [deployments]);
+
   // kontrola hydratace
   useEffect(() => {
     setIsHydrated(true);
   }, []);
-
 
   // filtování záznamů
   useEffect(() => {
@@ -351,15 +339,15 @@ export default function DeploymentHistory() {
 
         if (selectedEnvironments.length > 0 && !selectedEnvironments.some(e => e === environmentName)) return false;
 
-        if (apps.some(a => a.checked) && !apps.find(a => a.label === appKey).checked) return false;
+        if (apps.some(a => a?.checked) && !apps.find(a => a.label === appKey)?.checked) return false;
 
-        if (versions.some(v => v.checked) && !versions.find((v) => v.label === `${appKey}-${versionName}`).checked) return false;
+        if (versions.some(v => v?.checked) && !versions.find((v) => v.label === `${appKey}-${versionName}`)?.checked) return false;
 
         return true;
       }
     ), sortStatus.columnAccessor);
     setRecords(sortStatus.direction === 'desc' ? data.reverse() : data);
-  }, [deployedAtSearchRange, selectedEnvironments, apps, versions]);
+  }, [deployments, deployedAtSearchRange, selectedEnvironments, apps, versions]);
 
   // nastavení proměnné filtrů
   useEffect(() => {
@@ -368,14 +356,14 @@ export default function DeploymentHistory() {
     if (deployedAtSearchRange && deployedAtSearchRange[0] instanceof Date && deployedAtSearchRange[1] instanceof Date) {
       newFilters["dateFilter"] = { start: deployedAtSearchRange[0], end: deployedAtSearchRange[1] }
     }
-    if (apps.some(a => a.checked)) {
-      newFilters["appsFilter"] = { apps: apps.filter(app => app.checked) }
+    if (apps.some(a => a?.checked)) {
+      newFilters["appsFilter"] = { apps: apps.filter(app => app?.checked) }
     }
     if (selectedEnvironments.length > 0) {
       newFilters["envsFilter"] = { envs: selectedEnvironments }
     }
-    if (versions.some(v => v.checked)) {
-      newFilters["versionsFilter"] = { versions: versions.filter(version => version.checked) }
+    if (versions.some(v => v?.checked)) {
+      newFilters["versionsFilter"] = { versions: versions.filter(version => version?.checked) }
     }
 
     setFilters(newFilters);
@@ -404,11 +392,6 @@ export default function DeploymentHistory() {
     }, 20);
   }, []);
 
-  // zjištění obsahu modalu při změně jeho typu
-  useEffect(() => {
-    getModalContent();
-  }, [modalType])
-
   if (!isHydrated) {
     return (
       <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
@@ -425,7 +408,7 @@ export default function DeploymentHistory() {
       <Modal
         title={
           <Title order={3}>
-            {modalContent.title}
+            {getModalTitle()}
           </Title>
         }
         opened={modalOpened}
@@ -439,7 +422,26 @@ export default function DeploymentHistory() {
           <Button
             color="green"
             rightSection={<IconCheck size={16}/>}
-            onClick={modalContent.action}
+            onClick={() => {
+              switch (modalType) {
+                case 'cancel':
+                    resetVersionChanges();
+                    closeModal();
+                  break;
+                case 'confirm':
+                    handleSubmitVersions();
+                    closeModal();
+                  break;
+                case 'delete-one':
+                    handleDeleteVersions();
+                    closeModal();
+                  break;
+                case 'delete-many':
+                    handleDeleteVersions();
+                    closeModal();
+                default:
+                  break;
+            }}}
           >
             Povrdit
           </Button>
@@ -535,6 +537,8 @@ export default function DeploymentHistory() {
                       if (Object.keys(editedVersions).length) {
                         setModalType('confirm');
                         openModal()
+                      } else {
+                        setIsEditable(false);
                       }
                     }}
                   >

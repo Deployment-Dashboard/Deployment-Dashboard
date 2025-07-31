@@ -24,7 +24,7 @@ import {
   IconTrash,
   IconX
 } from "@tabler/icons-react";
-import {API_URL} from "~/constants"
+import {BROWSER_API_URL, DOCKER_API_URL} from "~/constants"
 import {useDisclosure} from "@mantine/hooks";
 import {useEffect, useRef, useState} from "react";
 import {useForm} from "@mantine/form";
@@ -40,7 +40,7 @@ import {equalsCaseInsensitive} from "~/util-methods";
 export async function loader({
                                params, request
                              }: LoaderFunctionArgs) {
-  const response = await fetch(`${API_URL}/apps/${params.appKey}`);
+  const response = await fetch(`${DOCKER_API_URL}/apps/${params.appKey}`);
 
   const url = new URL(request.url);
   const from = url.searchParams.get("from");
@@ -66,49 +66,12 @@ export async function loader({
 }
 
 export default function ProjectDetail() {
+  const navigate = useNavigate();
 
-  //
-  // DATA
-  //
-
-  // načtení dat ze server loaderu
   const loaderData = useLoaderData();
-  const appDetail = loaderData.appDetail
+  const appDetail = loaderData.appDetail;
 
   appDetail.environmentNames.sort();
-
-  // projekt
-  const [projectState, setProjectState] = useState(componentStates.find(component => component.key === appDetail.key));
-  // komponenty
-  const [componentStates, setComponentStates] = useState(() => initializeComponentStates());
-  const [inputComponentName, setInputComponentName] = useState('');
-  const [inputComponentKey, setInputComponentKey] = useState('');
-  // prostředí
-  const [environments, setEnvironments] = useState(() => initializeEnvironments());
-  const [inputEnvironment, setInputEnvironment] = useState('');
-  const [enabledEnv, envButtonHandlers] = useDisclosure(false);
-
-  // state pro buttons
-  const [enabledApp, componentButtonHandlers] = useDisclosure(false);
-
-  // mapa přetečených tabulek (na základě přetečení nastavujeme jinak border, kvůli scrollbaru
-  const [overflowMap, setOverflowMap] = useState<Record<string, boolean>>({});
-
-  // odkazy na pozadi tabulek
-  const paperRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  // přehled posledních verzí
-  const latestVersions = getLatestVersionForComponentsAndEnvs();
-
-  // transformace dat pro tabulky
-  const transformedData = transformData();
-
-  // počítadla
-  const appIdCounter = useRef(0);
-  const envIdCounter = useRef(0);
-
-  const { revalidate } = useRevalidator();
-  const navigate = useNavigate();
 
   const getLatestVersionForComponentsAndEnvs = () => {
     const latestVersions = {};
@@ -139,6 +102,8 @@ export default function ProjectDetail() {
 
     Object.keys(appDetail.appKeyToVersionDtosMap).forEach((appKey) => {
       transformedData[appKey] = appDetail.appKeyToVersionDtosMap[appKey].map((version) => {
+        console.log(version)
+
         const versionData = {
           versionName: version.name,
           description: version.versionDescription,
@@ -184,6 +149,9 @@ export default function ProjectDetail() {
     }
   };
 
+  const [overflowMap, setOverflowMap] = useState<Record<string, boolean>>({});
+
+  const paperRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const checkOverflow = () => {
     const newOverflowMap: Record<string, boolean> = {};
@@ -200,6 +168,11 @@ export default function ProjectDetail() {
     return () => window.removeEventListener("resize", checkOverflow);
   }, []);
 
+  const latestVersions = getLatestVersionForComponentsAndEnvs(appDetail);
+  const transformedData = transformData(appDetail);
+
+  const envIdCounter = useRef(0);
+
   const initializeEnvironments = () => {
     return appDetail.environmentNames.map(name => ({
       id: envIdCounter.current++,
@@ -210,7 +183,7 @@ export default function ProjectDetail() {
     }));
   };
 
-
+  const [environments, setEnvironments] = useState(() => initializeEnvironments());
 
 
   const handleAddEnvironment = () => {
@@ -254,6 +227,12 @@ export default function ProjectDetail() {
     )
   }
 
+
+
+  const [inputEnvironment, setInputEnvironment] = useState('');
+
+  const [enabledEnv, envButtonHandlers] = useDisclosure(false);
+
   useEffect(() => {
     if (inputEnvironment.trim()
       && !environments.some(env => equalsCaseInsensitive(env.newName, inputEnvironment.trim()) && !env.toDelete)) {
@@ -263,7 +242,7 @@ export default function ProjectDetail() {
     }
   }, [inputEnvironment, environments]);
 
-
+  const appIdCounter = useRef(0);
 
   // komponenty z TextInputu ve formu
   const initializeComponentStates = () => {
@@ -303,7 +282,9 @@ export default function ProjectDetail() {
     )
   }
 
+  const [componentStates, setComponentStates] = useState(() => initializeComponentStates());
 
+  const [projectState, setProjectState] = useState(componentStates.find(component => component.key === appDetail.key));
 
   useEffect(() => {
     form.setFieldValue('name', projectState.newName);
@@ -317,7 +298,11 @@ export default function ProjectDetail() {
 
 
 
+  const [inputComponentName, setInputComponentName] = useState('');
+  const [inputComponentKey, setInputComponentKey] = useState('');
 
+  // state pro button pridavajici komponenty
+  const [enabledApp, componentButtonHandlers] = useDisclosure(false);
 
   useEffect(() => {
     if (inputComponentKey.trim()
@@ -524,7 +509,7 @@ export default function ProjectDetail() {
     };
 
     try {
-      let response = await fetch(`${API_URL}/apps/${appDetail.key}?force=true`, requestOptions);
+      let response = await fetch(`${BROWSER_API_URL}/apps/${appDetail.key}?force=true`, requestOptions);
       if (!response.ok) {
         const error: ErrorBody = await response.json();
         notifications.show({
@@ -626,7 +611,7 @@ export default function ProjectDetail() {
 
     try {
       for (const app of appsToRemove) {
-        response = await fetch(`${API_URL}/apps/${app.key}?force=true`, deleteOptions);
+        response = await fetch(`${BROWSER_API_URL}/apps/${app.key}?force=true`, deleteOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           notifications.show({
@@ -640,7 +625,7 @@ export default function ProjectDetail() {
       }
 
       for (const env of envsToRemove) {
-        response = await fetch(`${API_URL}/apps/${projectState.key}/envs/${env.name}?force=true`, deleteOptions);
+        response = await fetch(`${BROWSER_API_URL}/apps/${projectState.key}/envs/${env.name}?force=true`, deleteOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           notifications.show({
@@ -655,7 +640,7 @@ export default function ProjectDetail() {
 
       if (!equalsCaseInsensitive(projectState.key, projectState.newKey) || projectState.name !== projectState.newName) {
         putOptions.body = JSON.stringify({key: newProjectKey, name: projectState.newName})
-        response = await fetch(`${API_URL}/apps/${projectState.key}`, putOptions);
+        response = await fetch(`${BROWSER_API_URL}/apps/${projectState.key}`, putOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           notifications.show({
@@ -670,7 +655,7 @@ export default function ProjectDetail() {
 
       for (const app of appsToAdd) {
         postOptions.body = JSON.stringify({ key: app.newKey, name: app.newName, parentKey: newProjectKey });
-        response = await fetch(`${API_URL}/apps`, postOptions);
+        response = await fetch(`${BROWSER_API_URL}/apps`, postOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           notifications.show({
@@ -685,7 +670,7 @@ export default function ProjectDetail() {
 
       for (const env of envsToAdd) {
         postOptions.body = JSON.stringify({appKey: newProjectKey, name: env.newName});
-        response = await fetch(`${API_URL}/apps/${projectState.newKey}/envs`, postOptions);
+        response = await fetch(`${BROWSER_API_URL}/apps/${projectState.newKey}/envs`, postOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           notifications.show({
@@ -700,7 +685,7 @@ export default function ProjectDetail() {
 
       for (const app of appsToUpdate) {
         putOptions.body = JSON.stringify({ key: app.newKey, name: app.newName, parentKey: newProjectKey });
-        response = await fetch(`${API_URL}/apps/${app.key}`, putOptions);
+        response = await fetch(`${BROWSER_API_URL}/apps/${app.key}`, putOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           notifications.show({
@@ -715,7 +700,7 @@ export default function ProjectDetail() {
 
       for (const env of envsToUpdate) {
         putOptions.body = JSON.stringify({appKey: newProjectKey, name: env.newName});
-        response = await fetch(`${API_URL}/apps/${newProjectKey}/envs/${env.name}`, putOptions);
+        response = await fetch(`${BROWSER_API_URL}/apps/${newProjectKey}/envs/${env.name}`, putOptions);
         if (!response.ok) {
           const error: ErrorBody = await response.json();
           notifications.show({
@@ -727,10 +712,11 @@ export default function ProjectDetail() {
           return;
         }
       }
-      await revalidate();
-      await navigate(`/projects/detail/${newProjectKey}`);
-      window.location.reload();
       closeEdit();
+      if (!equalsCaseInsensitive(projectState.key, projectState.newKey)) {
+        await navigate(`/projects/detail/${newProjectKey}`);
+      }
+      window.location.reload();
     } catch (error) {
       notifications.show({
         color: "red",
@@ -858,7 +844,10 @@ export default function ProjectDetail() {
           body: {paddingBottom: 0}
         }}
       >
-        <form onSubmit={form.onSubmit((values) => handleSubmit(values))}>
+        <form
+          onSubmit={form.onSubmit((values) => handleSubmit(values))}
+          onKeyDown={(e) => {if (e.key === 'Enter') e.preventDefault();}}
+        >
           <div style={{paddingLeft: 8, paddingRight: 8}}>
           <Fieldset pb="35">
           <Flex align="flex-start" direction="row" gap="md" h={55}>
@@ -1382,11 +1371,11 @@ export default function ProjectDetail() {
                   >
                     Verze komponent
                   </Title>
-                    <ActionIcon
+                    {/*<ActionIcon
                       size="lg"
                       variant="subtle"
                       onClick={openEdit}
-                    ><IconPencil size={16}/></ActionIcon>
+                    ><IconPencil size={16}/></ActionIcon>*/}
                   </Group>
                   <Button
                     mr="sm"

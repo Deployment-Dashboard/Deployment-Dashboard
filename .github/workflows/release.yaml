@@ -5,7 +5,7 @@ on:
     tags:
       - '**'
     branches:
-      - "master"
+      - "action-tests"
 
 jobs:
   release_on_tag:

@@ -1,0 +1,21 @@
+name: release
+
+on:
+  push:
+    tags:
+      - '**'
+
+jobs:
+  release_on_tag:
+    name: Release on tag
+    runs-on: ubuntu
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine Trigger Type
+        id: settriggertype
+        run: |
+          echo "test"

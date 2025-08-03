@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "cz.oksystem"
-version = "0.0.1-SNAPSHOT"
+project.version = System.getenv("releaseAppVersion")?.takeIf { it.isNotBlank() } ?: "DEVELOPMENT"
 
 java {
 	toolchain {

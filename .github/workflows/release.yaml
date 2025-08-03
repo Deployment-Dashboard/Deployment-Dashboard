@@ -19,7 +19,8 @@ jobs:
         id: tag
         run: |
           echo "[debug] TAG RELEASE"
-          if [[ "${{ github.ref_name }}" =~ ^release/(be|fe)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          # if [[ "${{ github.ref_name }}" =~ ^release/(be|fe)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          if [[ "release/be/0.0.1" =~ ^release/(be|fe)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
             APP_TYPE="${BASH_REMATCH[1]}"
             APP_VERSION="${BASH_REMATCH[2]}"
 
@@ -33,3 +34,22 @@ jobs:
           fi
 
         shell: bash
+      - name: setup java
+        uses: ./.github/actions/setup_java
+        with:
+          JAVA_VERSION: 21
+          JAVA_DISTRIBUTION: corretto
+
+      - name: setup gradle
+        uses: ./.github/actions/setup_gradle
+
+      - name: build with Gradle
+        shell: bash
+        run: |
+          echo $JAVA_HOME
+          echo "Run Gradle build"
+          chmod +x gradlew
+
+          ./gradlew clean build
+
+        working-directory: backend/deployment-dashboard

@@ -56,5 +56,7 @@ jobs:
           chmod +x gradlew
 
           ./gradlew clean build
-
+          ls build/distributions
+        env:
+          releaseAppVersion: ${{ steps.tag.outputs.releaseAppVersion }}
         working-directory: backend/deployment-dashboard

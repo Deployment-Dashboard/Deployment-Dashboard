@@ -5,7 +5,7 @@ on:
     tags:
       - '**'
     branches:
-      - "master"
+      - "action-tests"
 
 jobs:
   release_on_tag:
@@ -20,6 +20,7 @@ jobs:
       - name: Tag release
         id: tag
         run: |
+          echo "!"
           echo "[debug] TAG RELEASE"
           # if [[ "${{ github.ref_name }}" =~ ^release/(be|fe)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
           if [[ "release/be/0.0.1" =~ ^release/(be|fe)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then

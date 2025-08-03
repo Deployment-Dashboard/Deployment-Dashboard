@@ -34,14 +34,17 @@ jobs:
           fi
 
         shell: bash
-      - name: setup java
-        uses: ./.github/actions/setup_java
-        with:
-          JAVA_VERSION: 21
-          JAVA_DISTRIBUTION: corretto
 
-      - name: setup gradle
-        uses: ./.github/actions/setup_gradle
+      - name: Set up JDK corretto-21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: corretto
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
+        with:
+          cache-disabled: true
 
       - name: build with Gradle
         shell: bash

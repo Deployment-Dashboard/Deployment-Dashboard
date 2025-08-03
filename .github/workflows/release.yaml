@@ -57,7 +57,15 @@ jobs:
           chmod +x gradlew
 
           ./gradlew clean build
-          ls build/distributions
+          ls ./build/distributions
         env:
           releaseAppVersion: ${{ steps.tag.outputs.releaseAppVersion }}
         working-directory: backend/deployment-dashboard
+
+      - name: build image and push
+        shell: bash
+        run: |
+          imageName="docker.io/m4rtinkalenda/depdash:${{ steps.tag.outputs.releaseAppVersion }}"
+          docker build . -t $imageName
+          docker login -u m4rtinkalenda -p ${{ secrets.DOCKER_PASS }}
+          docker push $imageName

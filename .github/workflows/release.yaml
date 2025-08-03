@@ -15,7 +15,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine Trigger Type
-        id: settriggertype
+      - name: Tag release
+        id: tag
+        if: ${{ steps.settriggertype.outputs.triggerType == 'release' }}
         run: |
-          echo "test"
+          echo "[debug] TAG RELEASE"
+          if [[ "${{ github.ref_name }}" =~ ^release/(.*)/(be|fe)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            APP_NAME="${BASH_REMATCH[1]}"
+            APP_TYPE="${BASH_REMATCH[2]}"
+            APP_VERSION="${BASH_REMATCH[3]}"
+
+            echo "[debug] app_name=$APP_NAME"
+            echo "[debug] type=$APP_TYPE"
+            echo "[debug] releaseAppVersion=$APP_VERSION"
+
+            echo "releaseAppVersion=$APP_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "[error] tag neodpovida povolenemu formatu"
+            exit 1
+          fi
+
+        shell: bash

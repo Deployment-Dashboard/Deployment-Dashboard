@@ -69,3 +69,4 @@ jobs:
           docker build . -t $imageName
           docker login -u m4rtinkalenda -p ${{ secrets.DOCKER_PASS }}
           docker push $imageName
+        working-directory: backend/deployment-dashboard

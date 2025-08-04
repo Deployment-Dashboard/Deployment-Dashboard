@@ -37,20 +37,20 @@ jobs:
         shell: bash
 
       - name: Set up JDK corretto-21
-        if: steps.tag.outputs.appType != 'fe'
+        if: ${{ steps.tag.outputs.appType != 'fe' }}
         uses: actions/setup-java@v4
         with:
           java-version: 21
           distribution: corretto
 
       - name: Setup Gradle
-        if: steps.tag.outputs.appType != 'fe'
+        if: ${{ steps.tag.outputs.appType != 'fe' }}
         uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
         with:
           cache-disabled: true
 
       - name: Build with Gradle
-        if: steps.tag.outputs.appType != 'fe'
+        if: ${{ steps.tag.outputs.appType != 'fe' }}
         shell: bash
         run: |
           echo $JAVA_HOME
@@ -63,7 +63,7 @@ jobs:
         working-directory: backend/deployment-dashboard
 
       - name: Build BE Docker image and push
-        if: steps.tag.outputs.appType != 'fe'
+        if: ${{ steps.tag.outputs.appType != 'fe' }}
         shell: bash
         run: |
           BE_IMAGE="docker.io/m4rtinkalenda/depdash:${{ steps.tag.outputs.releaseAppVersion }}"
@@ -75,13 +75,13 @@ jobs:
         working-directory: backend/deployment-dashboard
 
       - name: Set up Node.js
-        if: steps.tag.outputs.appType != 'be'
+        if: ${{ steps.tag.outputs.appType != 'be' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Build FE Docker image and push
-        if: steps.tag.outputs.appType != 'be'
+        if: ${{ steps.tag.outputs.appType != 'be' }}
         shell: bash
         run: |
           FE_IMAGE="docker.io/m4rtinkalenda/depdash-ui:${{ steps.tag.outputs.releaseAppVersion }}"

@@ -70,7 +70,7 @@ jobs:
           docker build . -t $BE_IMAGE
           docker tag $BE_IMAGE docker.io/m4rtinkalenda/depdash:latest
           docker login -u m4rtinkalenda -p ${{ secrets.DOCKER_PASS }}
-          docker push $BAC
+          docker push $BE_IMAGE
           docker push docker.io/m4rtinkalenda/depdash:latest
         working-directory: backend/deployment-dashboard
 

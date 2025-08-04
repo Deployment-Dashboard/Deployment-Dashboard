@@ -1,0 +1,15 @@
+services:
+  deploydash-ui:
+    image: docker.io/m4rtinkalenda/depdash-ui:latest
+    container_name: deploydash-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - deploydash
+    restart: unless-stopped
+    networks:
+      - deploydash-net
+
+networks:
+  deploydash-net:
+    driver: bridge

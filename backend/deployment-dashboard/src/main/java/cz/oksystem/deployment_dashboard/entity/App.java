@@ -9,8 +9,6 @@ import org.springframework.lang.Nullable;
 import java.time.LocalDateTime;
 import java.util.*;
 
-// TODO PRO CELÝ PROJEKT - custom anotace na kontrolu inicializace a rozchodit Lombok kvůli té kupě getterů
-
 @Entity
 @Table(name = "apps", uniqueConstraints = @UniqueConstraint(columnNames = {"app_key", "archived_timestamp"}))
 public class App {

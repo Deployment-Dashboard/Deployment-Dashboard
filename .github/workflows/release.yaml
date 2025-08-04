@@ -6,8 +6,6 @@ on:
       - 'release/be/*'
       - 'release/fe/*'
       - 'release/full/*'
-    branches:
-      - "action-tests"
 
 jobs:
   release_on_tag:

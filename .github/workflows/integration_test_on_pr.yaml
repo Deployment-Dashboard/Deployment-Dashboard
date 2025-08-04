@@ -13,6 +13,5 @@ jobs:
           fetch-depth: 0
       - name: Run tests
         run: |
-          cd backend
-          ls
+          cd backend/deployment-dashboard
           ./gradlew test

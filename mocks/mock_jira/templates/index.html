@@ -19,26 +19,25 @@
             <p>Více informací a návod k použití naleznete <a href="/readme">zde</a>.</p>
         </div>
         <table class="table">
-            <caption class="table__caption">Tabulka uložených ticketů</caption>
             <thead>
                 <tr>
-                    <th class="table__head-cell table__head-cell--left">Klíč</th>
-                    <th class="table__head-cell table__head-cell--left">Stav</th>
-                    <th class="table__head-cell table__head-cell--left">Potvrzení nasazení</th>
+                    <th class="table__head-cell text-center">Klíč</th>
+                    <th class="table__head-cell table__cell--left-border text-center">Potvrdit nasazení</th>
+                    <th class="table__head-cell table__cell--left-border text-center">Přejít na detail</th>
                 </tr>
             </thead>
             <tbody>
                 {% if tickets|length > 0 %}
                     {% for ticket in tickets %}
-                        <tr>
-                            <td class="table__body-cell">{{ ticket.key }}</td>
-                            <td class="table__body-cell">{{ ticket.status }}</td>
-                            <td class="table__body-cell"><a class="link--white" href="{{ ticket.description|extract_url }}">Potvrdit</a></td>
+                        <tr class="{% if not loop.last %}table__row--bottom-border{% endif %}">
+                            <td class="table__body-cell text-center">{{ ticket.key }}</td>
+                            <td class="table__body-cell table__cell--left-border text-center"><a href="{{ ticket.description|extract_url }}"><button>✓</button></a></td>
+                            <td class="table__body-cell table__cell--left-border text-center"><a href="http://localhost:5000/issues/{{ ticket.key }}"><button>↪</button></a></td>
                         </tr>
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="5" class="table__body-cell table__body-cell--no-records">Žádné tickety k zobrazení.</td>
+                        <td colspan="3" class="table__body-cell table__body-cell--no-records">Žádné tickety k zobrazení.</td>
                     </tr>
                 {% endif %}
             </tbody>

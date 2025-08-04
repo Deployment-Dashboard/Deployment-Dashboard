@@ -1,3 +1,4 @@
+<!-- Detail požadavku -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -5,13 +6,20 @@
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="page">
-<div class="page__container">
-  <div class="page__intro">
-    <h1 class="page__title page__title--primary">Ticket {{ tickets[0].key }}</h1>
-    <h2>{{ tickets[0].summary }}</h2>
-    <p>{{ tickets[0].description }}</p>
-    <p>TODO zbytek stránky</p>
+  <div class="page__container">
+    {% for ticket in tickets %}
+      <div class="page__header padding-top-2em no-bottom-padding">
+        <h1 class="page__title page__title--primary text-center">
+          Ticket <span class="text-uppercase">{{ ticket.key }}</span>
+        </h1>
+        {% if loop.first %}<a href="http://localhost:5000"><button class="page__action-button">❌</button></a>{% endif %}
+      </div>
+      <div class="page__details">
+        <h2 class="no-bottom-padding">{{ ticket.summary }}</h2>
+        <h3>Popis:</h3>
+        <p class="ticket-description page__summary-description">{{ ticket.description | remove_url_from_description }}<br/><a href="{{ ticket.description | extract_url }}">{{ ticket.description | extract_url }}</a></p>
+      </div>
+    {% endfor %}
   </div>
-</div>
 </body>
 </html>

@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public class AppDto {
 
-  // chang
+  // chan
   @NotBlank(message = "Pole 'key' je prázdné.")
   private String key;
 

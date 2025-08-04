@@ -1,9 +1,11 @@
-name: release
+name: Release
 
 on:
   push:
     tags:
-      - '**'
+      - 'release/be/*'
+      - 'release/fe/*'
+      - 'release/full/*'
     branches:
       - "action-tests"
 
@@ -22,34 +24,35 @@ jobs:
         run: |
           echo "!"
           echo "[debug] TAG RELEASE"
-          # if [[ "${{ github.ref_name }}" =~ ^release/(be|fe)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-          if [[ "release/be/0.0.1" =~ ^release/(be|fe)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          if [[ "${{ github.ref_name }}" =~ ^release/(be|fe|full)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
             APP_TYPE="${BASH_REMATCH[1]}"
             APP_VERSION="${BASH_REMATCH[2]}"
 
             echo "[debug] type=$APP_TYPE"
             echo "[debug] releaseAppVersion=$APP_VERSION"
-
+            echo "appType=$APP_TYPE" >> "$GITHUB_OUTPUT"
             echo "releaseAppVersion=$APP_VERSION" >> "$GITHUB_OUTPUT"
           else
             echo "[error] tag neodpovida povolenemu formatu"
             exit 1
           fi
-
         shell: bash
 
       - name: Set up JDK corretto-21
+        if: steps.tag.outputs.appType != 'fe'
         uses: actions/setup-java@v4
         with:
           java-version: 21
           distribution: corretto
 
       - name: Setup Gradle
+        if: steps.tag.outputs.appType != 'fe'
         uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
         with:
           cache-disabled: true
 
-      - name: build with Gradle
+      - name: Build with Gradle
+        if: steps.tag.outputs.appType != 'fe'
         shell: bash
         run: |
           echo $JAVA_HOME
@@ -57,16 +60,54 @@ jobs:
           chmod +x gradlew
 
           ./gradlew clean build
-          ls ./build/distributions
         env:
           releaseAppVersion: ${{ steps.tag.outputs.releaseAppVersion }}
         working-directory: backend/deployment-dashboard
 
-      - name: build image and push
+      - name: Build BE Docker image and push
+        if: steps.tag.outputs.appType != 'fe'
         shell: bash
         run: |
-          imageName="docker.io/m4rtinkalenda/depdash:${{ steps.tag.outputs.releaseAppVersion }}"
-          docker build . -t $imageName
+          BE_IMAGE="docker.io/m4rtinkalenda/depdash:${{ steps.tag.outputs.releaseAppVersion }}"
+          docker build . -t $BE_IMAGE
+          docker tag $BE_IMAGE docker.io/m4rtinkalenda/depdash:latest
           docker login -u m4rtinkalenda -p ${{ secrets.DOCKER_PASS }}
-          docker push $imageName
+          docker push $BAC
+          docker push docker.io/m4rtinkalenda/depdash:latest
         working-directory: backend/deployment-dashboard
+
+      - name: Set up Node.js
+        if: steps.tag.outputs.appType != 'be'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build FE Docker image and push
+        if: steps.tag.outputs.appType != 'be'
+        shell: bash
+        run: |
+          FE_IMAGE="docker.io/m4rtinkalenda/depdash-ui:${{ steps.tag.outputs.releaseAppVersion }}"
+          docker build . -t $FE_IMAGE
+          docker tag $FE_IMAGE docker.io/m4rtinkalenda/depdash-ui:latest
+          docker login -u m4rtinkalenda -p ${{ secrets.DOCKER_PASS }}
+          docker push $FE_IMAGE
+          docker push docker.io/m4rtinkalenda/depdash-ui:latest
+        working-directory: frontend
+
+      - name: Increment versions in compose files
+        shell: bash
+        run: |
+          if [[ "$appType" != "fe" ]]; then
+            APP_NAME="deploydash"
+            echo "appName=$APP_NAME" >> "$GITHUB_OUTPUT"
+          elif [[ "$appType" != "be" ]]; then
+            APP_NAME="deploydash-ui"
+            echo "appName=$APP_NAME" >> "$GITHUB_OUTPUT"
+          fi
+
+          sed -i "s|\(image: docker.io/m4rtinkalenda/${APP_NAME}:\).*|\1${releaseAppVersion}|" "$APP_NAME-compose.yaml"
+
+        env:
+          appType: ${{ steps.tag.outputs.appType }}
+          releaseAppVersion: ${{ steps.tag.outputs.releaseAppVersion }}
+        working-directory: tools/compose

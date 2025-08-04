@@ -3,6 +3,7 @@ import sqlite3
 import re
 
 class JiraMockApp:
+    # inicializuj Flask aplikaci
     def __init__(self):
         self.app = Flask(__name__)
         self.app.config['DATABASE'] = 'jira_mock.db'
@@ -16,17 +17,24 @@ class JiraMockApp:
             if db is not None:
                 db.close()
 
+        # filtr pro extrakci URL z popisu
         @self.app.template_filter('extract_url')
         def extract_url(value):
             return value.split()[-1]
+        
+        # filtr pro odstranění URL z popisu
+        @self.app.template_filter('remove_url_from_description')
+        def remove_url_from_description(value):
+            return value.replace(extract_url(value), '').strip()
 
-
+    # získej databázové připojení
     def get_db(self):
         if 'db' not in g:
             g.db = sqlite3.connect(self.app.config['DATABASE'])
             g.db.row_factory = sqlite3.Row
         return g.db
 
+    # inicializuj databázi
     def init_db(self):
         with sqlite3.connect(self.app.config['DATABASE']) as conn:
             conn.execute('''
@@ -45,15 +53,23 @@ class JiraMockApp:
             ''')
             conn.commit()
 
+    # nastav trasy pro Flask aplikaci
     def setup_routes(self):
         app = self.app
 
+        # domovská stránka
         @app.route('/')
         def index():
             db = self.get_db()
             tickets = db.execute('SELECT * FROM tickets ORDER BY id DESC').fetchall()
             return render_template('index.html', tickets=tickets)
+        
+        # nápověda
+        @app.route('/readme')
+        def readme():
+            return render_template('readme.html')
 
+        # vyhledávání ticketů podle UUID
         @app.route('/issues/')
         def display_ticket_by_uuid():
             jql_query = request.args.get('jql')
@@ -66,27 +82,31 @@ class JiraMockApp:
             db = self.get_db()
             try:
                 tickets = db.execute('SELECT * FROM tickets WHERE description LIKE ?', (pattern,)).fetchall()
+
+
                 if len(tickets) == 1:
-                    return render_template('ticket.html', tickets=tickets, multiple=False)
+                    return render_template('ticket.html', tickets=[tickets])
                 elif len(tickets) > 1:
-                    return render_template('ticket.html', tickets=tickets, multiple=True)
+                    return render_template('ticket.html', tickets=tickets)
                 else:
                     return render_template('error.html', error_message='404 - stránka nenalezena'), 404
             except Exception as e:
                 return render_template('error.html', error_message=f"500 - {str(e)})"), 500
 
+        # vyhledávání ticketů podle klíče
         @app.route('/issues/<key>')
         def display_ticket_by_key(key):
             db = self.get_db()
             try:
                 ticket = db.execute('SELECT * FROM tickets WHERE key = ?', (key,)).fetchone()
                 if ticket:
-                    return render_template('ticket.html', tickets=ticket, multiple=False)
+                    return render_template('ticket.html', tickets=[ticket])
                 else:
                     return render_template('error.html', error_message='404 - stránka nenalezena'), 404
             except Exception as e:
                 return render_template('error.html', error_message=f"500 - {str(e)})"), 500
 
+        # vytvoření nového požadavku
         @app.route('/secure/CreateIssueDetails!init.jspa')
         def add_ticket():
             pid = request.args.get('pid')
@@ -114,6 +134,7 @@ class JiraMockApp:
             except Exception as e:
                 return render_template('error.html', error_message=str(e)), 500
 
+        # error
         @app.errorhandler(404)
         def not_found(e):
             return render_template('error.html', error_message='404 - stránka nenalezena'), 404

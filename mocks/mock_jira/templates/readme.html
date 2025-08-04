@@ -1,0 +1,38 @@
+<!-- Nápověda -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nápověda</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="page">
+    <div class="page__container">
+        <div class="page__header padding-top-2em no-bottom-padding">
+            <h1 class="page__title page__title--primary">Návod k použití aplikace MockJira</h1>
+            <a href="http://localhost:5000"><button class="page__action-button">❌</button></a>
+        </div>
+        <div class="page__intro">
+            <div class="page__details"></div>
+                <p class="text-left">
+                    Aplikace je určená k použití společně s aplikací Deplyoment Dashboard <br/>
+                    a nasazovacími šablonami vygenerovanými pomocí aplikace TemplateGenerator.<br/>
+                    Ze šablon ukládá MockJira data o požadavcích a dále je poskytuje aplikaci Deployment Dashboard.
+                </p>
+                <p class="text-left">
+                    Domovská stránka obsahuje jednoduchou tabulku s požadavky. Ke každému požadavku je evidován unikatní klíč, <br/>
+                    titulek a popis, ve kterém se nachází URL adresa pro potvrzení nasazení.
+                </p class="text-left">
+                    V tabulce jsou pro každý záznam také dvě tlačítka:
+                    <ul class="text-left">
+                        <li><button>✓</button> - přesměruje na stránku pro potvrzení nasazení v aplikaci Deployment Dashboard.</li>
+                        <li class="padding-top-2em"><button>↪</button> - přesměruje na detail požadavku v aplikaci MockJira</li>
+                    </ul>
+                </p>
+                <p class="text-left">
+                    Na stránce s detailem požadavku jsou již zobrazeny všechny informace o požadavku (klíč, titulek a popis)
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

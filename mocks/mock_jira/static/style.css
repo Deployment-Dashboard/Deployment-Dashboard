@@ -1,3 +1,13 @@
+/* externí CSS styly */
+
+button {
+    cursor: pointer;
+}
+
+.dummy-button {
+    pointer-events: none;
+}
+
 .page {
     font-family: sans-serif;
     margin-top: 3em;
@@ -11,57 +21,82 @@
     color: #0052CC;
 }
 .page__container {
-    max-width: 1200px;
+    width: fit-content;
     margin: 0 auto;
     background: white;
     border-radius: 5px;
     padding: 2em;
 }
 .page__intro {
-    text-align: center;
+    text-align: center; 
 }
 .page__intro-highlight {
     font-weight: bolder;
 }
+.page__details {
+    justify-self: center;
+}
+.page__header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+.page__action-button {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
 
-/* Table block */
 .table {
     margin-top: 1.5em;
     border-radius: 5px;
     border-collapse: collapse;
     color: white;
     background-color: #0052CC;
+    width: 50em;
+    margin: auto;
 }
-
-.table__caption {
-    color: black;
-    text-align: left;
-}
-
 .table__head-cell {
     padding: 0.2em;
     border-bottom: 1px solid #c4c8cf;
 }
-
-.table__head-cell--right {
-    border-right: 1px solid #c4c8cf;
-}
-
-.table__head-cell--left {
+.table__cell--left-border {
     border-left: 1px solid #c4c8cf;
 }
-
-.table__body-cell {
-    padding: 0.2em;
-    border-left: 1px solid #c4c8cf;
+.table__row--bottom-border {
     border-bottom: 1px solid #c4c8cf;
 }
-
+.table__body-cell {
+    padding: 0.2em;
+}
 .table__body-cell--no-records {
     padding: 1em;
-    text-align: center;
 }
 
-.link--white {
-  color: white;
+.ticket-description {
+    white-space: pre-wrap;
+}
+
+.text-left {
+    text-align: left;
+}
+.text-center {
+    text-align: center;
+}
+.text-uppercase {
+    text-transform: uppercase;
+}
+
+.hidden {
+    display: none;
+}
+
+.padding-top-2em {
+    padding-top: 0.5em; 
+}
+
+.no-bottom-padding {
+    padding-bottom: 0;
 }

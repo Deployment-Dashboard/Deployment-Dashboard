@@ -26,6 +26,8 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-validation")
   implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
   implementation("org.liquibase:liquibase-core")
+  implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.1.0")
+
 
   // dočasná db
 	runtimeOnly("com.h2database:h2")

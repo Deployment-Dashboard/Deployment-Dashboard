@@ -118,6 +118,6 @@ jobs:
           git commit -m "chore: bump $appName compose version to ${{ steps.tag.outputs.releaseAppVersion }}"
           git push
         env:
-          appName: ${{ steps.compose-increment.outputs.appType }}
+          appName: ${{ steps.compose-increment.outputs.appName }}
         working-directory: tools/compose
 

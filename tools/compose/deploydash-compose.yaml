@@ -1,40 +1,11 @@
 services:
   deploydash:
-    build:
-      context: ../../backend/deployment-dashboard
-      dockerfile: Dockerfile
+    image: docker.io/m4rtinkalenda/depdash:2.2.2
     container_name: deploydash-backend
     ports:
       - "8080:8080"
     volumes:
       - "./db/data:/usr/src/app/db/data"
-    restart: unless-stopped
-    networks:
-      - deploydash-net
-
-  deploydash-ui:
-    build:
-      context: ../../frontend
-      dockerfile: Dockerfile
-    container_name: deploydash-frontend
-    ports:
-      - "3000:3000"
-    depends_on:
-      - deploydash
-    restart: unless-stopped
-    networks:
-      - deploydash-net
-
-  mock-jira:
-    build:
-      context: ../../mocks/mock_jira
-      dockerfile: Dockerfile
-    container_name: mock-jira
-    ports:
-      - "5000:5000"
-    depends_on:
-      - deploydash
-      - deploydash-ui
     restart: unless-stopped
     networks:
       - deploydash-net

@@ -104,8 +104,7 @@ jobs:
             echo "appName=$APP_NAME" >> "$GITHUB_OUTPUT"
           fi
 
-          sed -i "s|\(image: docker.io/m4rtinkalenda/${APP_NAME}:\).*|\1${releaseAppVersion}|" "$APP_NAME-compose.yaml"
-
+          sed -i -E 's|(image:\s*docker\.io/m4rtinkalenda/$APP_NAME:)[^[:space:]]+|\1$releaseAppVersion|' "$APP_NAME-compose.yaml"
         env:
           appType: ${{ steps.tag.outputs.appType }}
           releaseAppVersion: ${{ steps.tag.outputs.releaseAppVersion }}

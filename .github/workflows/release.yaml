@@ -104,7 +104,9 @@ jobs:
             echo "appName=$APP_NAME" >> "$GITHUB_OUTPUT"
           fi
 
-          sed -i -E 's|(image:\s*docker\.io/m4rtinkalenda/$APP_NAME:)[^[:space:]]+|\1$releaseAppVersion|' "$APP_NAME-compose.yaml"
+          sed -i -E 's|(image:\s*docker\.io/m4rtinkalenda/deploydash:)[^[:space:]]+|\1$1.1.1|' "deploydash-compose.yaml"
+
+          cat deploydash-compose.yaml
         env:
           appType: ${{ steps.tag.outputs.appType }}
           releaseAppVersion: ${{ steps.tag.outputs.releaseAppVersion }}
@@ -112,10 +114,8 @@ jobs:
 
       - name: Commit and push updated compose file
         run: |
-          git config --global user.name "github-actions[bot]"
-          git add "$appName-compose.yaml"
-          git commit -m "chore: bump $appName compose version to ${{ steps.tag.outputs.releaseAppVersion }}"
-          git push
+          echo "Commiting"
+          cat deploydash-compose.yaml
         env:
           appName: ${{ steps.compose-increment.outputs.appName }}
         working-directory: tools/compose

@@ -114,8 +114,8 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
-          git add "$APP_NAME-compose.yaml"
-          git commit -m "chore: bump $APP_NAME compose version to ${{ steps.tag.outputs.releaseAppVersion }}"
+          git add "$appName-compose.yaml"
+          git commit -m "chore: bump $appName compose version to ${{ steps.tag.outputs.releaseAppVersion }}"
           git push
         env:
           appName: ${{ steps.compose-increment.outputs.appType }}

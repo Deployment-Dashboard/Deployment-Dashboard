@@ -22,7 +22,7 @@ jobs:
         run: |
           echo "!"
           echo "[debug] TAG RELEASE"
-          if [[ "${{ github.ref_name }}" =~ ^release/(be|fe|full)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          if [[ "${{ github.ref_name }}" =~ ^release/(be|fe)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
             APP_TYPE="${BASH_REMATCH[1]}"
             APP_VERSION="${BASH_REMATCH[2]}"
 
@@ -37,20 +37,20 @@ jobs:
         shell: bash
 
       - name: Set up JDK corretto-21
-        if: ${{ steps.tag.outputs.appType != 'fe' }}
+        if: ${{ steps.tag.outputs.appType == 'be' }}
         uses: actions/setup-java@v4
         with:
           java-version: 21
           distribution: corretto
 
       - name: Setup Gradle
-        if: ${{ steps.tag.outputs.appType != 'fe' }}
+        if: ${{ steps.tag.outputs.appType == 'be' }}
         uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
         with:
           cache-disabled: true
 
       - name: Build with Gradle
-        if: ${{ steps.tag.outputs.appType != 'fe' }}
+        if: ${{ steps.tag.outputs.appType == 'be' }}
         shell: bash
         run: |
           echo $JAVA_HOME
@@ -63,7 +63,7 @@ jobs:
         working-directory: backend/deployment-dashboard
 
       - name: Build BE Docker image and push
-        if: ${{ steps.tag.outputs.appType != 'fe' }}
+        if: ${{ steps.tag.outputs.appType == 'be' }}
         shell: bash
         run: |
           BE_IMAGE="docker.io/m4rtinkalenda/depdash:${{ steps.tag.outputs.releaseAppVersion }}"
@@ -75,13 +75,13 @@ jobs:
         working-directory: backend/deployment-dashboard
 
       - name: Set up Node.js
-        if: ${{ steps.tag.outputs.appType != 'be' }}
+        if: ${{ steps.tag.outputs.appType == 'fe' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Build FE Docker image and push
-        if: ${{ steps.tag.outputs.appType != 'be' }}
+        if: ${{ steps.tag.outputs.appType == 'fe' }}
         shell: bash
         run: |
           FE_IMAGE="docker.io/m4rtinkalenda/depdash-ui:${{ steps.tag.outputs.releaseAppVersion }}"
@@ -93,12 +93,13 @@ jobs:
         working-directory: frontend
 
       - name: Increment versions in compose files
+        id: compose-increment
         shell: bash
         run: |
-          if [[ "$appType" != "fe" ]]; then
+          if [[ "$appType" == "be" ]]; then
             APP_NAME="deploydash"
             echo "appName=$APP_NAME" >> "$GITHUB_OUTPUT"
-          elif [[ "$appType" != "be" ]]; then
+          else
             APP_NAME="deploydash-ui"
             echo "appName=$APP_NAME" >> "$GITHUB_OUTPUT"
           fi
@@ -109,3 +110,15 @@ jobs:
           appType: ${{ steps.tag.outputs.appType }}
           releaseAppVersion: ${{ steps.tag.outputs.releaseAppVersion }}
         working-directory: tools/compose
+
+      - name: Commit and push updated compose file
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add "$APP_NAME-compose.yaml"
+          git commit -m "chore: bump $APP_NAME compose version to ${{ steps.tag.outputs.releaseAppVersion }}"
+          git push
+        env:
+          appName: ${{ steps.compose-increment.outputs.appType }}
+        working-directory: tools/compose
+

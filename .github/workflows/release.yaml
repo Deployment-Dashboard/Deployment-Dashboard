@@ -5,7 +5,8 @@ on:
     tags:
       - 'release/be/*'
       - 'release/fe/*'
-
+permissions:
+  contents: write 
 jobs:
   release_on_tag:
     name: Release on tag
@@ -112,7 +113,6 @@ jobs:
 
       - name: Commit and push updated compose file
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git add "$appName-compose.yaml"
           git commit -m "chore: bump $appName compose version to ${{ steps.tag.outputs.releaseAppVersion }}"

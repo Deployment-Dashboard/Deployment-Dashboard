@@ -5,7 +5,6 @@ on:
     tags:
       - 'release/be/*'
       - 'release/fe/*'
-      - 'release/full/*'
 
 jobs:
   release_on_tag:

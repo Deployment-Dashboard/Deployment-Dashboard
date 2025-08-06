@@ -1,11 +1,6 @@
-Tento repozitář slouží k vyzkoušení implementovaných GitHub Actions v rámci bakalářské práce <b>Continuous Integration/Continuous Delivery a webová aplikace pro evidenci nasazených verzí napříč různými prostředími</b>.
+<p>Tento repozitář slouží k vyzkoušení implementovaných GitHub Actions v rámci bakalářské práce <b>Continuous Integration/Continuous Delivery a webová aplikace pro evidenci nasazených verzí napříč různými prostředími</b>.</p>
 
-<h2>Prerekvizity pro operační systém Windows 10/11:</h2>
-<ol>
-  <li>Připojení k internetu</li>
-  <li>Nainstalovaný <a href="https://git-scm.com/downloads/win">git</a></li>
-  <li>Naklonovaný repozitář – ve Windows Powershell příkazem:<br/><code>git clone "https://github.com/Deployment-Dashboard/Deployment-Dashboard.git"</code></li>
-</ol>
+Předpokládá se, že uživatel provedl instalaci nástroje git a jeho prvotní konfiguraci, jak je popsáno v souboru README.txt v elektronické příloze bakalářské práce, a naklonoval si tento repozitář.
 
 <h2>Continuous Integration</h2>
 
@@ -27,7 +22,7 @@ Tento repozitář slouží k vyzkoušení implementovaných GitHub Actions v rá
       </li>
       <li>
         <p>
-          Provedeme změny v kódu (např. přidáme komentář – <code>//</code>) do souboru:
+          V libovolném textovém editoru provedeme změny v kódu (např. přidáme komentář – <code>//</code>) do souboru:
           <code>Deployment-Dashboard\backend\deployment-dashboard\src\main\java\cz\oksystem\deployment_dashboard\dto\EnvironmentDto.java</code> na řádek <code>4</code>:<br/>
         </p>
         <p>před:</p>
@@ -94,7 +89,7 @@ Tento repozitář slouží k vyzkoušení implementovaných GitHub Actions v rá
     </ol>
     <h2>Continuous Delivery</h2>
     <p>Pipeline Release se spouští po vytvoření tzv. tagu. Tagy slouží k označení významých commitů, jako jsou například nové verze.</p>
-    <p>Abychom pipile spustili, musíme provést následující kroky:</p>
+    <p>Abychom pipeline spustili, musíme provést následující kroky:</p>
     <ol>
       <li>
         <p>

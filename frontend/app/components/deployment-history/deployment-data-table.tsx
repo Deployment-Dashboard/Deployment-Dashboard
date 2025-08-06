@@ -218,7 +218,7 @@ export default function DeploymentDataTable({
             })
           ) : "-"
         ),
-        filter: ({close}) => (
+        filter: ({close}) => ( records.length > 0 ? (
           <Stack>
             <DatePicker
               locale="cs"
@@ -239,7 +239,7 @@ export default function DeploymentDataTable({
               Zrušit výběr
             </Button>
           </Stack>
-        ),
+        ) : "Nejsou záznamy k filtrování." ),
         filtering: deployedAtSearchRange && deployedAtSearchRange[0] instanceof Date && deployedAtSearchRange[1] instanceof Date,
       },
       {
@@ -248,7 +248,7 @@ export default function DeploymentDataTable({
         width: 200,
         render: (row) => row.appKey.toUpperCase(),
         sortable: true,
-        filter: ({close}) => (
+        filter: ({close}) => ( records.length > 0 ? (
           <Stack w={measuredWidth - 50} gap="xs">
             <Text fw={500}>
               Vyberte aplikace, které chcete zobrazit:
@@ -344,7 +344,7 @@ export default function DeploymentDataTable({
               Zrušit výběr
             </Button>
           </Stack>
-        ),
+        ) : "Nejsou záznamy k filtrování." ),
         filtering: apps.some((value) => value?.checked)
       },
       {
@@ -358,7 +358,7 @@ export default function DeploymentDataTable({
         width: 200,
         sortable: true,
         render: (row) => row.environmentName.toUpperCase(),
-        filter: ({close}) => (
+        filter: ({close}) => ( records.length > 0 ? (
           <Stack >
             <Text fw={500}>
               Vyberte prostředí, která chcete zobrazit:
@@ -386,7 +386,7 @@ export default function DeploymentDataTable({
               Zrušit výběr
             </Button>
           </Stack>
-        ),
+        ) : "Nejsou záznamy k filtrování." ),
         filtering: selectedEnvironments.length !== 0
       },
       {
@@ -394,7 +394,7 @@ export default function DeploymentDataTable({
         title: <span style={{userSelect: 'none'}}>Verze</span>,
         width: 150,
         sortable: true,
-        filter: ({close}) => (
+        filter: ({close}) => ( records.length > 0 ? (
           <Stack w={measuredWidth - 50} gap="xs">
             <Text fw={500}>
               Vyberte verze, které chcete zobrazit:
@@ -570,7 +570,7 @@ export default function DeploymentDataTable({
               Zrušit výběr
             </Button>
           </Stack>
-        ),
+        ) : "Nejsou záznamy k filtrování." ),
         render: (row) => {
           const key = makeKey(row);
           const edited = editedVersions[key];

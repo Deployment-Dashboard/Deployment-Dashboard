@@ -18,3 +18,8 @@
   border-color: light-dark(var(--mantine-color-gray-4), var(--mantine-color-gray-7));
   pointer-events: none;
 }
+
+.mantine-Table-th.mantine-datatable-header-cell-sortable:hover {
+  background-color: #006d1b !important;
+  cursor: pointer;
+}

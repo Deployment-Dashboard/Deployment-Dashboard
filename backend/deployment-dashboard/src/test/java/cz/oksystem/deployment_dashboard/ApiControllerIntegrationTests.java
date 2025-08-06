@@ -90,6 +90,7 @@ class ApiControllerIntegrationTests {
   // verify that empty JSON gets rejected
   @Test
   void addEmptyJsonFails() throws Exception {
+    Assertions.assertTrue(false);
     AppDto appDto = new AppDto();
 
     mockMvc.perform(

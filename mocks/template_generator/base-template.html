@@ -33,19 +33,21 @@
             </div>
         </div>
         <!-- pro každou komponentu vytvoř checkbox s textovým vstupem -->
-        {% for type, items in components.items() %}
-            <div class="component-section">
-                <h2>{{ component_names.get(type, type) }}</h2>
-                <div class="checklist-container">
-                    {% for item in items %}
-                    <label>
-                        <input type="checkbox" name="{{ item.key }}"> {{ item.name }}
-                        <input type="text" placeholder="X.X.X" style="margin-left: 10px;">
-                    </label>
-                    {% endfor %}
+        {% if components is defined and iterable %}
+            {% for type, items in components.items() %}
+                <div class="component-section">
+                    <h2>{{ component_names.get(type, type) }}</h2>
+                    <div class="checklist-container">
+                        {% for item in items %}
+                        <label>
+                            <input type="checkbox" name="{{ item.key }}"> {{ item.name }}
+                            <input type="text" placeholder="X.X.X" style="margin-left: 10px;">
+                        </label>
+                        {% endfor %}
+                    </div>
                 </div>
-            </div>
-        {% endfor %}
+            {% endfor %}
+        {% endif %}
         <!-- pro každé prostředí vytvoř tlačítko -->
         <div class="submit-buttons">
             {% for env in envs %}

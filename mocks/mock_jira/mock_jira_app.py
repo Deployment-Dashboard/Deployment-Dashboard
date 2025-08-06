@@ -21,7 +21,7 @@ class JiraMockApp:
         @self.app.template_filter('extract_url')
         def extract_url(value):
             return value.split()[-1]
-        
+
         # filtr pro odstranění URL z popisu
         @self.app.template_filter('remove_url_from_description')
         def remove_url_from_description(value):
@@ -63,7 +63,7 @@ class JiraMockApp:
             db = self.get_db()
             tickets = db.execute('SELECT * FROM tickets ORDER BY id DESC').fetchall()
             return render_template('index.html', tickets=tickets)
-        
+
         # nápověda
         @app.route('/readme')
         def readme():
@@ -83,10 +83,7 @@ class JiraMockApp:
             try:
                 tickets = db.execute('SELECT * FROM tickets WHERE description LIKE ?', (pattern,)).fetchall()
 
-
-                if len(tickets) == 1:
-                    return render_template('ticket.html', tickets=[tickets])
-                elif len(tickets) > 1:
+                if len(tickets) > 0:
                     return render_template('ticket.html', tickets=tickets)
                 else:
                     return render_template('error.html', error_message='404 - stránka nenalezena'), 404

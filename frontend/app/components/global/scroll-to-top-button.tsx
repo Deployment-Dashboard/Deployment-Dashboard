@@ -2,6 +2,10 @@ import {useWindowScroll} from "@mantine/hooks";
 import {Button} from "@mantine/core";
 import {IconChevronUp} from "@tabler/icons-react"
 
+//
+// Tlačítko pro vyscrollování na začátek stránky
+//
+
 export default function ScrollToTopButton() {
   const [scroll, scrollTo] = useWindowScroll();
 

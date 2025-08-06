@@ -262,10 +262,30 @@ public class ServiceOrchestrator {
     return detailDtos;
   }
 
+  @Transactional
+  public void newVersion(String appKey, VersionDto versionDto) {
+    App fetchedApp = appService.get(appKey).orElseThrow(
+      () -> new CustomExceptions.NotManagedException(App.CZECH_NAME, appKey)
+    );
+
+    if (versionService.exists(appKey, versionDto.getName())) {
+      return;
+    }
+
+    versionService.save(new Version(fetchedApp, versionDto.getName(), versionDto.getDescription()));
+  }
+
+  @Transactional
+  public void deleteVersion(String appKey, String versionName, boolean force) {
+    versionService.delete(appKey, versionName, force);
+  }
+
+  @Transactional
   public void updateVersion(String appKey, String versionName, VersionDto versionDto) {
     versionService.update(appKey, versionName, versionDto);
   }
 
+  @Transactional
   public void deleteDeployment(String appKey, String envKey, String versionName) {
     deploymentService.delete(appKey, envKey, versionName);
   }

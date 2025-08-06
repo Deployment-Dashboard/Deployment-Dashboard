@@ -193,12 +193,13 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
       })
 
       // obnovení formuláře, refresh stránky
+      onClose();
       form.reset();
+      setProject({key: "", name: ""})
       setEnvironments([]);
       setComponents([]);
 
       await revalidate();
-      onClose();
     } catch (error) {
       console.error("Caught error: ", error);
       notifications.show({
@@ -210,6 +211,7 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
     }
   };
 
+  // formulář
   const form = useForm({
     mode: 'uncontrolled',
     validateInputOnChange: true,
@@ -231,6 +233,7 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
           ? 'Klíč projektu je stejný jako klíč některé z komponent.' : null),
     },
 
+    // transformace hodnot před submit
     transformValues: (values) => ({
       key: values.key.toLowerCase(),
       name: values.name,
@@ -444,7 +447,7 @@ export default function ModalAddProject({opened: opened, onClose: onClose}) {
                   handleAddComponent();
                 }
               }}
-              description={components.some(component =>
+              description={inputComponentKey.trim() && components.some(component =>
                 equalsCaseInsensitive(component.key, inputComponentKey))
                 ? <Group gap={"6"} c={"yellow"}><IconInfoCircle size={16}/>Komponenta s tímto klíčem už je evidována.</Group>
                 : form.getValues().key.trim() && equalsCaseInsensitive(form.getValues().key, inputComponentKey)

@@ -49,9 +49,9 @@ export default function Projects() {
         </Group>
 
         <ContentContainer>
-          {overviews.length ? (
+          {overviews && overviews?.length ? (
             <Grid align="stretch" gutter="lg">
-              {overviews.map((overview) => (
+              {overviews?.map((overview) => (
                 <Grid.Col key={overview.key} span="content">
                   <ProjectCard data={overview}/>
                 </Grid.Col>

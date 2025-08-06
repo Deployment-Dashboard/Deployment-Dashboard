@@ -23,6 +23,7 @@ import PopUpFilters from "~/components/deployment-history/pop-up-filters";
 import PopUpFiltersMeasurer from "~/components/deployment-history/pop-up-filters-measurer";
 import DeploymentDataTable from "~/components/deployment-history/deployment-data-table";
 import {NotificationData, notifications} from "@mantine/notifications";
+import {ErrorBody} from "~/types";
 
 
 //
@@ -54,7 +55,7 @@ export default function DeploymentHistory() {
   const deployments = data.deployments
   const details = data.detailsOfAllApps;
 
-  // status třídění pro DataTable
+  // třídění pro DataTable
   const [sortStatus, setSortStatus] = useState<DataTableSortStatus>({
     columnAccessor: 'deployedAt',
     direction: 'desc',
@@ -171,12 +172,14 @@ export default function DeploymentHistory() {
   // změněné verze
   const [editedVersions, setEditedVersions] = useState({});
 
+  // jedna verze ke smazání
   const [singleDelete, setSingleDelete] = useState("");
 
   //
   // DATA/STATE HANDLING & SUBMIT
   //
 
+  // odeslání požadavků na úpravu verzí
   const handleSubmitVersions = async () => {
     const putOptions = {
       method: 'PUT',
@@ -187,7 +190,7 @@ export default function DeploymentHistory() {
     let response;
 
     for (const editedVersionKey of Object.keys(editedVersions)) {
-      const {appKey, environmentName, versionName} = JSON.parse(editedVersionKey);
+      const {appKey, _, versionName} = JSON.parse(editedVersionKey);
       const editedVersion = editedVersions[editedVersionKey];
 
       putOptions.body = JSON.stringify({name: editedVersion.newVersionName ?? versionName, description: editedVersion.newVersionDescription});
@@ -211,9 +214,10 @@ export default function DeploymentHistory() {
       } as NotificationData)
     }
     setIsEditable(false);
-    revalidator.revalidate();
+    await revalidator.revalidate();
   }
 
+  // mazání verzí
   const handleDeleteVersions = async () => {
     const deleteOptions = {
       method: 'DELETE',
@@ -227,13 +231,21 @@ export default function DeploymentHistory() {
       try {
         response = await fetch(`${BROWSER_API_URL}/apps/${appKey}/envs/${environmentName}/versions/${versionName}/deployment`, deleteOptions);
         if (!response.ok) {
+          const error: ErrorBody = await response.json();
           notifications.show({
             color: "red",
-            title: `Nepodařilo se smazat nasazení ${record.appKey}:${record.environmentName}:v${record.versionName} zaevidovaného ${record.deployedAt}.`,
-            message: "Nastala neočekávaná chyba.",
+            title: `Nepodařilo se smazat nasazení ${appKey}:${environmentName}:v${versionName}.`,
+            message: error.details,
             position: "top-center",
           } as NotificationData)
         } else {
+          const deletedKey = singleDelete;
+          setEditedVersions(prev => {
+            const next = { ...prev };
+            delete next[deletedKey];
+            return next;
+          });
+
           notifications.show({
             color: "green",
             title: "Smazání nasazení proběhlo úspěšně!",
@@ -253,13 +265,25 @@ export default function DeploymentHistory() {
         try {
           response = await fetch(`${BROWSER_API_URL}/apps/${record.appKey}/envs/${record.environmentName}/versions/${record.versionName}/deployment`, deleteOptions);
           if (!response.ok) {
+            const error: ErrorBody = await response.json();
             notifications.show({
               color: "red",
               title: `Nepodařilo se smazat nasazení ${record.appKey}:${record.environmentName}:v${record.versionName} zaevidovaného ${record.deployedAt}.`,
-              message: "Nastala neočekávaná chyba.",
+              message: error.details,
               position: "top-center",
             } as NotificationData)
             break;
+          } else {
+            const deletedKey = JSON.stringify({
+              appKey: record.appKey,
+              environmentName: record.environmentName,
+              versionName: record.versionName
+            });
+            setEditedVersions(prev => {
+              const next = { ...prev };
+              delete next[deletedKey];
+              return next;
+            });
           }
         } catch (error) {
           notifications.show({
@@ -278,14 +302,13 @@ export default function DeploymentHistory() {
     }
     setSelectedRecords([]);
     setSingleDelete("")
-    revalidator.revalidate();
+    await revalidator.revalidate();
   }
 
   const resetVersionChanges = () => {
     setEditedVersions({});
     setSelectedRecords([]);
     setSingleDelete("");
-    setIsEditable(false);
   }
 
   //
@@ -312,11 +335,13 @@ export default function DeploymentHistory() {
   // USE EFFECTS
   //
 
+  // při změně details nastav versions a apps
   useEffect(() => {
     versionHandlers.setState(initializeVersionValues(details))
     appHandlers.setState(initializeAppValues(details))
   }, [details])
 
+  // při změně deployments nastav records a setřiď podle data nasazení
   useEffect(() => {
     setRecords(sortBy(deployments, 'deployedAt'));
   }, [deployments]);
@@ -416,21 +441,31 @@ export default function DeploymentHistory() {
         closeButtonProps={{icon: <IconX color="red"/>, variant: "subtle", color: "gray"}}
         onClose={closeModal}>
         <Text mt="lg">
-          Prosím potvrďte akci.
+          { modalType === 'delete-one' || modalType === 'delete-many' ? "Tato akce je nevratná" : "Prosím potvrďte akci."}
         </Text>
         <Group justify="flex-end" pt="xl">
           <Button
-            color="green"
-            rightSection={<IconCheck size={16}/>}
+            variant="light"
+            color="gray"
+            rightSection={<IconX size={16}/>}
+            onClick={closeModal}
+          >
+            Zrušit akci
+          </Button>
+          <Button
+            color={ modalType === 'delete-one' || modalType === 'delete-many' ? "red" : "green" }
+            rightSection={ modalType === 'delete-one' || modalType === 'delete-many' ? <IconTrash size={16}/> : <IconCheck size={16}/>}
             onClick={() => {
               switch (modalType) {
                 case 'cancel':
                     resetVersionChanges();
                     closeModal();
+                    setIsEditable(false);
                   break;
                 case 'confirm':
                     handleSubmitVersions();
                     closeModal();
+                    setIsEditable(false);
                   break;
                 case 'delete-one':
                     handleDeleteVersions();
@@ -445,14 +480,7 @@ export default function DeploymentHistory() {
           >
             Povrdit
           </Button>
-          <Button
-            variant="light"
-            color="gray"
-            rightSection={<IconArrowBackUp size={16}/>}
-            onClick={closeModal}
-          >
-            Zpět
-          </Button>
+
         </Group>
       </Modal>
       <div style={{display: "flex", flexDirection: "column", gap: "10px"}}>
@@ -551,7 +579,7 @@ export default function DeploymentHistory() {
                     variant="light"
                     size="xl"
                     onClick={() => {
-                      if (Object.keys(editedVersions).length) {
+                      if (Object.keys(editedVersions).length > 0) {
                         setModalType('cancel');
                         openModal()
                       } else {

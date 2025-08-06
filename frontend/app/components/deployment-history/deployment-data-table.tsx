@@ -149,14 +149,12 @@ export default function DeploymentDataTable({
     versionName: row.versionName,
   });
 
-  // For filtering Apps componentGroups
+  // proměnné pro srolovatelné částí
   const [openedComponentGroups, setOpenedComponentGroups] = useState({});
-  // For filtering Versions top-level groups
   const [openedVersionGroups, setOpenedVersionGroups] = useState({});
-  // For filtering Versions second-level components inside versionGroups
   const [openedVersionComponents, setOpenedVersionComponents] = useState({});
 
-  // Helpers for toggling open states
+  // funkce pro ovládání srolovatelných částí
   const toggleComponentGroup = (key) => {
     setOpenedComponentGroups((prev) => ({
       ...prev,
@@ -598,10 +596,10 @@ export default function DeploymentDataTable({
           const key = makeKey(row);
           const edited = editedVersions[key];
 
-          if (!isEditable) return row.versionDescription ?? "";
-
           return (
             <Textarea
+              readOnly={!isEditable}
+              variant={isEditable ? "default" : "unstyled"}
               maxLength={1024}
               value={edited?.newVersionDescription ?? row.versionDescription ?? ""}
               onChange={(e) => handleEditChange(row, "newVersionDescription", e.currentTarget.value)}
@@ -611,7 +609,7 @@ export default function DeploymentDataTable({
       },
       {
         accessor: 'actions',
-        title: <IconMenu2 style={{justifySelf: "center"}}>Akce</IconMenu2>,
+        title: <IconMenu2 style={{justifySelf: "center"}}/>,
         width: 160,
         render: (row) => (
           <Group m="auto" justify="center">

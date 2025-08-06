@@ -92,31 +92,3 @@ jobs:
           docker push docker.io/m4rtinkalenda/depdash-ui:latest
         working-directory: frontend
 
-      - name: Increment versions in compose files
-        id: compose-increment
-        shell: bash
-        run: |
-          if [[ "$appType" == "be" ]]; then
-            APP_NAME="deploydash"
-            echo "appName=$APP_NAME" >> "$GITHUB_OUTPUT"
-          else
-            APP_NAME="deploydash-ui"
-            echo "appName=$APP_NAME" >> "$GITHUB_OUTPUT"
-          fi
-
-          sed -i -E 's|(image:\s*docker\.io/m4rtinkalenda/deploydash:)[^[:space:]]+|\1$1.1.1|' "deploydash-compose.yaml"
-
-          cat deploydash-compose.yaml
-        env:
-          appType: ${{ steps.tag.outputs.appType }}
-          releaseAppVersion: ${{ steps.tag.outputs.releaseAppVersion }}
-        working-directory: tools/compose
-
-      - name: Commit and push updated compose file
-        run: |
-          echo "Commiting"
-          cat deploydash-compose.yaml
-        env:
-          appName: ${{ steps.compose-increment.outputs.appName }}
-        working-directory: tools/compose
-

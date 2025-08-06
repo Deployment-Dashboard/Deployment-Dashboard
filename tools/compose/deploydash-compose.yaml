@@ -1,6 +1,6 @@
 services:
   deploydash:
-    image: docker.io/m4rtinkalenda/depdash:2.2.2
+    image: docker.io/m4rtinkalenda/depdash:latest
     container_name: deploydash-backend
     ports:
       - "8080:8080"

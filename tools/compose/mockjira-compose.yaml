@@ -1,0 +1,13 @@
+services:
+  mock-jira:
+    image: docker.io/m4rtinkalenda/mock-jira:latest
+    container_name: mock-jira
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    networks:
+      - deploydash-net
+
+networks:
+  deploydash-net:
+    driver: bridge

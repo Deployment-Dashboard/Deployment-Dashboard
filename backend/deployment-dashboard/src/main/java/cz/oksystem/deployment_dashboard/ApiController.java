@@ -197,6 +197,37 @@ class ApiController {
   // VERSIONS
   //
 
+  // nova verze
+  @PostMapping(path = "/apps/{appKey}/versions", consumes = "application/json")
+  @ResponseStatus(value = HttpStatus.OK)
+  void updateVersion(@PathVariable("appKey") String appKey,
+                     @Valid @RequestBody VersionDto versionDto,
+                     BindingResult result) {
+    try {
+      if (result.hasErrors()) {
+        throw new HttpMessageConversionException(getBindingResultErrorMessage(result));
+      }
+      serviceOrchestrator.newVersion(appKey, versionDto);
+    } catch (HttpMessageConversionException
+             | CustomExceptions.NotManagedException ex) {
+      throw new CustomExceptions.EntityAdditionException(Version.CZECH_NAME, versionDto.getName() == null ? "" : versionDto.getName(), ex);
+    }
+  }
+
+  // delete verze
+  @DeleteMapping(path = "/apps/{key}/versions/{versionName}")
+  @ResponseStatus(value = HttpStatus.OK)
+  void deleteVersion(@PathVariable("key") String appKey,
+                    @PathVariable("versionName") String versionName,
+                    @RequestParam(value = "force", required = false) boolean force) {
+    try {
+      serviceOrchestrator.deleteVersion(appKey, versionName, force);
+    } catch (CustomExceptions.NotManagedException
+             | CustomExceptions.DeletionNotAllowedException ex) {
+      throw new CustomExceptions.EntityDeletionOrArchivationException(Version.CZECH_NAME, versionName, ex);
+    }
+  }
+
   // update verze
   @PutMapping(path = "/apps/{appKey}/versions/{versionName}", consumes = "application/json")
   @ResponseStatus(value = HttpStatus.OK)

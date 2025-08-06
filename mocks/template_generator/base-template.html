@@ -33,7 +33,7 @@
             </div>
         </div>
         <!-- pro každou komponentu vytvoř checkbox s textovým vstupem -->
-        {% if components is defined and iterable %}
+        {% if components is defined %}
             {% for type, items in components.items() %}
                 <div class="component-section">
                     <h2>{{ component_names.get(type, type) }}</h2>

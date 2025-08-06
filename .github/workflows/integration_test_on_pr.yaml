@@ -2,6 +2,7 @@ name: CI
 
 on: [pull_request]
 
+
 jobs:
   release_on_tag:
     name: Release on tag

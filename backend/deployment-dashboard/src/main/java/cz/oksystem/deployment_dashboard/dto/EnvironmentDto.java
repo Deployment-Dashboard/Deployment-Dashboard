@@ -1,7 +1,7 @@
 package cz.oksystem.deployment_dashboard.dto;
 
 import jakarta.validation.constraints.NotBlank;
-
+//
 public class EnvironmentDto {
 
   @NotBlank(message = "Pole 'name' je prázdné.")

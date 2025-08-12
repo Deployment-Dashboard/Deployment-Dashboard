@@ -4,10 +4,10 @@ Předpokládá se, že uživatel provedl instalaci nástroje git a jeho prvotní
 
 Pro přístup přes GitHub.com použijte administrátorský účet:
 
-deploydash-admin@seznam.cz
-kEjoGfdH3nyfHDgys7z#
+<code>deploydash-admin@seznam.cz</code>
+<code>kEjoGfdH3nyfHDgys7z#</code>
 
-Přístupové údaje do emailové schránky jsou totožné.
+<p>Přístupové údaje do emailové schránky jsou totožné.</p>
 
 <h2>Continuous Integration</h2>
 

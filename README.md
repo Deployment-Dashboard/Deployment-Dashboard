@@ -2,6 +2,13 @@
 
 Předpokládá se, že uživatel provedl instalaci nástroje git a jeho prvotní konfiguraci, jak je popsáno v souboru README.txt v elektronické příloze bakalářské práce, a naklonoval si tento repozitář.
 
+Pro přístup přes GitHub.com použijte administrátorský účet:
+
+deploydash-admin@seznam.cz
+kEjoGfdH3nyfHDgys7z#
+
+Přístupové údaje do emailové schránky jsou totožné.
+
 <h2>Continuous Integration</h2>
 
 <p>Pipeline CI se spouští po vytvoření pull requestu, pro otestování tedy musíme vytvořit lokálně novou větev:</p>

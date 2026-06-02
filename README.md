@@ -2,10 +2,10 @@
 
 Předpokládá se, že uživatel provedl instalaci nástroje git a jeho prvotní konfiguraci, jak je popsáno v souboru README.txt v elektronické příloze bakalářské práce, a naklonoval si tento repozitář.
 
-Pro přístup přes GitHub.com použijte administrátorský účet:
+~~Pro přístup přes GitHub.com použijte administrátorský účet:~~
 
-<code>deploydash-admin@seznam.cz</code>
-<code>kEjoGfdH3nyfHDgys7z#</code>
+~~<code>deploydash-admin@seznam.cz</code>~~
+~~<code>kEjoGfdH3nyfHDgys7z#</code>~~
 
 <p>Přístupové údaje do emailové schránky jsou totožné.</p>
 
